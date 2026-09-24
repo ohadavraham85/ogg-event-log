@@ -12,7 +12,7 @@
 | `app.js` | כל הלוגיקה (ראו פירוט בהמשך). |
 | `manifest.webmanifest` | הגדרות ההתקנה כ-PWA: שם, צבעים, אייקונים, `dir: rtl`. |
 | `sw.js` | Service worker — מאפשר פתיחה בלי רשת. |
-| `icons/` | אייקונים: `icon.svg`, `icon-192.png`, `icon-512.png`, `icon-maskable-512.png` (רקע מלא, לאנדרואיד). |
+| `icons/` | אייקונים מהסמל של מבט"י: `icon-192.png`, `icon-512.png`, `icon-maskable-512.png` (שוליים רחבים יותר, לאנדרואיד), `favicon-64.png`. הלוגו המקורי המלא (כולל הכיתוב): `logo-mabatei.png`. |
 
 ### מה יש ב-`app.js`
 
