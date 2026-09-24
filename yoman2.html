@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>יומן אירועים — מט"ש אוג</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EDEFF1; --panel:#FFFFFF; --panel-2:#F4F6F8; --edge:#C9D1D8; --edge-2:#DCE3E8;
+  --ink:#16202A; --ink-2:#566877; --ink-3:#8494A1;
+  --water:#0E7C86; --water-soft:#D6EDEF;
+  --fault:#B8352F; --fault-soft:#F8E0DE;
+  --alarm:#8F5A06; --alarm-soft:#FBEBCF;
+  --shadow:0 2px 6px rgba(22,32,42,.09);
+  --sheet:#FFFFFF;
+  --c-fault:#D6342C; --c-fault-bg:#FDE6E4;
+  --c-maint:#0B6FB8; --c-maint-bg:#DDEDFA;
+  --c-flood:#C2721A; --c-flood-bg:#FBEBD7;
+  --c-power:#7A3FB5; --c-power-bg:#EEE3FA;
+  --c-visit:#1C7A46; --c-visit-bg:#DDF2E5;
+  --c-gen:#4A5A6A;  --c-gen-bg:#E6EBEF;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E161C; --panel:#17222B; --panel-2:#1D2A34; --edge:#2C3E4C; --edge-2:#233240;
+    --ink:#E4ECF2; --ink-2:#9BAEBD; --ink-3:#71879A;
+    --water:#41BDB4; --water-soft:#0F3038;
+    --fault:#E97970; --fault-soft:#3B1F1E;
+    --alarm:#E5A93F; --alarm-soft:#392A10;
+    --shadow:0 2px 8px rgba(0,0,0,.35); --sheet:#17222B;
+    --c-fault:#FF8177; --c-fault-bg:#3D1C1A;
+    --c-maint:#5FB4F2; --c-maint-bg:#0F2B3F;
+    --c-flood:#F0AE55; --c-flood-bg:#3A2A11;
+    --c-power:#B98BEA; --c-power-bg:#2A1C3D;
+    --c-visit:#5FCB8C; --c-visit-bg:#12301F;
+    --c-gen:#9FB3C2;  --c-gen-bg:#22303B;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E161C; --panel:#17222B; --panel-2:#1D2A34; --edge:#2C3E4C; --edge-2:#233240;
+  --ink:#E4ECF2; --ink-2:#9BAEBD; --ink-3:#71879A;
+  --water:#41BDB4; --water-soft:#0F3038;
+  --fault:#E97970; --fault-soft:#3B1F1E;
+  --alarm:#E5A93F; --alarm-soft:#392A10;
+  --shadow:0 2px 8px rgba(0,0,0,.35); --sheet:#17222B;
+  --c-fault:#FF8177; --c-fault-bg:#3D1C1A;
+  --c-maint:#5FB4F2; --c-maint-bg:#0F2B3F;
+  --c-flood:#F0AE55; --c-flood-bg:#3A2A11;
+  --c-power:#B98BEA; --c-power-bg:#2A1C3D;
+  --c-visit:#5FCB8C; --c-visit-bg:#12301F;
+  --c-gen:#9FB3C2;  --c-gen-bg:#22303B;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;height:100%;background:var(--bg);color:var(--ink);
+  font-family:Heebo,"Segoe UI",system-ui,Arial,sans-serif;font-size:17px;line-height:1.5;
+  font-weight:500;letter-spacing:-.005em;
+  -webkit-text-size-adjust:100%;overscroll-behavior-y:none}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--water);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+.wrap{max-width:760px;margin:0 auto;padding:0 14px 130px}
+header.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:40;background:var(--bg);
+  border-bottom:1px solid var(--edge-2);margin:0 -14px 16px;padding:10px 14px 8px}
+.bar-row{display:flex;align-items:center;gap:10px}
+.mark{margin-inline-end:auto;font-weight:900;font-size:23px;letter-spacing:-.035em}
+.mark::before{content:"";display:inline-block;width:9px;height:22px;border-radius:3px;
+  background:linear-gradient(180deg,var(--c-fault),var(--c-flood) 45%,var(--water));
+  vertical-align:-3px;margin-inline-end:9px}
+.ver{font-size:12.5px;font-weight:800;color:var(--water);background:var(--water-soft);
+  border:1px solid var(--water);border-radius:99px;padding:3px 9px;letter-spacing:.02em;
+  font-variant-numeric:tabular-nums}
+.icon-btn{border:1px solid var(--edge);background:var(--panel);border-radius:10px;width:40px;height:40px;
+  display:grid;place-items:center;cursor:pointer;flex:none;font-size:17px}
+.tabs{display:flex;gap:6px;margin-top:10px}
+.tabs button{flex:1;padding:11px 6px;border:2px solid var(--edge);background:var(--panel);border-radius:12px;
+  font-weight:800;font-size:15.5px;cursor:pointer;color:var(--ink-2);transition:.15s}
+.tabs button[aria-selected="true"]{background:var(--water);color:#fff;border-color:var(--water);
+  box-shadow:0 3px 10px color-mix(in srgb,var(--water) 40%,transparent)}
+
+/* ---- when card ---- */
+.when-card{background:var(--panel);border:1px solid var(--edge);border-radius:14px;padding:13px 14px;
+  margin-bottom:16px;box-shadow:var(--shadow)}
+.when-card{background:linear-gradient(135deg,color-mix(in srgb,var(--water) 13%,var(--panel)),var(--panel) 65%)}
+.when-card .lbl{font-size:13px;color:var(--water);font-weight:800;margin-bottom:9px}
+.when-grid{display:grid;grid-template-columns:1.25fr 1fr auto;gap:9px;align-items:center}
+.when-grid input{border:2px solid var(--edge);background:var(--panel);border-radius:11px;padding:12px 10px;
+  font-size:18px;font-weight:700;font-variant-numeric:tabular-nums;width:100%;text-align:center}
+.now{border:none;background:var(--water);color:#fff;border-radius:11px;
+  padding:13px 17px;font-weight:800;cursor:pointer;white-space:nowrap;
+  box-shadow:0 3px 10px color-mix(in srgb,var(--water) 42%,transparent)}
+
+/* ---- picker rows ---- */
+.pick{width:100%;display:flex;align-items:center;gap:11px;background:var(--panel);
+  border:1px solid var(--edge);border-radius:13px;padding:13px 14px;margin-bottom:10px;
+  cursor:pointer;text-align:start;box-shadow:var(--shadow);transition:border-color .15s,background .15s}
+.pick:hover{border-color:var(--water)}
+.pick.filled{border-inline-start:6px solid var(--water);background:
+  linear-gradient(90deg,color-mix(in srgb,var(--water) 9%,transparent),transparent 55%)}
+.pick.filled.f{border-inline-start-color:var(--c-fault);background:
+  linear-gradient(90deg,color-mix(in srgb,var(--c-fault) 11%,transparent),transparent 55%)}
+.pick.filled.a{border-inline-start-color:var(--c-flood);background:
+  linear-gradient(90deg,color-mix(in srgb,var(--c-flood) 12%,transparent),transparent 55%)}
+.pick .k{font-size:13px;color:var(--ink-3);font-weight:800;display:block;margin-bottom:3px}
+.pick .v{font-size:18px;font-weight:800;display:block;overflow-wrap:anywhere;letter-spacing:-.02em}
+.pick .v.none{color:var(--ink-3);font-weight:500}
+.pick .mid{flex:1;min-width:0}
+.pick .arw{color:var(--ink-3);font-size:19px;flex:none}
+.pick .req{color:var(--fault)}
+
+.tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+.tag{background:var(--water);color:#fff;border:none;border-radius:8px;padding:4px 10px;
+  font-size:13.5px;font-weight:700}
+
+.block{margin-bottom:10px}
+.block > label{font-size:13px;color:var(--ink-3);font-weight:800;display:block;margin:0 2px 7px}
+textarea,.txt{width:100%;border:1px solid var(--edge);background:var(--panel);border-radius:13px;
+  padding:13px;font-size:16px;box-shadow:var(--shadow)}
+textarea{min-height:118px;resize:vertical;line-height:1.5}
+.desc-wrap{position:relative}
+.mic{position:absolute;inset-block-end:11px;inset-inline-start:11px;width:44px;height:44px;border-radius:50%;
+  border:1px solid var(--edge);background:var(--panel-2);cursor:pointer;display:grid;place-items:center;font-size:18px}
+.mic[data-rec="1"]{background:var(--fault);border-color:var(--fault);color:#fff}
+.hint{color:var(--ink-3);font-size:12.5px;margin:6px 2px 0}
+
+.savebar{position:fixed;inset-inline:0;bottom:0;z-index:50;background:var(--panel);
+  border-top:1px solid var(--edge);padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px))}
+.savebar .inner{max-width:760px;margin:0 auto;display:flex;gap:10px}
+.btn{border-radius:12px;padding:14px 16px;font-weight:800;font-size:16.5px;border:2px solid var(--edge);
+  background:var(--panel-2);cursor:pointer;transition:.15s}
+.btn:hover{border-color:var(--water)}
+.btn.primary{background:var(--water);border-color:var(--water);color:#fff;flex:1;
+  box-shadow:0 4px 14px color-mix(in srgb,var(--water) 45%,transparent)}
+.btn.ghost{background:none}
+.btn.danger{color:var(--fault);border-color:var(--fault)}
+
+/* ---- sheet ---- */
+.scrim{position:fixed;inset:0;background:rgba(6,12,17,.55);z-index:70;opacity:0;pointer-events:none;
+  transition:opacity .2s}
+.scrim.on{opacity:1;pointer-events:auto}
+.sheet{position:fixed;inset-inline:0;bottom:0;z-index:71;background:var(--sheet);
+  border-radius:18px 18px 0 0;border-top:1px solid var(--edge);
+  max-height:88vh;display:flex;flex-direction:column;
+  transform:translateY(102%);transition:transform .24s cubic-bezier(.32,.72,0,1);
+  padding-bottom:env(safe-area-inset-bottom,0px)}
+.sheet.on{transform:none}
+.sheet .grab{width:38px;height:4px;background:var(--edge);border-radius:99px;margin:9px auto 4px;flex:none}
+.sheet .head{padding:6px 16px 10px;display:flex;align-items:center;gap:10px;flex:none}
+.sheet .head h3{margin:0;font-size:19px;font-weight:900;flex:1;letter-spacing:-.02em}
+.sheet .head .x{border:none;background:none;font-size:22px;cursor:pointer;color:var(--ink-3);padding:4px 8px}
+.sheet .srch{padding:0 16px 10px;flex:none}
+.sheet .srch input{width:100%;border:1px solid var(--edge);background:var(--panel-2);border-radius:11px;padding:12px}
+.opts{overflow:auto;padding:0 10px 8px;flex:1;-webkit-overflow-scrolling:touch}
+.opt{width:100%;display:flex;align-items:center;gap:11px;background:none;border:none;
+  border-radius:11px;padding:14px 12px;cursor:pointer;text-align:start;font-size:17px;font-weight:600}
+.opt:hover{background:var(--panel-2)}
+.opt .bx{width:23px;height:23px;border:2px solid var(--edge);border-radius:7px;flex:none;display:grid;
+  place-items:center;font-size:14px;color:transparent}
+.opt[aria-pressed="true"] .bx{background:var(--water);border-color:var(--water);color:#fff}
+.opt[aria-pressed="true"]{font-weight:900;background:color-mix(in srgb,var(--water) 11%,transparent)}
+.opt .use{margin-inline-start:auto;font-size:12px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.opt .del{margin-inline-start:auto;border:none;background:none;color:var(--ink-3);cursor:pointer;
+  font-size:15px;padding:4px 8px;border-radius:8px}
+.opt .del:hover{color:var(--fault);background:var(--fault-soft)}
+.sheet .foot{border-top:1px solid var(--edge-2);padding:11px 16px;display:flex;gap:9px;flex:none}
+.sheet .foot input{flex:1;border:1px solid var(--edge);background:var(--panel-2);border-radius:11px;padding:12px;min-width:0}
+
+/* ---- list ---- */
+.toolbar{display:flex;gap:8px;margin-bottom:10px}
+.toolbar input{flex:1;min-width:0;border:1px solid var(--edge);background:var(--panel);
+  border-radius:11px;padding:11px}
+.btn.fbtn{flex:none;padding:11px 15px;font-size:15px}
+.btn.fbtn[aria-expanded="true"]{background:var(--water);border-color:var(--water);color:#fff}
+#fBadge:not(:empty){display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 5px;
+  margin-inline-start:5px;border-radius:99px;background:var(--fault);color:#fff;font-size:12px}
+.fpanel{background:var(--panel);border:1px solid var(--edge);border-radius:13px;padding:13px;
+  margin-bottom:12px;box-shadow:var(--shadow)}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+@media(max-width:430px){.fgrid{grid-template-columns:1fr}}
+.fgrid label{display:block;min-width:0}
+.fgrid label span{display:block;font-size:12px;color:var(--ink-3);font-weight:700;margin:0 2px 4px}
+.fgrid select,.fgrid input{width:100%;border:1px solid var(--edge);background:var(--panel-2);
+  border-radius:10px;padding:10px;font-size:15px}
+.resbar{display:flex;align-items:center;gap:9px;margin-bottom:10px;flex-wrap:wrap}
+#resCount{font-size:13.5px;color:var(--ink-2);font-weight:700;font-variant-numeric:tabular-nums}
+.sortwrap{margin-inline-start:auto;display:flex;align-items:center;gap:6px}
+.sortwrap span{font-size:12.5px;color:var(--ink-3);font-weight:700}
+.sortwrap select{border:1px solid var(--edge);background:var(--panel);border-radius:10px;
+  padding:8px 10px;font-size:13.5px}
+.btn.mini{padding:8px 11px;font-size:13px;font-weight:700}
+.daygap{font-size:14px;font-weight:900;color:var(--water);margin:20px 2px 9px;
+  border-bottom:3px solid color-mix(in srgb,var(--water) 35%,transparent);padding-bottom:6px;
+  font-variant-numeric:tabular-nums;letter-spacing:.02em}
+.ev{background:var(--panel);border:1px solid var(--edge);border-radius:14px;padding:13px 15px;
+  margin-bottom:11px;box-shadow:var(--shadow);border-inline-start:7px solid var(--c-gen)}
+.ev .top{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px}
+.ev .when{font-variant-numeric:tabular-nums;font-size:14px;color:var(--ink);font-weight:800}
+.ev .where{font-size:13.5px;color:var(--ink-2);font-weight:600}
+.badge{font-size:13px;font-weight:800;padding:3px 11px;border-radius:99px;
+  background:var(--c-gen-bg);color:var(--c-gen);white-space:nowrap}
+.pill{font-size:12.5px;font-weight:800;padding:3px 10px;border-radius:99px;
+  border:2px solid var(--edge);color:var(--ink-2);white-space:nowrap}
+.pill.done{border-color:var(--c-visit);color:var(--c-visit);background:var(--c-visit-bg)}
+.pill.open{border-color:var(--c-flood);color:var(--c-flood);background:var(--c-flood-bg)}
+.listrow .inuse{font-size:12px;color:var(--ink-3);font-weight:700;padding:5px 11px}
+.ev .det{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;margin:10px 0 2px;
+  padding:11px 13px;background:var(--panel-2);border-radius:11px;font-size:15px;
+  border-inline-start:3px solid color-mix(in srgb,var(--water) 40%,transparent)}
+.ev .det dt{color:var(--water);font-weight:800;font-size:13px;margin:0;align-self:start;padding-top:2px}
+.ev .det dd{margin:0;overflow-wrap:anywhere;white-space:pre-wrap}
+.ev.locked{opacity:.92}
+.ev .lock{font-size:12px;color:var(--ink-3);font-weight:700;padding:6px 2px}
+.ev .hl{font-size:19px;font-weight:900;line-height:1.3;margin:3px 0 5px;letter-spacing:-.025em}
+.ev .body{font-size:16.5px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere;font-weight:500}
+.ev .acts{display:flex;gap:6px;margin-top:9px}
+.ev .acts button{border:2px solid var(--edge);background:var(--panel-2);border-radius:10px;padding:7px 14px;
+  font-size:13.5px;font-weight:800;cursor:pointer;color:var(--ink-2)}
+.ev .acts button:hover{border-color:var(--water);color:var(--water)}
+.empty{border:1px dashed var(--edge);border-radius:13px;padding:32px 20px;text-align:center;color:var(--ink-2)}
+.empty b{display:block;font-size:17px;margin-bottom:6px;color:var(--ink)}
+
+.card{background:var(--panel);border:1px solid var(--edge);border-radius:13px;padding:15px;margin-bottom:12px;
+  box-shadow:var(--shadow)}
+.card h3{margin:0 0 7px;font-size:18px;font-weight:900;letter-spacing:-.02em}
+.card p{margin:0 0 12px;color:var(--ink-2);font-size:14px}
+.row{display:flex;gap:9px;flex-wrap:wrap}
+.stat{display:flex;gap:20px;flex-wrap:wrap;margin:0 0 14px}
+.stat div b{display:block;font-size:34px;font-weight:900;font-variant-numeric:tabular-nums;line-height:1.05;
+  letter-spacing:-.04em}
+.stat div:nth-child(1) b{color:var(--water)}
+.stat div:nth-child(2) b{color:var(--c-flood)}
+.stat div:nth-child(3) b{color:var(--c-fault)}
+.stat div span{font-size:12.5px;color:var(--ink-3)}
+.listrow{display:flex;align-items:center;gap:10px;padding:11px 2px;border-bottom:1px solid var(--edge-2)}
+.listrow:last-child{border-bottom:none}
+.listrow b{flex:1;font-weight:500;font-size:15.5px}
+.listrow span{color:var(--ink-3);font-size:12.5px}
+
+.toast{position:fixed;inset-inline:0;bottom:calc(88px + env(safe-area-inset-bottom,0px));z-index:90;
+  display:flex;justify-content:center;pointer-events:none}
+.toast span{background:var(--ink);color:var(--bg);border-radius:999px;padding:10px 18px;font-weight:700;
+  font-size:14.5px;opacity:0;transform:translateY(8px);transition:opacity .18s,transform .18s}
+.toast.on span{opacity:1;transform:none}
+dialog{border:1px solid var(--edge);border-radius:15px;background:var(--panel);color:var(--ink);padding:18px;
+  max-width:430px;width:calc(100% - 28px)}
+dialog::backdrop{background:rgba(6,12,17,.6)}
+dialog h3{margin:0 0 8px;font-size:17px}
+dialog p{margin:0 0 14px;color:var(--ink-2);font-size:14.5px}
+.dup{background:var(--alarm-soft);border:1px solid var(--alarm);border-radius:11px;padding:10px;
+  margin-bottom:14px;font-size:14px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="bar">
+    <div class="bar-row">
+      <div class="mark">יומן אירועים</div>
+      <span class="ver" id="verChip" title="גרסה">v1.8</span>
+      <button class="icon-btn" id="themeBtn" aria-label="מצב תצוגה">◐</button>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button role="tab" id="tabNew" aria-selected="true">רישום</button>
+      <button role="tab" id="tabList" aria-selected="false">אירועים <span id="cnt"></span></button>
+      <button role="tab" id="tabData" aria-selected="false">רשימות וקובץ</button>
+    </nav>
+  </header>
+
+  <!-- ============ NEW ============ -->
+  <section id="viewNew">
+    <div class="when-card">
+      <div class="lbl">מתי קרה</div>
+      <div class="when-grid">
+        <input type="date" id="dDate" aria-label="תאריך">
+        <input type="time" id="dTime" aria-label="שעה">
+        <button class="now" id="nowBtn">עכשיו</button>
+      </div>
+    </div>
+
+    <button class="pick" id="pType"><span class="mid"><span class="k">סוג אירוע <span class="req">*</span></span><span class="v none">בחר מהרשימה</span></span><span class="arw">‹</span></button>
+    <button class="pick" id="pLoc"><span class="mid"><span class="k">מיקום <span class="req">*</span></span><span class="v none">בחר מהרשימה</span></span><span class="arw">‹</span></button>
+    <button class="pick" id="pEq"><span class="mid"><span class="k">ציוד</span><span class="v none">בחר מהרשימה</span></span><span class="arw">‹</span></button>
+    <button class="pick" id="pPpl"><span class="mid"><span class="k">מעורבים</span><span class="v none">בחר מהרשימה</span></span><span class="arw">‹</span></button>
+
+    <div class="block">
+      <label for="title">כותרת</label>
+      <input type="text" id="title" class="txt" placeholder="שורה אחת שמסכמת את האירוע">
+    </div>
+
+    <div class="block">
+      <label for="desc">מה קרה <span class="req" style="color:var(--fault)">*</span></label>
+      <div class="desc-wrap">
+        <textarea id="desc" placeholder="תאר את האירוע"></textarea>
+        <button class="mic" id="micBtn" aria-label="הכתבה קולית">🎙</button>
+      </div>
+      <p class="hint" id="micHint"></p>
+    </div>
+
+    <div class="block">
+      <label for="act">פעולה שננקטה</label>
+      <textarea id="act" placeholder="מה נעשה בפועל"></textarea>
+    </div>
+
+    <button class="pick" id="pStat"><span class="mid"><span class="k">סטטוס</span><span class="v">פתוח</span></span><span class="arw">‹</span></button>
+  </section>
+
+  <!-- ============ LIST ============ -->
+  <section id="viewList" hidden>
+    <div class="toolbar">
+      <input type="text" id="q" placeholder="חיפוש בתיאור, פעולה, ציוד">
+      <button class="btn fbtn" id="fToggle">סינון <span id="fBadge"></span></button>
+    </div>
+
+    <div class="fpanel" id="fPanel" hidden>
+      <div class="fgrid">
+        <label><span>סוג</span><select id="fType"></select></label>
+        <label><span>מיקום</span><select id="fLoc"></select></label>
+        <label><span>ציוד</span><select id="fEq"></select></label>
+        <label><span>מעורב</span><select id="fPpl"></select></label>
+        <label><span>סטטוס</span><select id="fStat"></select></label>
+        <label><span>מקור</span><select id="fSrc"></select></label>
+        <label><span>מתאריך</span><input type="date" id="fFrom"></label>
+        <label><span>עד תאריך</span><input type="date" id="fTo"></label>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn" id="fQuickYear">השנה</button>
+        <button class="btn" id="fQuick12">12 חודשים</button>
+        <button class="btn" id="fQuickOpen">רק פתוחים</button>
+        <button class="btn ghost" id="fClear" style="margin-inline-start:auto">נקה סינון</button>
+      </div>
+    </div>
+
+    <div class="resbar">
+      <span id="resCount"></span>
+      <label class="sortwrap"><span>מיון</span>
+        <select id="sortBy">
+          <option value="when-desc">תאריך — חדש לישן</option>
+          <option value="when-asc">תאריך — ישן לחדש</option>
+          <option value="type">סוג אירוע</option>
+          <option value="loc">מיקום</option>
+          <option value="stat">סטטוס</option>
+          <option value="edit">עודכן לאחרונה</option>
+        </select>
+      </label>
+      <button class="btn mini" id="expView">ייצוא לאקסל</button>
+    </div>
+
+    <div id="listBox"></div>
+    <div style="text-align:center;margin:14px 0 4px">
+      <button class="btn" id="moreRows" hidden>הצג עוד</button>
+    </div>
+  </section>
+
+  <!-- ============ DATA ============ -->
+  <section id="viewData" hidden>
+    <div class="card">
+      <h3>מה יש ביומן</h3>
+      <div class="stat" id="stats"></div>
+    </div>
+
+    <div class="card">
+      <h3>רשימות הבחירה</h3>
+      <p>הוסף ערכים — הם יופיעו מיד בטופס הרישום. ערך שכבר משמש אירועים קיימים מסומן "בשימוש" ולא ניתן להסרה, כדי שאירועים לא יישארו בלי שיוך.</p>
+      <div id="listMgr"></div>
+    </div>
+
+    <div class="card">
+      <h3>הקובץ ב-OneDrive</h3>
+      <p id="fileState">הרישומים נשמרים בדפדפן. חבר קובץ בתיקייה מסונכרנת כדי שיהיה גיבוי וגישה ממחשבים אחרים.</p>
+      <div class="row">
+        <button class="btn" id="linkFile">חבר קובץ</button>
+        <button class="btn" id="saveNow">שמור עכשיו</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>גיבוי וייצוא</h3>
+      <div class="row">
+        <button class="btn" id="expJson">הורד גיבוי</button>
+        <button class="btn" id="expCsv">ייצוא לאקסל</button>
+        <button class="btn" id="impBtn">טען גיבוי</button>
+        <input type="file" id="impFile" accept=".json,application/json" class="sr">
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>גרסה</h3>
+      <p id="verLine">גרסה 1.8 · 24/09/2026</p>
+      <div class="row"><button class="btn" id="reloadApp">בדוק עדכון</button></div>
+    </div>
+
+    <div class="card">
+      <h3>ניקוי</h3>
+      <p>אירועי הארכיון שנטענו מהיומנים הישנים נעולים לעריכה ולמחיקה. אפשר למחוק רק את מה שרשמת באפליקציה.</p>
+      <div class="row">
+        <button class="btn danger" id="wipe">מחק את הרישומים שלי</button>
+        <button class="btn ghost" id="wipeAll">מחק הכל כולל ארכיון</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="savebar" id="savebar">
+  <div class="inner">
+    <button class="btn ghost" id="clearBtn">נקה</button>
+    <button class="btn primary" id="saveBtn">שמור אירוע</button>
+  </div>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="shTitle">
+  <div class="grab"></div>
+  <div class="head"><h3 id="shTitle"></h3><button class="x" id="shClose" aria-label="סגור">✕</button></div>
+  <div class="srch"><input type="text" id="shQ" placeholder="חיפוש ברשימה"></div>
+  <div class="opts" id="shOpts"></div>
+  <div class="foot">
+    <input type="text" id="shNew" placeholder="הוסף ערך חדש">
+    <button class="btn" id="shAdd">הוסף</button>
+    <button class="btn primary" id="shDone" style="flex:0 0 auto">סיום</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span></span></div>
+
+<dialog id="dlgDup">
+  <h3>אולי כבר רשמת את זה</h3>
+  <div class="dup" id="dupText"></div>
+  <p>אפשר לשמור בכל זאת אם זה אירוע נפרד.</p>
+  <div class="row">
+    <button class="btn primary" id="dupSave">שמור בכל זאת</button>
+    <button class="btn" id="dupCancel">חזור לעריכה</button>
+  </div>
+</dialog>
+
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+
+/* ================= seed lists (from the real plant log) ================= */
+const SEED = {
+  type:["תקלה","אחזקה חודשית","גלישות חרום","אחזקה","אחזקה מונעת","אחזקה שנתית","הפסקות חשמל",
+        "תהליך","הודעת יומן","ביקור","נפילות/קפיצות חשמל","סיור בטיחות חודשי","כללי"],
+  loc:["קדם טיפול","צינור OVERFLOW","מט\"ש כללי","עבודות קבלן","בריכה B1","בריכה B2","בית מלאכה",
+       "חדר חשמל ראשי ECB","חדר חשמל EB1","חדר חשמל EB2","חדר חשמל מתח גבוה EB6","משרדים","מגובים",
+       "חממות","מאגר בוצה","סילוק בוצה","גנרטור","מעבדה","מחסן חשמל","שער כניסה","אחר"],
+  eq:["גנרטור 670KVA","מגוב גס A151","מגוב גס A152","מגוב עדין A101","מגוב עדין A102","משאבת סולר",
+      "דוגם אוטומטי קולחים","משאבת גרוסת A204","מיכל השקטה","דחסן חלזוני","ציוד כיבוי אש","מערבל",
+      "מאוורר","מדחס אוויר","שנאי","לוח חשמל ראשי"],
+  ppl:["יוסי לוי","אבי בצלאל","אוהד אברהם","אלדד אפרים","אלעד ניסים","אביב עובדיה","נעם גייגר",
+       "מחמוד דראושה","שגיא קוריס","קבלן"],
+  stat:["פתוח","בטיפול","ממתין לחלק","נסגר"]
+};
+const META = {
+  type:{title:"סוג אירוע", multi:false},
+  loc:{title:"מיקום",      multi:true },
+  eq:{title:"ציוד",         multi:true },
+  ppl:{title:"מעורבים",     multi:true },
+  stat:{title:"סטטוס",      multi:false}
+};
+const TONE = {"תקלה":"f","גלישות חרום":"a","הפסקות חשמל":"a","נפילות/קפיצות חשמל":"a"};
+const HUE = {"תקלה":"fault","גלישות חרום":"flood","הפסקות חשמל":"power","נפילות/קפיצות חשמל":"power",
+  "אחזקה":"maint","אחזקה חודשית":"maint","אחזקה שנתית":"maint","אחזקה מונעת":"maint",
+  "ביקור":"visit","סיור בטיחות חודשי":"visit","תהליך":"visit"};
+function hueOf(t){ return HUE[t] || "gen"; }
+
+/* ================= state ================= */
+const LS="ogg-log-v2", LSL="ogg-lists-v2";
+let events=[], lists=null, editId=null, fileHandle=null;
+const sel = {type:[], loc:[], eq:[], ppl:[], stat:["פתוח"]};
+
+function load(){
+  try{ events = JSON.parse(localStorage.getItem(LS)||"[]"); }catch(e){ events=[]; }
+  let saved={}; try{ saved = JSON.parse(localStorage.getItem(LSL)||"{}"); }catch(e){}
+  lists = {};
+  Object.keys(SEED).forEach(k=>{
+    const custom = Array.isArray(saved[k]) ? saved[k] : [];
+    const hidden = Array.isArray(saved["_hide_"+k]) ? saved["_hide_"+k] : [];
+    lists[k] = [...new Set(SEED[k].concat(custom))].filter(v=>!hidden.includes(v));
+    lists["_custom_"+k] = custom; lists["_hide_"+k] = hidden;
+  });
+}
+function persist(){
+  try{
+    localStorage.setItem(LS, JSON.stringify(events));
+    const out={}; Object.keys(SEED).forEach(k=>{ out[k]=lists["_custom_"+k]; out["_hide_"+k]=lists["_hide_"+k]; });
+    localStorage.setItem(LSL, JSON.stringify(out));
+  }catch(e){ toast("הדפדפן חסם שמירה מקומית"); }
+  writeFile();
+}
+function toast(m){
+  const t=$("#toast"); t.firstElementChild.textContent=m; t.classList.add("on");
+  clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove("on"),2200);
+}
+function useCount(key){
+  const c={}; events.forEach(e=>{ (e[key]||[]).forEach(v=>{ c[v]=(c[v]||0)+1; }); }); return c;
+}
+
+/* ================= picker rows ================= */
+const ROW = {type:"#pType", loc:"#pLoc", eq:"#pEq", ppl:"#pPpl", stat:"#pStat"};
+function paintRows(){
+  Object.keys(ROW).forEach(k=>{
+    const el=$(ROW[k]), v=el.querySelector(".v"), vals=sel[k];
+    el.classList.remove("filled","f","a");
+    const old=el.querySelector(".tags"); if(old) old.remove();
+    if(!vals.length){ v.textContent = k==="stat" ? "פתוח" : "בחר מהרשימה"; v.classList.add("none"); return; }
+    v.classList.remove("none");
+    if(META[k].multi && vals.length>1){
+      v.textContent = vals.length+" נבחרו";
+      const tg=document.createElement("div"); tg.className="tags";
+      vals.forEach(x=>{ const s=document.createElement("span"); s.className="tag"; s.textContent=x; tg.appendChild(s); });
+      el.querySelector(".mid").appendChild(tg);
+    } else v.textContent = vals[0];
+    el.classList.add("filled");
+    if(k==="type" && TONE[vals[0]]) el.classList.add(TONE[vals[0]]);
+  });
+}
+Object.keys(ROW).forEach(k=>{ $(ROW[k]).onclick = ()=>openSheet(k); });
+
+/* ================= sheet ================= */
+let shKey=null;
+function openSheet(k){
+  shKey=k;
+  $("#shTitle").textContent = META[k].title + (META[k].multi? " — אפשר לבחור כמה" : "");
+  $("#shQ").value=""; $("#shNew").value="";
+  $("#shNew").placeholder = "הוסף " + META[k].title + " חדש";
+  drawOpts();
+  $("#scrim").classList.add("on"); $("#sheet").classList.add("on");
+  document.body.style.overflow="hidden";
+  setTimeout(()=>$("#shQ").focus({preventScroll:true}), 260);
+}
+function closeSheet(){
+  $("#scrim").classList.remove("on"); $("#sheet").classList.remove("on");
+  document.body.style.overflow=""; shKey=null;
+}
+function drawOpts(){
+  const box=$("#shOpts"); box.textContent="";
+  const q=$("#shQ").value.trim(), k=shKey, cnt=useCount(k), custom=lists["_custom_"+k];
+  const items = lists[k].slice().sort((a,b)=>(cnt[b]||0)-(cnt[a]||0));
+  const hits = items.filter(v=>!q || v.includes(q));
+  if(!hits.length){
+    const d=document.createElement("div"); d.className="empty"; d.style.margin="10px";
+    d.innerHTML="<b>אין התאמה</b>אפשר להוסיף את הערך למטה.";
+    box.appendChild(d); return;
+  }
+  hits.forEach(v=>{
+    const on = sel[k].includes(v);
+    const b=document.createElement("button");
+    b.type="button"; b.className="opt"; b.setAttribute("aria-pressed", on?"true":"false");
+    const bx=document.createElement("span"); bx.className="bx"; bx.textContent="✓";
+    const tx=document.createElement("span"); tx.textContent=v;
+    b.append(bx,tx);
+    if(custom.includes(v) && !cnt[v]){
+      const d=document.createElement("button"); d.className="del"; d.textContent="✕"; d.title="הסר מהרשימה";
+      d.onclick = ev=>{ ev.stopPropagation(); removeValue(k,v); };
+      b.appendChild(d);
+    } else if(cnt[v]){
+      const u=document.createElement("span"); u.className="use"; u.textContent=cnt[v]; b.appendChild(u);
+    }
+    b.onclick = ()=>{
+      if(META[k].multi){
+        const i=sel[k].indexOf(v);
+        if(i>=0) sel[k].splice(i,1); else sel[k].push(v);
+        drawOpts(); paintRows();
+      }else{
+        sel[k]=[v]; paintRows(); closeSheet();
+      }
+    };
+    box.appendChild(b);
+  });
+}
+function addValue(k, v){
+  v=v.trim(); if(!v) return;
+  if(!lists[k].includes(v)){
+    lists["_custom_"+k].push(v);
+    const h=lists["_hide_"+k].indexOf(v); if(h>=0) lists["_hide_"+k].splice(h,1);
+    lists[k].push(v);
+  }
+  if(META[k].multi){ if(!sel[k].includes(v)) sel[k].push(v); } else sel[k]=[v];
+  persist(); drawOpts(); paintRows(); renderMgr();
+  toast("נוסף לרשימה");
+}
+function removeValue(k, v){
+  const c=lists["_custom_"+k].indexOf(v); if(c>=0) lists["_custom_"+k].splice(c,1);
+  const i=lists[k].indexOf(v); if(i>=0) lists[k].splice(i,1);
+  const s=sel[k].indexOf(v); if(s>=0) sel[k].splice(s,1);
+  persist(); if(shKey) drawOpts(); paintRows(); renderMgr();
+}
+function hideSeed(k, v){
+  if(!lists["_hide_"+k].includes(v)) lists["_hide_"+k].push(v);
+  const i=lists[k].indexOf(v); if(i>=0) lists[k].splice(i,1);
+  const s=sel[k].indexOf(v); if(s>=0) sel[k].splice(s,1);
+  persist(); paintRows(); renderMgr(); toast("הוסר מהרשימה");
+}
+$("#shQ").oninput = drawOpts;
+$("#shAdd").onclick = ()=>{ addValue(shKey, $("#shNew").value); $("#shNew").value=""; };
+$("#shNew").onkeydown = e=>{ if(e.key==="Enter"){ e.preventDefault(); $("#shAdd").click(); } };
+$("#shDone").onclick = closeSheet;
+$("#shClose").onclick = closeSheet;
+$("#scrim").onclick = closeSheet;
+document.addEventListener("keydown", e=>{ if(e.key==="Escape" && shKey) closeSheet(); });
+
+/* ================= list manager ================= */
+function renderMgr(){
+  const box=$("#listMgr"); box.textContent="";
+  Object.keys(SEED).forEach(k=>{
+    const h=document.createElement("div");
+    h.style.cssText="font-weight:700;font-size:13px;color:var(--ink-3);margin:14px 0 4px";
+    h.textContent = META[k].title + " (" + lists[k].length + ")";
+    box.appendChild(h);
+    const r=document.createElement("div"); r.className="row"; r.style.margin="0 0 8px";
+    const inp=document.createElement("input"); inp.className="txt"; inp.style.flex="1";
+    inp.placeholder="ערך חדש";
+    const add=document.createElement("button"); add.className="btn"; add.textContent="הוסף";
+    const go=()=>{ if(!inp.value.trim()) return; const k2=k;
+      if(!lists[k2].includes(inp.value.trim())){ lists["_custom_"+k2].push(inp.value.trim());
+        const hi=lists["_hide_"+k2].indexOf(inp.value.trim()); if(hi>=0) lists["_hide_"+k2].splice(hi,1);
+        lists[k2].push(inp.value.trim()); }
+      inp.value=""; persist(); renderMgr(); toast("נוסף לרשימה"); };
+    add.onclick=go; inp.onkeydown=e=>{ if(e.key==="Enter"){e.preventDefault();go();} };
+    r.append(inp,add); box.appendChild(r);
+
+    const cnt=useCount(k);
+    lists[k].forEach(v=>{
+      const row=document.createElement("div"); row.className="listrow";
+      const b=document.createElement("b"); b.textContent=v;
+      const s=document.createElement("span"); s.textContent = cnt[v] ? cnt[v]+" רישומים" : "";
+      row.append(b,s);
+      if(!cnt[v]){
+        const x=document.createElement("button"); x.className="btn";
+        x.style.cssText="padding:5px 11px;font-size:13px"; x.textContent="הסר";
+        x.onclick=()=>{ lists["_custom_"+k].includes(v) ? removeValue(k,v) : hideSeed(k,v); };
+        row.appendChild(x);
+      } else {
+        const l=document.createElement("span"); l.className="inuse"; l.textContent="בשימוש";
+        row.appendChild(l);
+      }
+      box.appendChild(row);
+    });
+  });
+}
+
+/* ================= time ================= */
+function setNow(){
+  const d=new Date(), p=n=>String(n).padStart(2,"0");
+  $("#dDate").value = d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate());
+  $("#dTime").value = p(d.getHours())+":"+p(d.getMinutes());
+}
+$("#nowBtn").onclick = ()=>{ setNow(); toast("עודכן לעכשיו"); };
+function whenStr(){ return ($("#dDate").value||"") + "T" + ($("#dTime").value||"00:00"); }
+function fmtWhen(s){
+  if(!s) return ""; const d=new Date(s); if(isNaN(d)) return s;
+  const p=n=>String(n).padStart(2,"0");
+  return p(d.getDate())+"/"+p(d.getMonth()+1)+"/"+d.getFullYear()+" "+p(d.getHours())+":"+p(d.getMinutes());
+}
+
+/* ================= save ================= */
+function resetForm(){
+  sel.type=[]; sel.loc=[]; sel.eq=[]; sel.ppl=[]; sel.stat=["פתוח"];
+  $("#title").value=""; $("#desc").value=""; $("#act").value=""; editId=null;
+  $("#saveBtn").textContent="שמור אירוע"; setNow(); paintRows(); window.scrollTo({top:0});
+}
+function collect(){
+  return {
+    id: editId || (Date.now().toString(36)+Math.random().toString(36).slice(2,7)),
+    type: sel.type.slice(), loc: sel.loc.slice(), eq: sel.eq.slice(), ppl: sel.ppl.slice(),
+    stat: sel.stat.slice(), title: $("#title").value.trim(),
+    desc: $("#desc").value.trim(), act: $("#act").value.trim(),
+    when: whenStr(), ts: new Date().toISOString()
+  };
+}
+function findDup(e){
+  const t=new Date(e.when).getTime();
+  return events.find(x=>{
+    if(x.id===e.id) return false;
+    if(Math.abs(new Date(x.when).getTime()-t) > 3*3600*1000) return false;
+    return (x.loc||[]).some(l=>e.loc.includes(l)) &&
+           (x.desc.slice(0,22)===e.desc.slice(0,22) || x.desc===e.desc);
+  });
+}
+function doSave(e){
+  const i=events.findIndex(x=>x.id===e.id);
+  if(i>=0 && isLocked(events[i])){ toast("אירוע ארכיון — לא ניתן לשינוי"); return; }
+  if(i>=0) events[i]=e; else events.unshift(e);
+  events.sort((a,b)=>(b.when||"").localeCompare(a.when||""));
+  persist(); renderAll(); toast(i>=0?"האירוע עודכן":"האירוע נשמר"); resetForm();
+}
+$("#saveBtn").onclick = ()=>{
+  const e=collect();
+  if(!e.type.length){ toast("בחר סוג אירוע"); openSheet("type"); return; }
+  if(!e.loc.length){ toast("בחר מיקום"); openSheet("loc"); return; }
+  if(!e.desc){ toast("כתוב מה קרה"); $("#desc").focus(); return; }
+  const d=findDup(e);
+  if(d){
+    $("#dupText").textContent = fmtWhen(d.when)+" · "+(d.loc||[]).join(" · ")+" — "+d.desc.slice(0,90);
+    $("#dlgDup").showModal();
+    $("#dupSave").onclick=()=>{ $("#dlgDup").close(); doSave(e); };
+    $("#dupCancel").onclick=()=>$("#dlgDup").close();
+    return;
+  }
+  doSave(e);
+};
+$("#clearBtn").onclick = ()=>{ resetForm(); toast("הטופס נוקה"); };
+
+/* ================= list view ================= */
+const PAGE=60; let shown=PAGE, lastRows=[];
+
+function activeFilters(){
+  return ["#fType","#fLoc","#fEq","#fPpl","#fStat","#fSrc","#fFrom","#fTo"]
+    .filter(id=>$(id) && $(id).value).length;
+}
+function matchRows(){
+  const q=$("#q").value.trim();
+  const g=id=>$(id)?$(id).value:"";
+  const ft=g("#fType"), fl=g("#fLoc"), fe=g("#fEq"), fp=g("#fPpl"),
+        fs=g("#fStat"), fsrc=g("#fSrc"), from=g("#fFrom"), to=g("#fTo");
+  return events.filter(e=>{
+    if(ft && !(e.type||[]).includes(ft)) return false;
+    if(fl && !(e.loc||[]).includes(fl)) return false;
+    if(fe && !(e.eq||[]).includes(fe)) return false;
+    if(fp && !(e.ppl||[]).includes(fp)) return false;
+    if(fs && ((e.stat||[])[0]||"פתוח")!==fs) return false;
+    if(fsrc && (e.src||"רישום ידני")!==fsrc) return false;
+    const day=(e.when||"").slice(0,10);
+    if(from && (!day || day<from)) return false;
+    if(to && (!day || day>to)) return false;
+    if(q){
+      const hay=[e.title,e.desc,e.act].concat(e.type||[],e.loc||[],e.eq||[],e.ppl||[]).join(" ");
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+}
+function sortRows(rows){
+  const s=$("#sortBy").value;
+  const by={
+    "when-desc":(a,b)=>(b.when||"").localeCompare(a.when||""),
+    "when-asc":(a,b)=>(a.when||"").localeCompare(b.when||""),
+    "type":(a,b)=>((a.type||[])[0]||"").localeCompare((b.type||[])[0]||"","he")||(b.when||"").localeCompare(a.when||""),
+    "loc":(a,b)=>((a.loc||[])[0]||"").localeCompare((b.loc||[])[0]||"","he")||(b.when||"").localeCompare(a.when||""),
+    "stat":(a,b)=>((a.stat||[])[0]||"").localeCompare((b.stat||[])[0]||"","he")||(b.when||"").localeCompare(a.when||""),
+    "edit":(a,b)=>(b.ts||"").localeCompare(a.ts||"")||(b.when||"").localeCompare(a.when||"")
+  }[s];
+  return rows.slice().sort(by);
+}
+function renderList(reset){
+  if(reset!==false) shown=PAGE;
+  const box=$("#listBox"); box.textContent="";
+  const rows = lastRows = sortRows(matchRows());
+
+  const n=activeFilters();
+  $("#fBadge").textContent = n? n : "";
+  $("#resCount").textContent = rows.length===events.length
+    ? events.length+" אירועים"
+    : rows.length+" מתוך "+events.length;
+
+  if(!rows.length){
+    const d=document.createElement("div"); d.className="empty";
+    d.innerHTML = events.length
+      ? "<b>אין התאמות</b>שנה את הסינון או נקה אותו."
+      : "<b>היומן ריק</b>הרישום הראשון מתחיל בלשונית רישום.";
+    box.appendChild(d); $("#moreRows").hidden=true; return;
+  }
+
+  const slice=rows.slice(0,shown);
+  let group=null;
+  const sortMode=$("#sortBy").value;
+  slice.forEach(e=>{
+    if(sortMode==="when-desc"||sortMode==="when-asc"){
+      const g=(e.when||"").slice(0,7);
+      if(g!==group){
+        group=g;
+        const h=document.createElement("div"); h.className="daygap";
+        h.textContent = g ? g.slice(5)+"/"+g.slice(0,4) : "ללא תאריך";
+        box.appendChild(h);
+      }
+    }
+    const t=(e.type||[])[0]||"";
+    const d=document.createElement("article"); d.className="ev";
+    d.style.borderInlineStartColor="var(--c-"+hueOf(t)+")";
+    let top=document.createElement("div"); top.className="top";
+    const w=document.createElement("span"); w.className="when"; w.textContent=fmtWhen(e.when);
+    const kd=document.createElement("span"); kd.className="badge"; kd.textContent=t;
+    const hue=hueOf(t);
+    kd.style.background="var(--c-"+hue+"-bg)"; kd.style.color="var(--c-"+hue+")";
+    const st=(e.stat||[])[0]||"פתוח";
+    const sp=document.createElement("span"); sp.className="pill "+(st==="נסגר"?"done":"open"); sp.textContent=st;
+    const wh=document.createElement("span"); wh.className="where";
+    wh.textContent=[(e.loc||[]).join(" · "),(e.eq||[]).join(" · ")].filter(Boolean).join(" · ");
+    top.append(w,kd,sp,wh);
+    if(e.title){
+      const hh=document.createElement("div"); hh.className="hl"; hh.textContent=e.title;
+      d.appendChild(top); d.appendChild(hh); top=null;
+    }
+    const b=document.createElement("div"); b.className="body";
+    const sameAct = e.act && e.desc && e.act.trim()===e.desc.trim();
+    b.textContent = e.desc;
+    const det=document.createElement("div"); det.className="det"; det.hidden=true;
+    const put=(k,v)=>{ if(!v) return;
+      const dt=document.createElement("dt"); dt.textContent=k;
+      const dd=document.createElement("dd"); dd.textContent=v;
+      det.append(dt,dd); };
+    put("סוג",(e.type||[]).join(", "));
+    put("מיקום",(e.loc||[]).join(", "));
+    put("ציוד",(e.eq||[]).join(", "));
+    put("מעורבים",(e.ppl||[]).join(", "));
+    put("סטטוס",(e.stat||[]).join(", "));
+    put("נסגר בתאריך", e.closedAt ? fmtWhen(e.closedAt).slice(0,10) : "");
+    put("פעולה שננקטה", e.act||"");
+    put("המשך טיפול", e.follow||"");
+    put("נרשם על ידי", e.by||"");
+    put("אירוע קשור", e.ref||"");
+    put("מקור", e.src||"רישום ידני");
+    put("הערה", e.note||"");
+
+    const acts=document.createElement("div"); acts.className="acts";
+    const info=document.createElement("button"); info.textContent="פרטים";
+    info.onclick=()=>{ det.hidden=!det.hidden; info.textContent=det.hidden?"פרטים":"סגור פרטים"; };
+    acts.appendChild(info);
+    if(isLocked(e)){
+      const lk=document.createElement("span"); lk.className="lock";
+      lk.textContent="🔒 ארכיון · " + (e.src||"");
+      acts.appendChild(lk);
+      d.classList.add("locked");
+    } else {
+    const ed=document.createElement("button"); ed.textContent="עריכה"; ed.onclick=()=>loadInto(e);
+    const rm=document.createElement("button"); rm.textContent="מחיקה";
+    rm.onclick=()=>{ events=events.filter(x=>x.id!==e.id); persist(); renderAll(); toast("האירוע נמחק"); };
+    acts.append(ed,rm);
+    }
+    if(top) d.appendChild(top); d.append(b,det,acts); box.appendChild(d);
+  });
+  const more=$("#moreRows");
+  more.hidden = rows.length<=shown;
+  more.textContent = "הצג עוד "+Math.min(PAGE, rows.length-shown)+" מתוך "+(rows.length-shown);
+}
+$("#moreRows").onclick=()=>{ shown+=PAGE; renderList(false); };
+$("#fToggle").onclick=()=>{
+  const p=$("#fPanel"), open=p.hidden;
+  p.hidden=!open; $("#fToggle").setAttribute("aria-expanded",String(open));
+};
+["#fType","#fLoc","#fEq","#fPpl","#fStat","#fSrc","#fFrom","#fTo","#sortBy"]
+  .forEach(id=>{ const el=$(id); if(el) el.onchange=()=>renderList(); });
+$("#fClear").onclick=()=>{
+  ["#fType","#fLoc","#fEq","#fPpl","#fStat","#fSrc","#fFrom","#fTo"].forEach(id=>{ if($(id)) $(id).value=""; });
+  $("#q").value=""; renderList();
+};
+$("#fQuickYear").onclick=()=>{
+  const y=new Date().getFullYear();
+  $("#fFrom").value=y+"-01-01"; $("#fTo").value=""; renderList();
+};
+$("#fQuick12").onclick=()=>{
+  const d=new Date(); d.setFullYear(d.getFullYear()-1);
+  const p=n=>String(n).padStart(2,"0");
+  $("#fFrom").value=d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate());
+  $("#fTo").value=""; renderList();
+};
+$("#fQuickOpen").onclick=()=>{ $("#fStat").value="פתוח"; renderList(); };
+$("#expView").onclick=()=>exportCsv(lastRows, true);
+function isLocked(e){ return !!(e.src && e.src!=="רישום ידני"); }
+function loadInto(e){
+  if(isLocked(e)){ toast("אירוע ארכיון — לא ניתן לעריכה"); return; }
+  editId=e.id;
+  sel.type=(e.type||[]).slice(); sel.loc=(e.loc||[]).slice();
+  sel.eq=(e.eq||[]).slice(); sel.ppl=(e.ppl||[]).slice(); sel.stat=(e.stat||["פתוח"]).slice();
+  $("#title").value=e.title||""; $("#desc").value=e.desc||""; $("#act").value=e.act||"";
+  const parts=(e.when||"").split("T"); $("#dDate").value=parts[0]||""; $("#dTime").value=(parts[1]||"").slice(0,5);
+  $("#saveBtn").textContent="עדכן אירוע"; show("New"); paintRows(); window.scrollTo({top:0});
+}
+function renderFilters(){
+  const fill=(id,vals,keep)=>{
+    const s=$(id); if(!s) return;
+    const cur=s.value; s.textContent="";
+    const o=document.createElement("option"); o.value=""; o.textContent=keep; s.appendChild(o);
+    vals.forEach(v=>{ const x=document.createElement("option"); x.value=v; x.textContent=v; s.appendChild(x); });
+    s.value = vals.includes(cur)?cur:"";
+  };
+  const uniq=(key,cnt)=>{
+    const c={}; events.forEach(e=>(e[key]||[]).forEach(v=>{ c[v]=(c[v]||0)+1; }));
+    return Object.keys(c).sort((a,b)=>c[b]-c[a]);
+  };
+  fill("#fType",uniq("type"),"כל הסוגים");
+  fill("#fLoc",uniq("loc"),"כל המיקומים");
+  fill("#fEq",uniq("eq"),"כל הציוד");
+  fill("#fPpl",uniq("ppl"),"כל המעורבים");
+  fill("#fStat",uniq("stat"),"כל הסטטוסים");
+  fill("#fSrc",[...new Set(events.map(e=>e.src||"רישום ידני"))],"כל המקורות");
+}
+function renderStats(){
+  const box=$("#stats"); box.textContent="";
+  const open=events.filter(e=>((e.stat||[])[0]||"פתוח")!=="נסגר").length;
+  const f=events.filter(e=>(e.type||[]).includes("תקלה")).length;
+  [["רישומים",events.length],["פתוחים",open],["תקלות",f]].forEach(([l,v])=>{
+    const d=document.createElement("div");
+    const b=document.createElement("b"); b.textContent=v;
+    const s=document.createElement("span"); s.textContent=l;
+    d.append(b,s); box.appendChild(d);
+  });
+  $("#cnt").textContent = events.length? "("+events.length+")":"";
+}
+function renderAll(){ paintRows(); renderFilters(); renderList(); renderStats(); renderMgr(); }
+$("#q").oninput=renderList; $("#fType").onchange=renderList; $("#fLoc").onchange=renderList;
+
+/* ================= tabs / theme ================= */
+function show(w){
+  ["New","List","Data"].forEach(v=>{
+    $("#view"+v).hidden=(v!==w);
+    $("#tab"+v).setAttribute("aria-selected",String(v===w));
+  });
+  $("#savebar").style.display = w==="New"?"block":"none";
+  document.querySelector(".wrap").style.paddingBottom = w==="New"?"130px":"40px";
+}
+$("#tabNew").onclick=()=>show("New");
+$("#tabList").onclick=()=>{ renderFilters(); renderList(); show("List"); };
+$("#tabData").onclick=()=>{ renderStats(); renderMgr(); show("Data"); };
+$("#themeBtn").onclick=()=>{
+  const cur=document.documentElement.getAttribute("data-theme");
+  const next=cur==="dark"?"light":cur==="light"?"":"dark";
+  if(next) document.documentElement.setAttribute("data-theme",next);
+  else document.documentElement.removeAttribute("data-theme");
+  try{ localStorage.setItem("ogg-theme",next); }catch(e){}
+};
+try{ const th=localStorage.getItem("ogg-theme"); if(th) document.documentElement.setAttribute("data-theme",th); }catch(e){}
+
+/* ================= voice ================= */
+(function(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition, btn=$("#micBtn");
+  if(!SR){ btn.hidden=true; $("#micHint").textContent="הכתבה קולית לא נתמכת בדפדפן הזה."; return; }
+  let rec=null;
+  btn.onclick=()=>{
+    if(rec){ rec.stop(); return; }
+    rec=new SR(); rec.lang="he-IL"; rec.continuous=true; rec.interimResults=false;
+    const base=$("#desc").value;
+    rec.onresult=ev=>{ let s=""; for(let i=ev.resultIndex;i<ev.results.length;i++) s+=ev.results[i][0].transcript;
+      $("#desc").value=(base?base+" ":"")+s.trim(); };
+    rec.onerror=()=>{ $("#micHint").textContent="ההכתבה נעצרה. נסה שוב או הקלד."; };
+    rec.onend=()=>{ rec=null; btn.dataset.rec="0"; $("#micHint").textContent=""; };
+    rec.start(); btn.dataset.rec="1"; $("#micHint").textContent="מקליט — הקש שוב לעצירה.";
+  };
+})();
+
+/* ================= file / export ================= */
+function payload(){
+  const out={app:"ogg-event-log",version:2,saved:new Date().toISOString(),events,lists:{}};
+  Object.keys(SEED).forEach(k=>{ out.lists[k]=lists["_custom_"+k]; out.lists["_hide_"+k]=lists["_hide_"+k]; });
+  return out;
+}
+async function writeFile(){
+  if(!fileHandle) return;
+  try{
+    const w=await fileHandle.createWritable();
+    await w.write(JSON.stringify(payload(),null,1)); await w.close();
+    $("#fileState").textContent="מסונכרן לקובץ · נשמר "+new Date().toLocaleTimeString("he-IL");
+  }catch(e){ $("#fileState").textContent="לא הצלחתי לכתוב לקובץ. חבר אותו מחדש."; }
+}
+$("#linkFile").onclick=async()=>{
+  if(!window.showSaveFilePicker){ toast("הדפדפן לא תומך — השתמש בהורדת גיבוי"); return; }
+  try{
+    fileHandle=await window.showSaveFilePicker({suggestedName:"יומן-אירועים-אוג.json",
+      types:[{description:"גיבוי יומן",accept:{"application/json":[".json"]}}]});
+    await writeFile(); toast("הקובץ חובר");
+  }catch(e){}
+};
+$("#saveNow").onclick=async()=>{ if(!fileHandle){ toast("חבר קובץ קודם"); return; } await writeFile(); toast("נשמר לקובץ"); };
+function download(name,text,mime){
+  const blob=new Blob([mime.indexOf("csv")>=0?"\uFEFF"+text:text],{type:mime});
+  const url=URL.createObjectURL(blob), a=document.createElement("a");
+  a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
+$("#expJson").onclick=()=>{ download("יומן-אירועים-אוג.json",JSON.stringify(payload(),null,1),"application/json"); toast("הגיבוי הורד"); };
+function exportCsv(rows, filtered){
+  rows = rows && rows.length ? rows : events;
+  const head=["תאריך","סוג","כותרת","מיקום","ציוד","תיאור אירוע","פעולה שננקטה","מעורבים","סטטוס","מקור"];
+  const esc=v=>'"'+String(v==null?"":v).replace(/"/g,'""')+'"';
+  const body=rows.map(e=>[fmtWhen(e.when),(e.type||[]).join("; "),e.title||"",(e.loc||[]).join("; "),
+    (e.eq||[]).join("; "),e.desc,e.act,(e.ppl||[]).join("; "),(e.stat||[]).join("; "),
+    e.src||"רישום ידני"].map(esc).join(","));
+  download((filtered?"יומן-מסונן-":"יומן-אירועים-")+"אוג.csv",
+    [head.map(esc).join(",")].concat(body).join("\r\n"),"text/csv;charset=utf-8");
+  toast(rows.length+" שורות הורדו");
+}
+$("#expCsv").onclick=()=>exportCsv(events,false);
+$("#impBtn").onclick=()=>$("#impFile").click();
+$("#impFile").onchange=ev=>{
+  const f=ev.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{
+    try{
+      const d=JSON.parse(r.result), inc=Array.isArray(d)?d:(d.events||[]);
+      if(!Array.isArray(inc)) throw 0;
+      const idx=new Map(events.map((e,i)=>[e.id,i])); let n=0,u=0;
+      inc.forEach(e=>{ if(!e||!e.id) return;
+        if(idx.has(e.id)){ events[idx.get(e.id)]=e; u++; } else { events.push(e); n++; } });
+      if(d.lists) Object.keys(SEED).forEach(k=>{
+        (d.lists[k]||[]).forEach(v=>{ if(!lists["_custom_"+k].includes(v)){ lists["_custom_"+k].push(v);
+          if(!lists[k].includes(v)) lists[k].push(v); } });
+      });
+      events.sort((a,b)=>(b.when||"").localeCompare(a.when||""));
+      persist(); renderAll(); toast(n+" נוספו, "+u+" עודכנו");
+    }catch(e){ toast("הקובץ לא בפורמט הנכון"); }
+  };
+  r.readAsText(f); ev.target.value="";
+};
+$("#wipe").onclick=()=>{
+  const mine=events.filter(e=>!isLocked(e)).length, arch=events.length-mine;
+  if(!mine){ toast("אין רישומים שלך למחיקה"); return; }
+  if(!confirm("למחוק "+mine+" רישומים שלך? "+arch+" אירועי ארכיון יישארו.")) return;
+  events=events.filter(e=>isLocked(e)); persist(); renderAll(); toast(mine+" רישומים נמחקו");
+};
+$("#wipeAll").onclick=()=>{
+  if(!confirm("למחוק את כל "+events.length+" האירועים, כולל הארכיון?")) return;
+  events=[]; persist(); renderAll(); toast("היומן רוקן");
+};
+
+/* ================= version ================= */
+const APP_VER="1.8", APP_DATE="24/09/2026";
+$("#reloadApp").onclick=()=>{ location.reload(true); };
+/* ================= boot ================= */
+load(); setNow(); renderAll(); show("New");
+</script>
+</body>
+</html>
