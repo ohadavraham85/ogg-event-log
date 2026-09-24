@@ -80,9 +80,14 @@ header.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:40;backgroun
   margin-bottom:16px;box-shadow:var(--shadow)}
 .when-card{background:linear-gradient(135deg,color-mix(in srgb,var(--water) 13%,var(--panel)),var(--panel) 65%)}
 .when-card .lbl{font-size:13px;color:var(--water);font-weight:800;margin-bottom:9px}
-.when-grid{display:grid;grid-template-columns:1.25fr 1fr auto;gap:9px;align-items:center}
+.when-grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr) auto;gap:9px;align-items:center}
 .when-grid input{border:2px solid var(--edge);background:var(--panel);border-radius:11px;padding:12px 10px;
-  font-size:18px;font-weight:700;font-variant-numeric:tabular-nums;width:100%;text-align:center}
+  font-size:18px;font-weight:700;font-variant-numeric:tabular-nums;width:100%;min-width:0;text-align:center}
+@media (max-width:480px){
+  .when-grid{grid-template-columns:minmax(0,1.25fr) minmax(0,1fr)}
+  .when-grid input{font-size:16px;padding:12px 6px}
+  .when-grid .now{grid-column:1 / -1;padding:11px}
+}
 .now{border:none;background:var(--water);color:#fff;border-radius:11px;
   padding:13px 17px;font-weight:800;cursor:pointer;white-space:nowrap;
   box-shadow:0 3px 10px color-mix(in srgb,var(--water) 42%,transparent)}
