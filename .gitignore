@@ -1,0 +1,8 @@
+# Event data — backups/exports contain real records and names. Never commit.
+*.json
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

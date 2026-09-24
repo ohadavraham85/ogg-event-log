@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>יומן אירועים — מט"ש אוג</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0E7C86">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="יומן אירועים">
+</head>
+<body>
+<div class="wrap">
+  <header class="bar">
+    <div class="bar-row">
+      <div class="mark">יומן אירועים</div>
+      <span class="ver" id="verChip" title="גרסה">v1.8</span>
+      <button class="icon-btn" id="themeBtn" aria-label="מצב תצוגה">◐</button>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button role="tab" id="tabNew" aria-selected="true">רישום</button>
+      <button role="tab" id="tabList" aria-selected="false">אירועים <span id="cnt"></span></button>
+      <button role="tab" id="tabData" aria-selected="false">רשימות וקובץ</button>
+    </nav>
+  </header>
+
+  <!-- ============ NEW ============ -->
+  <section id="viewNew">
+    <div class="when-card">
+      <div class="lbl">מתי קרה</div>
+      <div class="when-grid">
+        <input type="date" id="dDate" aria-label="תאריך">
+        <input type="time" id="dTime" aria-label="שעה">
+        <button class="now" id="nowBtn">עכשיו</button>
+      </div>
+    </div>
+
+    <button class="pick" id="pType"><span class="mid"><span class="k">סוג אירוע <span class="req">*</span></span><span class="v none">בחר מהרשימה</span></span><span class="arw">‹</span></button>
+    <button class="pick" id="pLoc"><span class="mid"><span class="k">מיקום <span class="req">*</span></span><span class="v none">בחר מהרשימה</span></span><span class="arw">‹</span></button>
+    <button class="pick" id="pEq"><span class="mid"><span class="k">ציוד</span><span class="v none">בחר מהרשימה</span></span><span class="arw">‹</span></button>
+    <button class="pick" id="pPpl"><span class="mid"><span class="k">מעורבים</span><span class="v none">בחר מהרשימה</span></span><span class="arw">‹</span></button>
+
+    <div class="block">
+      <label for="title">כותרת</label>
+      <input type="text" id="title" class="txt" placeholder="שורה אחת שמסכמת את האירוע">
+    </div>
+
+    <div class="block">
+      <label for="desc">מה קרה <span class="req" style="color:var(--fault)">*</span></label>
+      <div class="desc-wrap">
+        <textarea id="desc" placeholder="תאר את האירוע"></textarea>
+        <button class="mic" id="micBtn" aria-label="הכתבה קולית">🎙</button>
+      </div>
+      <p class="hint" id="micHint"></p>
+    </div>
+
+    <div class="block">
+      <label for="act">פעולה שננקטה</label>
+      <textarea id="act" placeholder="מה נעשה בפועל"></textarea>
+    </div>
+
+    <button class="pick" id="pStat"><span class="mid"><span class="k">סטטוס</span><span class="v">פתוח</span></span><span class="arw">‹</span></button>
+  </section>
+
+  <!-- ============ LIST ============ -->
+  <section id="viewList" hidden>
+    <div class="toolbar">
+      <input type="text" id="q" placeholder="חיפוש בתיאור, פעולה, ציוד">
+      <button class="btn fbtn" id="fToggle">סינון <span id="fBadge"></span></button>
+    </div>
+
+    <div class="fpanel" id="fPanel" hidden>
+      <div class="fgrid">
+        <label><span>סוג</span><select id="fType"></select></label>
+        <label><span>מיקום</span><select id="fLoc"></select></label>
+        <label><span>ציוד</span><select id="fEq"></select></label>
+        <label><span>מעורב</span><select id="fPpl"></select></label>
+        <label><span>סטטוס</span><select id="fStat"></select></label>
+        <label><span>מקור</span><select id="fSrc"></select></label>
+        <label><span>מתאריך</span><input type="date" id="fFrom"></label>
+        <label><span>עד תאריך</span><input type="date" id="fTo"></label>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn" id="fQuickYear">השנה</button>
+        <button class="btn" id="fQuick12">12 חודשים</button>
+        <button class="btn" id="fQuickOpen">רק פתוחים</button>
+        <button class="btn ghost" id="fClear" style="margin-inline-start:auto">נקה סינון</button>
+      </div>
+    </div>
+
+    <div class="resbar">
+      <span id="resCount"></span>
+      <label class="sortwrap"><span>מיון</span>
+        <select id="sortBy">
+          <option value="when-desc">תאריך — חדש לישן</option>
+          <option value="when-asc">תאריך — ישן לחדש</option>
+          <option value="type">סוג אירוע</option>
+          <option value="loc">מיקום</option>
+          <option value="stat">סטטוס</option>
+          <option value="edit">עודכן לאחרונה</option>
+        </select>
+      </label>
+      <button class="btn mini" id="expView">ייצוא לאקסל</button>
+    </div>
+
+    <div id="listBox"></div>
+    <div style="text-align:center;margin:14px 0 4px">
+      <button class="btn" id="moreRows" hidden>הצג עוד</button>
+    </div>
+  </section>
+
+  <!-- ============ DATA ============ -->
+  <section id="viewData" hidden>
+    <div class="card">
+      <h3>מה יש ביומן</h3>
+      <div class="stat" id="stats"></div>
+    </div>
+
+    <div class="card">
+      <h3>רשימות הבחירה</h3>
+      <p>הוסף ערכים — הם יופיעו מיד בטופס הרישום. ערך שכבר משמש אירועים קיימים מסומן "בשימוש" ולא ניתן להסרה, כדי שאירועים לא יישארו בלי שיוך.</p>
+      <div id="listMgr"></div>
+    </div>
+
+    <div class="card">
+      <h3>הקובץ ב-OneDrive</h3>
+      <p id="fileState">הרישומים נשמרים בדפדפן. חבר קובץ בתיקייה מסונכרנת כדי שיהיה גיבוי וגישה ממחשבים אחרים.</p>
+      <div class="row">
+        <button class="btn" id="linkFile">חבר קובץ</button>
+        <button class="btn" id="saveNow">שמור עכשיו</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>גיבוי וייצוא</h3>
+      <div class="row">
+        <button class="btn" id="expJson">הורד גיבוי</button>
+        <button class="btn" id="expCsv">ייצוא לאקסל</button>
+        <button class="btn" id="impBtn">טען גיבוי</button>
+        <input type="file" id="impFile" accept=".json,application/json" class="sr">
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>גרסה</h3>
+      <p id="verLine">גרסה 1.8 · 24/09/2026</p>
+      <div class="row"><button class="btn" id="reloadApp">בדוק עדכון</button></div>
+    </div>
+
+    <div class="card">
+      <h3>ניקוי</h3>
+      <p>אירועי הארכיון שנטענו מהיומנים הישנים נעולים לעריכה ולמחיקה. אפשר למחוק רק את מה שרשמת באפליקציה.</p>
+      <div class="row">
+        <button class="btn danger" id="wipe">מחק את הרישומים שלי</button>
+        <button class="btn ghost" id="wipeAll">מחק הכל כולל ארכיון</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="savebar" id="savebar">
+  <div class="inner">
+    <button class="btn ghost" id="clearBtn">נקה</button>
+    <button class="btn primary" id="saveBtn">שמור אירוע</button>
+  </div>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="shTitle">
+  <div class="grab"></div>
+  <div class="head"><h3 id="shTitle"></h3><button class="x" id="shClose" aria-label="סגור">✕</button></div>
+  <div class="srch"><input type="text" id="shQ" placeholder="חיפוש ברשימה"></div>
+  <div class="opts" id="shOpts"></div>
+  <div class="foot">
+    <input type="text" id="shNew" placeholder="הוסף ערך חדש">
+    <button class="btn" id="shAdd">הוסף</button>
+    <button class="btn primary" id="shDone" style="flex:0 0 auto">סיום</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span></span></div>
+
+<dialog id="dlgDup">
+  <h3>אולי כבר רשמת את זה</h3>
+  <div class="dup" id="dupText"></div>
+  <p>אפשר לשמור בכל זאת אם זה אירוע נפרד.</p>
+  <div class="row">
+    <button class="btn primary" id="dupSave">שמור בכל זאת</button>
+    <button class="btn" id="dupCancel">חזור לעריכה</button>
+  </div>
+</dialog>
+
+<script src="app.js"></script>
+<script>
+if("serviceWorker" in navigator){
+  window.addEventListener("load",()=>{ navigator.serviceWorker.register("sw.js").catch(()=>{}); });
+}
+</script>
+</body>
+</html>
