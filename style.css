@@ -61,6 +61,8 @@ header.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:40;backgroun
   border-bottom:1px solid var(--edge-2);margin:0 -14px 16px;padding:10px 14px 8px}
 .bar-row{display:flex;align-items:center;gap:10px}
 .mark{margin-inline-end:auto;font-weight:900;font-size:23px;letter-spacing:-.035em}
+.logo{height:56px;width:auto;flex:none;background:#fff;border-radius:10px;padding:2px 4px}
+.logo + .mark::before{display:none}
 .mark::before{content:"";display:inline-block;width:9px;height:22px;border-radius:3px;
   background:linear-gradient(180deg,var(--c-fault),var(--c-flood) 45%,var(--water));
   vertical-align:-3px;margin-inline-end:9px}
