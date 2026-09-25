@@ -322,7 +322,7 @@ function renderList(reset){
     const d=document.createElement("div"); d.className="empty";
     d.innerHTML = events.length
       ? "<b>אין התאמות</b>שנה את הסינון או נקה אותו."
-      : "<b>היומן ריק</b>הרישום הראשון מתחיל בלשונית רישום.";
+      : "<b>היומן ריק</b>הרישום הראשון מתחיל בלשונית רישום אירוע.";
     box.appendChild(d); $("#moreRows").hidden=true; return;
   }
 
