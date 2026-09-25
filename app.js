@@ -578,7 +578,9 @@ $("#wipeAll").onclick=()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.8", APP_DATE="24/09/2026";
+const APP_VER="1.9", APP_DATE="25/09/2026";
+$("#verChip").textContent="v"+APP_VER;
+$("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 $("#reloadApp").onclick=()=>{ location.reload(true); };
 /* ================= boot ================= */
 load(); setNow(); renderAll(); show("New");
