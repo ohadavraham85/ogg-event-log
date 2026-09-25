@@ -1,7 +1,7 @@
 /* Service worker — network first, cache as offline fallback.
    Online the app always loads the latest files (so "בדוק עדכון" keeps working);
    offline it serves the last copy it saw. Data stays in localStorage, not here. */
-const CACHE = "ogg-log-shell-v5";
+const CACHE = "ogg-log-shell-v6";
 const SHELL = ["./", "index.html", "style.css", "app.js", "manifest.webmanifest",
                "icons/favicon-64.png", "icons/icon-192.png", "icons/icon-512.png",
                "icons/icon-maskable-512.png", "icons/logo-mabatei.png"];
