@@ -55,18 +55,26 @@
   <div class="sp-footer">מבט״י · מפעלי ביוב וטיהור ירושלים</div>
 </div>
 
+<!-- app background: the waves from the opening-screen design -->
+<div class="app-bg" aria-hidden="true">
+  <svg viewBox="0 0 390 220" preserveAspectRatio="none">
+    <path d="M0 70 C 70 30, 140 30, 200 62 S 330 100, 390 58 L 390 220 L 0 220 Z" fill="#29ABE2" opacity=".22"/>
+    <path d="M0 110 C 80 76, 150 84, 215 110 S 330 142, 390 104 L 390 220 L 0 220 Z" fill="#29ABE2" opacity=".45"/>
+    <path d="M0 150 C 90 120, 170 128, 240 150 S 340 176, 390 146 L 390 220 L 0 220 Z" fill="#1565A8"/>
+  </svg>
+</div>
 <div class="wrap">
   <header class="bar">
     <div class="bar-row">
       <img class="logo" src="icons/logo-header.png" alt="מבט&quot;י — מפעלי ביוב וטיהור ירושלים" width="101" height="137">
       <div class="mark">יומן אירועים <span class="sub">מט"ש אוג</span></div>
-      <span class="ver" id="verChip" title="גרסה">v1.13</span>
+      <span class="ver" id="verChip" title="גרסה">v1.14</span>
       <button class="icon-btn" id="themeBtn" aria-label="מצב תצוגה">◐</button>
     </div>
     <nav class="tabs" role="tablist">
-      <button role="tab" id="tabNew" aria-selected="true">רישום אירוע</button>
+      <button role="tab" id="tabDash" class="tab-dash" aria-selected="true"><svg class="ti" viewBox="0 0 16 16" aria-hidden="true"><rect x="1" y="8" width="3.2" height="7" rx="1"/><rect x="6.4" y="4" width="3.2" height="11" rx="1"/><rect x="11.8" y="1" width="3.2" height="14" rx="1"/></svg>דשבורד</button>
+      <button role="tab" id="tabNew" aria-selected="false">רישום אירוע</button>
       <button role="tab" id="tabList" aria-selected="false">אירועים <span id="cnt"></span></button>
-      <button role="tab" id="tabDash" aria-selected="false">דשבורד</button>
       <button role="tab" id="tabData" aria-selected="false">רשימות וקובץ</button>
     </nav>
   </header>
@@ -207,7 +215,7 @@
 
     <div class="card">
       <h3>גרסה</h3>
-      <p id="verLine">גרסה 1.13 · 26/09/2026</p>
+      <p id="verLine">גרסה 1.14 · 26/09/2026</p>
       <div class="row"><button class="btn" id="reloadApp">בדוק עדכון</button></div>
     </div>
 

@@ -555,7 +555,11 @@ function renderDash(){
   });
 
   const cards=$("#dCards"); cards.textContent="";
-  if(!rows.length){ cards.appendChild(mk("p","dempty","אין אירועים בטווח הזה.")); return; }
+  if(!rows.length){
+    const em=mk("div","dempty"); em.appendChild(mk("p",null, events.length? "אין אירועים בטווח הזה." : "עדיין אין אירועים ביומן."));
+    const go=mk("button","btn primary","רישום אירוע"); go.type="button"; go.onclick=()=>show("New");
+    em.appendChild(go); cards.appendChild(em); return;
+  }
 
   /* status: one stacked bar + legend (legend carries every value) */
   const sc={}; rows.forEach(e=>{ const s=(e.stat||[])[0]||"פתוח"; sc[s]=(sc[s]||0)+1; });
@@ -772,7 +776,7 @@ $("#wipeAll").onclick=()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.13", APP_DATE="26/09/2026";
+const APP_VER="1.14", APP_DATE="26/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 $("#reloadApp").onclick=()=>{ location.reload(true); };
@@ -790,9 +794,9 @@ $("#reloadApp").onclick=()=>{ location.reload(true); };
     document.documentElement.classList.remove("sp-open");
     sp.classList.add("out");
     setTimeout(()=>{ sp.hidden=true; },200);
-    $("#tabNew").focus({preventScroll:true});
+    $("#tabDash").focus({preventScroll:true});
   };
   $("#spEnter").onclick=enter;
 })();
 /* ================= boot ================= */
-load(); setNow(); renderAll(); show("New");
+load(); setNow(); renderAll(); renderDash(); show("Dash");
