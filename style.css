@@ -263,3 +263,47 @@ dialog p{margin:0 0 14px;color:var(--ink-2);font-size:14.5px}
 .dup{background:var(--alarm-soft);border:1px solid var(--alarm);border-radius:11px;padding:10px;
   margin-bottom:14px;font-size:14px}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+/* ---- splash (opening screen) — from splash-handoff/splash.html, scoped under #splash ---- */
+#splash{
+  --accent:#1565A8; --accent-dark:#0E4A7D; --light:#29ABE2; --deep:#0B3A63;
+  --ink:#12324F; --muted:#4A6378; --muted2:#5B7488; --bg:#F3F7FA;
+  position:fixed;inset:0;z-index:100;overflow:auto;
+  font-family:Assistant,sans-serif;background:var(--bg);color:var(--ink);line-height:normal;
+  transition:opacity .2s ease
+}
+#splash.out{opacity:0}
+html.sp-open,html.sp-open body{overflow:hidden}
+#splash .sp-main{min-height:100vh;display:flex}
+#splash .sp-content{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:48px 32px 200px;gap:0;position:relative;z-index:1}
+#splash .sp-logo{width:190px;height:190px;display:block}
+#splash .sp-text{margin-top:36px;display:flex;flex-direction:column;align-items:center;gap:10px}
+#splash .sp-eyebrow{font-family:Rubik,sans-serif;font-weight:600;font-size:15px;letter-spacing:.08em;color:var(--accent)}
+#splash h1{margin:0;font-family:Rubik,sans-serif;font-weight:700;font-size:40px;line-height:1.15;letter-spacing:normal}
+#splash .sp-lead{margin:0;font-size:19px;line-height:1.5;color:var(--muted);max-width:500px}
+#splash .sp-actions{margin-top:44px;display:flex;flex-direction:column;align-items:stretch;gap:12px;width:min(280px,100%)}
+#splash .sp-btn{display:flex;align-items:center;justify-content:center;height:54px;border:none;border-radius:14px;background:var(--accent);color:#fff;font-family:Rubik,sans-serif;font-weight:500;font-size:20px;text-decoration:none;cursor:pointer}
+#splash .sp-btn:hover{background:var(--accent-dark)}
+#splash .sp-btn:focus-visible{outline:3px solid var(--light);outline-offset:3px}
+#splash .sp-shift{font-size:16px;color:var(--muted2)}
+#splash .sp-waves{position:fixed;inset:auto 0 0 0;height:220px;pointer-events:none}
+#splash .sp-waves svg{width:100%;height:100%;display:block}
+#splash .sp-footer{position:fixed;bottom:24px;left:0;right:0;text-align:center;font-size:15px;color:#fff}
+#splash .sp-side{display:none}
+
+/* desktop: split with a blue panel on the left */
+@media (min-width:1024px){
+  #splash .sp-content{align-items:flex-start;text-align:right;padding:0 120px}
+  #splash .sp-logo{width:150px;height:150px;margin-right:-20px}
+  #splash .sp-text{align-items:flex-start;gap:14px;margin-top:28px}
+  #splash .sp-eyebrow{font-size:17px}
+  #splash h1{font-size:68px;line-height:1.08}
+  #splash .sp-lead{font-size:24px;line-height:1.55}
+  #splash .sp-actions{flex-direction:row;align-items:center;gap:20px;width:auto;margin-top:36px}
+  #splash .sp-btn{width:200px;height:56px;font-size:21px}
+  #splash .sp-shift{font-size:18px}
+  #splash .sp-waves,#splash .sp-footer{display:none}
+  #splash .sp-side{display:block;flex:1;position:relative;overflow:hidden;background:var(--accent)}
+  #splash .sp-side svg{position:absolute;inset:0;width:100%;height:100%}
+  #splash .sp-side .sp-foot{position:absolute;bottom:48px;right:64px;left:64px;display:flex;justify-content:space-between;color:#fff;font-size:17px}
+}

@@ -573,9 +573,27 @@ $("#wipeAll").onclick=()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.11", APP_DATE="26/09/2026";
+const APP_VER="1.12", APP_DATE="26/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 $("#reloadApp").onclick=()=>{ location.reload(true); };
+/* ================= splash ================= */
+(function(){
+  const sp=$("#splash"); if(!sp) return;
+  // shift and date (morning 07–15, evening 15–23, night 23–07)
+  const d=new Date(), h=d.getHours();
+  const shift = h>=7&&h<15 ? "בוקר" : h>=15&&h<23 ? "ערב" : "לילה";
+  const date = d.toLocaleDateString("he-IL",{day:"2-digit",month:"2-digit",year:"numeric"});
+  $("#spShift").textContent = "משמרת "+shift+" · "+date;
+  $("#spVer").textContent = "גרסה "+APP_VER;
+  document.documentElement.classList.add("sp-open");
+  const enter=()=>{
+    document.documentElement.classList.remove("sp-open");
+    sp.classList.add("out");
+    setTimeout(()=>{ sp.hidden=true; },200);
+    $("#tabNew").focus({preventScroll:true});
+  };
+  $("#spEnter").onclick=enter;
+})();
 /* ================= boot ================= */
 load(); setNow(); renderAll(); show("New");
