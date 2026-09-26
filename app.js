@@ -776,7 +776,7 @@ $("#wipeAll").onclick=()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.15", APP_DATE="26/09/2026";
+const APP_VER="1.16", APP_DATE="27/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 $("#reloadApp").onclick=()=>{ location.reload(true); };
