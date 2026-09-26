@@ -1,7 +1,7 @@
 /* Service worker — network first, cache as offline fallback.
    Online the app always loads the latest files (so "בדוק עדכון" keeps working);
-   offline it serves the last copy it saw. Data stays in localStorage, not here. */
-const CACHE = "ogg-log-1.9";   // bump together with APP_VER in app.js
+   offline, or when the site answers with an error (404/5xx), it serves the last copy it saw. Data stays in localStorage, not here. */
+const CACHE = "ogg-log-1.10";   // bump together with APP_VER in app.js
 const SHELL = ["./", "index.html", "style.css", "app.js", "manifest.webmanifest",
                "icons/favicon-64.png", "icons/icon-192.png", "icons/icon-512.png",
                "icons/icon-maskable-512.png", "icons/logo-header.png"];
@@ -26,17 +26,21 @@ self.addEventListener("fetch", ev => {
   const isFont = url.hostname === "fonts.googleapis.com" || url.hostname === "fonts.gstatic.com";
   if (!sameOrigin && !isFont) return;
 
+  const fromCache = () => caches.match(req, { ignoreSearch: true })
+    .then(hit => hit || (req.mode === "navigate" ? caches.match("index.html") : undefined));
+
   ev.respondWith(
     fetch(req)
       .then(res => {
         if (res && (res.ok || res.type === "opaque")) {
           const copy = res.clone();
           caches.open(CACHE).then(c => c.put(req, copy));
+          return res;
         }
-        return res;
+        // Site answered with an error (e.g. 404 after the site was taken down):
+        // keep the app working from the saved copy if there is one.
+        return fromCache().then(hit => hit || res);
       })
-      .catch(() => caches.match(req, { ignoreSearch: true })
-        .then(hit => hit || (req.mode === "navigate" ? caches.match("index.html") : undefined))
-        .then(hit => hit || Response.error()))
+      .catch(() => fromCache().then(hit => hit || Response.error()))
   );
 });
