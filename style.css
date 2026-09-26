@@ -226,10 +226,12 @@ textarea{min-height:118px;resize:vertical;line-height:1.5}
 .ev .lock{font-size:12px;color:var(--ink-3);font-weight:700;padding:6px 2px}
 .ev .hl{font-size:19px;font-weight:900;line-height:1.3;margin:3px 0 5px;letter-spacing:-.025em}
 .ev .body{font-size:16.5px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere;font-weight:500}
-.ev .acts{display:flex;gap:6px;margin-top:9px}
+.ev .acts{display:flex;gap:6px;margin-top:9px;flex-wrap:wrap;align-items:center}
 .ev .acts button{border:2px solid var(--edge);background:var(--panel-2);border-radius:10px;padding:7px 14px;
   font-size:13.5px;font-weight:800;cursor:pointer;color:var(--ink-2)}
 .ev .acts button:hover{border-color:var(--water);color:var(--water)}
+.ev .acts .stbtn.close{border-color:var(--c-visit);color:var(--c-visit);background:var(--c-visit-bg)}
+.ev .acts .stbtn.reopen{border-color:var(--c-flood);color:var(--c-flood);background:var(--c-flood-bg)}
 .empty{border:1px dashed var(--edge);border-radius:13px;padding:32px 20px;text-align:center;color:var(--ink-2)}
 .empty b{display:block;font-size:17px;margin-bottom:6px;color:var(--ink)}
 
@@ -255,6 +257,9 @@ textarea{min-height:118px;resize:vertical;line-height:1.5}
 .toast span{background:var(--ink);color:var(--bg);border-radius:999px;padding:10px 18px;font-weight:700;
   font-size:14.5px;opacity:0;transform:translateY(8px);transition:opacity .18s,transform .18s}
 .toast.on span{opacity:1;transform:none}
+.toast.act span{pointer-events:auto;display:flex;align-items:center;gap:14px}
+.toast .tact{border:none;background:none;color:inherit;font:inherit;font-weight:900;text-decoration:underline;
+  cursor:pointer;padding:2px 4px}
 dialog{border:1px solid var(--edge);border-radius:15px;background:var(--panel);color:var(--ink);padding:18px;
   max-width:430px;width:calc(100% - 28px)}
 dialog::backdrop{background:rgba(6,12,17,.6)}
@@ -383,6 +388,25 @@ button.hbar:hover,button.hbar:focus-visible{background:var(--panel-2)}
 .cax span{position:absolute;top:0;left:calc((var(--i) + .5) / var(--n) * 100%);transform:translateX(-50%);white-space:nowrap}
 .cax span:first-child{transform:none;left:0}
 .cax span:last-child{transform:none;left:auto;right:0}
+
+/* person filter + people chart (open/closed stacked, 2px gap, open count also written as text) */
+.dsel{border:1px solid var(--edge);background:var(--panel);border-radius:11px;padding:8px 10px;font-weight:700;
+  font-size:13.5px;color:var(--ink);max-width:100%}
+.pbars{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.pbar{padding:4px 2px}
+.pbar .ph{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:4px}
+.pbar .pl{font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:start;min-width:0;
+  border:none;background:none;padding:2px;color:var(--ink);font:inherit;font-weight:700;border-radius:6px}
+.pbar button.pl{cursor:pointer}
+.pbar button.pl:hover{text-decoration:underline}
+.pbar .pt{display:flex;min-width:0}
+.pbar .pb{display:flex;gap:2px;height:14px}
+.pseg{border:none;padding:0;min-width:3px;flex-basis:0;height:100%}
+.pseg:last-child{border-start-end-radius:4px;border-end-end-radius:4px}
+button.pseg{cursor:pointer}
+button.pseg:hover,button.pseg:focus-visible{filter:brightness(1.12)}
+.pbar .pv{font-size:12.5px;font-weight:700;color:var(--ink-2);white-space:nowrap;font-variant-numeric:tabular-nums;flex:none}
+#viewDash .s-open{background:var(--s-open)} #viewDash .s-done{background:var(--s-done)}
 
 /* tooltip: value leads, label follows */
 .dtip{position:fixed;z-index:95;pointer-events:none;background:var(--panel);border:1px solid var(--edge);

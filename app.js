@@ -47,9 +47,14 @@ function persist(){
   }catch(e){ toast("הדפדפן חסם שמירה מקומית"); }
   writeFile();
 }
-function toast(m){
-  const t=$("#toast"); t.firstElementChild.textContent=m; t.classList.add("on");
-  clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove("on"),2200);
+function toast(m, act){
+  const t=$("#toast"), s=t.firstElementChild; s.textContent=m;
+  if(act){
+    const b=document.createElement("button"); b.type="button"; b.className="tact"; b.textContent=act.label;
+    b.onclick=()=>{ t.classList.remove("on"); act.fn(); }; s.appendChild(b);
+  }
+  t.classList.toggle("act",!!act); t.classList.add("on");
+  clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove("on"), act?5000:2200);
 }
 function useCount(key){
   const c={}; events.forEach(e=>{ (e[key]||[]).forEach(v=>{ c[v]=(c[v]||0)+1; }); }); return c;
@@ -377,6 +382,11 @@ function renderList(reset){
     const info=document.createElement("button"); info.textContent="פרטים";
     info.onclick=()=>{ det.hidden=!det.hidden; info.textContent=det.hidden?"פרטים":"סגור פרטים"; };
     acts.appendChild(info);
+    const closed_ = st==="נסגר";
+    const sbtn=document.createElement("button"); sbtn.className="stbtn "+(closed_?"reopen":"close");
+    sbtn.textContent = closed_ ? "פתח מחדש" : "סגור אירוע";
+    sbtn.onclick=()=>setStatus(e.id, !closed_);
+    acts.appendChild(sbtn);
     if(isLocked(e)){
       const lk=document.createElement("span"); lk.className="lock";
       lk.textContent="🔒 ארכיון · " + (e.src||"");
@@ -418,6 +428,21 @@ $("#fQuick12").onclick=()=>{
 $("#fQuickOpen").onclick=()=>{ $("#fStat").value="פתוח"; renderList(); };
 $("#expView").onclick=()=>exportCsv(lastRows, true);
 function isLocked(e){ return !!(e.src && e.src!=="רישום ידני"); }
+function nowLocal(){ const d=new Date(), p=n=>String(n).padStart(2,"0");
+  return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+"T"+p(d.getHours())+":"+p(d.getMinutes()); }
+function afterStatus(){ renderFilters(); renderList(false); renderStats(); if(!$("#viewDash").hidden) renderDash(); }
+/* close / reopen an event. Archive events stay locked for editing, but their status may change. */
+function setStatus(id, close){
+  const e=events.find(x=>x.id===id); if(!e) return;
+  const prev={stat:e.stat, closedAt:e.closedAt, ts:e.ts};
+  if(close){ e.stat=["נסגר"]; e.closedAt=nowLocal(); } else { e.stat=["פתוח"]; delete e.closedAt; }
+  e.ts=new Date().toISOString();
+  persist(); afterStatus();
+  toast(close?"האירוע נסגר":"האירוע נפתח מחדש",{label:"ביטול",fn:()=>{
+    ["stat","closedAt","ts"].forEach(k=>{ if(prev[k]===undefined) delete e[k]; else e[k]=prev[k]; });
+    persist(); afterStatus(); toast("השינוי בוטל");
+  }});
+}
 const OPEN_ANY="__open";
 function isOpen(e){ return ((e.stat||[])[0]||"פתוח")!=="נסגר"; }
 function loadInto(e){
@@ -469,7 +494,7 @@ const STAT_CLS={"פתוח":"s-open","בטיפול":"s-work","ממתין לחלק
 const AGE=[ // days since the event, open events only
   {l:"עד שבוע",a:0,b:7},{l:"שבוע עד חודש",a:8,b:30},{l:"1–3 חודשים",a:31,b:90},
   {l:"3–12 חודשים",a:91,b:365},{l:"מעל שנה",a:366,b:Infinity}];
-let dRange="365";
+let dRange="365", dPpl="";
 try{ dRange=localStorage.getItem("ogg-dash-range")||"365"; }catch(e){}
 const nf=n=>n.toLocaleString("he-IL");
 function ymd(d){ const p=n=>String(n).padStart(2,"0"); return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate()); }
@@ -483,6 +508,8 @@ function goList(o){
   if(o.type) $("#fType").value=o.type;
   if(o.loc) $("#fLoc").value=o.loc;
   if(o.stat) $("#fStat").value=o.stat;
+  const ppl = o.ppl!==undefined ? o.ppl : dPpl;   // dashboard person filter carries over
+  if(ppl) $("#fPpl").value=ppl;
   $("#fFrom").value=o.from||""; $("#fTo").value=o.to||"";
   $("#fPanel").hidden=false; $("#fToggle").setAttribute("aria-expanded","true");
   shown=PAGE; renderList(); show("List"); window.scrollTo({top:0});
@@ -537,11 +564,20 @@ function renderDash(){
   document.querySelectorAll("#dRange button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.r===dRange)));
   const from = dRange==="all" ? "" : ymd(daysAgo(+dRange-1));
   const today = ymd(daysAgo(0));
-  const rows = events.filter(e=>{ if(!from) return true; const d=(e.when||"").slice(0,10); return d && d>=from; });
+  // person filter: options = everyone who appears in events, most frequent first
+  const pc={}; events.forEach(e=>(e.ppl||[]).forEach(v=>{ pc[v]=(pc[v]||0)+1; }));
+  const people=Object.keys(pc).sort((a,b)=>pc[b]-pc[a]);
+  if(dPpl && !pc[dPpl]) dPpl="";
+  const ps=$("#dPpl"); ps.textContent="";
+  [["","כל המעורבים"]].concat(people.map(v=>[v,v])).forEach(([v,l])=>{ const o=mk("option",null,l); o.value=v; ps.appendChild(o); });
+  ps.value=dPpl; ps.hidden=!people.length;
+  const rows = events.filter(e=>{
+    if(dPpl && !(e.ppl||[]).includes(dPpl)) return false;
+    if(!from) return true; const d=(e.when||"").slice(0,10); return d && d>=from; });
   const open = rows.filter(isOpen);
   const closed = rows.length-open.length;
   const faults = open.filter(e=>(e.type||[]).includes("תקלה")).length;
-  $("#dScope").textContent = (from? "מ-"+dmy(from)+" עד היום" : "כל התקופה")+" · "+nf(rows.length)+" אירועים";
+  $("#dScope").textContent = (from? "מ-"+dmy(from)+" עד היום" : "כל התקופה")+(dPpl? " · "+dPpl : "")+" · "+nf(rows.length)+" אירועים";
 
   /* KPI row */
   const k=$("#dKpis"); k.textContent="";
@@ -654,7 +690,42 @@ function renderDash(){
   };
   topBars("type","פתוחים לפי סוג","type");
   topBars("loc","פתוחים לפי מיקום","loc");
+
+  /* by person: open vs closed per person (hidden when one person is already selected) */
+  if(!dPpl){
+    const per={}; rows.forEach(e=>(e.ppl||[]).forEach(v=>{ const r=per[v]||(per[v]={o:0,c:0}); isOpen(e)? r.o++ : r.c++; }));
+    const names=Object.keys(per).sort((a,b)=>(per[b].o+per[b].c)-(per[a].o+per[a].c) || per[b].o-per[a].o);
+    if(names.length){
+      const top=names.slice(0,8), restN=names.slice(8);
+      const items=top.map(v=>({l:v,o:per[v].o,c:per[v].c,p:v}));
+      if(restN.length) items.push({l:"אחר ("+restN.length+")",o:restN.reduce((s,v)=>s+per[v].o,0),c:restN.reduce((s,v)=>s+per[v].c,0)});
+      const max=Math.max(...items.map(i=>i.o+i.c));
+      const body=mk("div");
+      const lg=mk("div","legend"); [["פתוח","s-open"],["נסגר","s-done"]].forEach(([l,c])=>{ const li=mk("span","li"); li.append(mk("i",c),mk("span",null,l)); lg.appendChild(li); });
+      const box=mk("div","pbars");
+      items.forEach(it=>{
+        const row=mk("div","pbar");
+        const lb=mk(it.p?"button":"span","pl",it.l);
+        if(it.p){ lb.type="button"; lb.onclick=()=>goList({ppl:it.p,from}); tipOn(lb, nf(it.o+it.c)+" אירועים", it.l); }
+        const tr=mk("span","pt");
+        const bar=mk("span","pb"); bar.style.width="max(4px, calc(100% * "+((it.o+it.c)/max)+"))";
+        [["o","s-open","פתוחים",OPEN_ANY],["c","s-done","נסגרו","נסגר"]].forEach(([k,cls,word,stat])=>{
+          if(!it[k]) return;
+          const sg=mk(it.p?"button":"span","pseg "+cls); sg.style.flexGrow=it[k];
+          if(it.p){ sg.type="button"; sg.onclick=()=>goList({ppl:it.p,stat,from}); }
+          tipOn(sg, nf(it[k])+" "+word, it.l); bar.appendChild(sg);
+        });
+        tr.appendChild(bar);
+        const head=mk("div","ph"); head.append(lb, mk("span","pv", nf(it.o+it.c)+(it.o? " · "+nf(it.o)+" פתוחים" : "")));
+        row.append(head,tr); box.appendChild(row);
+      });
+      body.append(lg,box);
+      cards.appendChild(dcard("לפי מעורבים","אירועים לכל אדם, פתוחים וסגורים", body,
+        names.map(v=>[v,per[v].o+per[v].c,per[v].o,per[v].c]), ["מעורב","אירועים","פתוחים","נסגרו"]));
+    }
+  }
 }
+$("#dPpl").onchange=()=>{ dPpl=$("#dPpl").value; renderDash(); };
 document.querySelectorAll("#dRange button").forEach(b=>b.onclick=()=>{
   dRange=b.dataset.r; try{ localStorage.setItem("ogg-dash-range",dRange); }catch(e){}
   renderDash();
@@ -776,7 +847,7 @@ $("#wipeAll").onclick=()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.16", APP_DATE="27/09/2026";
+const APP_VER="1.17", APP_DATE="27/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 $("#reloadApp").onclick=()=>{ location.reload(true); };

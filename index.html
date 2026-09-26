@@ -90,7 +90,7 @@
     <div class="bar-row">
       <img class="logo" src="icons/logo-header.png" alt="מבט&quot;י — מפעלי ביוב וטיהור ירושלים" width="101" height="137">
       <div class="mark">יומן אירועים <span class="sub">מט"ש אוג</span></div>
-      <span class="ver" id="verChip" title="גרסה">v1.16</span>
+      <span class="ver" id="verChip" title="גרסה">v1.17</span>
       <button class="icon-btn" id="themeBtn" aria-label="מצב תצוגה">◐</button>
     </div>
     <nav class="tabs" role="tablist">
@@ -196,6 +196,7 @@
         <button type="button" data-r="365">12 חודשים</button>
         <button type="button" data-r="all">הכל</button>
       </div>
+      <select id="dPpl" class="dsel" aria-label="סינון לפי מעורב"></select>
     </div>
     <p class="dsh-scope" id="dScope"></p>
     <div class="kpis" id="dKpis"></div>
@@ -237,13 +238,13 @@
 
     <div class="card">
       <h3>גרסה</h3>
-      <p id="verLine">גרסה 1.16 · 27/09/2026</p>
+      <p id="verLine">גרסה 1.17 · 27/09/2026</p>
       <div class="row"><button class="btn" id="reloadApp">בדוק עדכון</button></div>
     </div>
 
     <div class="card">
       <h3>ניקוי</h3>
-      <p>אירועי הארכיון שנטענו מהיומנים הישנים נעולים לעריכה ולמחיקה. אפשר למחוק רק את מה שרשמת באפליקציה.</p>
+      <p>אירועי הארכיון שנטענו מהיומנים הישנים נעולים לעריכה ולמחיקה (אפשר רק לסגור או לפתוח אותם מחדש). אפשר למחוק רק את מה שרשמת באפליקציה.</p>
       <div class="row">
         <button class="btn danger" id="wipe">מחק את הרישומים שלי</button>
         <button class="btn ghost" id="wipeAll">מחק הכל כולל ארכיון</button>
