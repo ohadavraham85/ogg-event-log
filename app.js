@@ -278,7 +278,8 @@ function matchRows(){
     if(fl && !(e.loc||[]).includes(fl)) return false;
     if(fe && !(e.eq||[]).includes(fe)) return false;
     if(fp && !(e.ppl||[]).includes(fp)) return false;
-    if(fs && ((e.stat||[])[0]||"פתוח")!==fs) return false;
+    if(fs===OPEN_ANY){ if(!isOpen(e)) return false; }
+    else if(fs && ((e.stat||[])[0]||"פתוח")!==fs) return false;
     if(fsrc && (e.src||"רישום ידני")!==fsrc) return false;
     const day=(e.when||"").slice(0,10);
     if(from && (!day || day<from)) return false;
@@ -417,6 +418,8 @@ $("#fQuick12").onclick=()=>{
 $("#fQuickOpen").onclick=()=>{ $("#fStat").value="פתוח"; renderList(); };
 $("#expView").onclick=()=>exportCsv(lastRows, true);
 function isLocked(e){ return !!(e.src && e.src!=="רישום ידני"); }
+const OPEN_ANY="__open";
+function isOpen(e){ return ((e.stat||[])[0]||"פתוח")!=="נסגר"; }
 function loadInto(e){
   if(isLocked(e)){ toast("אירוע ארכיון — לא ניתן לעריכה"); return; }
   editId=e.id;
@@ -427,11 +430,11 @@ function loadInto(e){
   $("#saveBtn").textContent="עדכן אירוע"; show("New"); paintRows(); window.scrollTo({top:0});
 }
 function renderFilters(){
-  const fill=(id,vals,keep)=>{
+  const fill=(id,vals,keep,labels)=>{
     const s=$(id); if(!s) return;
     const cur=s.value; s.textContent="";
     const o=document.createElement("option"); o.value=""; o.textContent=keep; s.appendChild(o);
-    vals.forEach(v=>{ const x=document.createElement("option"); x.value=v; x.textContent=v; s.appendChild(x); });
+    vals.forEach(v=>{ const x=document.createElement("option"); x.value=v; x.textContent=(labels&&labels[v])||v; s.appendChild(x); });
     s.value = vals.includes(cur)?cur:"";
   };
   const uniq=(key,cnt)=>{
@@ -442,7 +445,7 @@ function renderFilters(){
   fill("#fLoc",uniq("loc"),"כל המיקומים");
   fill("#fEq",uniq("eq"),"כל הציוד");
   fill("#fPpl",uniq("ppl"),"כל המעורבים");
-  fill("#fStat",uniq("stat"),"כל הסטטוסים");
+  fill("#fStat",[OPEN_ANY].concat(uniq("stat")),"כל הסטטוסים",{[OPEN_ANY]:"כל מה שלא נסגר"});
   fill("#fSrc",[...new Set(events.map(e=>e.src||"רישום ידני"))],"כל המקורות");
 }
 function renderStats(){
@@ -457,12 +460,207 @@ function renderStats(){
   });
   $("#cnt").textContent = events.length? "("+events.length+")":"";
 }
-function renderAll(){ paintRows(); renderFilters(); renderList(); renderStats(); renderMgr(); }
+function renderAll(){ paintRows(); renderFilters(); renderList(); renderStats(); renderMgr(); if(!$("#viewDash").hidden) renderDash(); }
 $("#q").oninput=renderList; $("#fType").onchange=renderList; $("#fLoc").onchange=renderList;
+
+/* ================= dashboard ================= */
+const STAT_ORDER=["פתוח","בטיפול","ממתין לחלק","נסגר"];
+const STAT_CLS={"פתוח":"s-open","בטיפול":"s-work","ממתין לחלק":"s-wait","נסגר":"s-done"};
+const AGE=[ // days since the event, open events only
+  {l:"עד שבוע",a:0,b:7},{l:"שבוע עד חודש",a:8,b:30},{l:"1–3 חודשים",a:31,b:90},
+  {l:"3–12 חודשים",a:91,b:365},{l:"מעל שנה",a:366,b:Infinity}];
+let dRange="365";
+try{ dRange=localStorage.getItem("ogg-dash-range")||"365"; }catch(e){}
+const nf=n=>n.toLocaleString("he-IL");
+function ymd(d){ const p=n=>String(n).padStart(2,"0"); return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate()); }
+function daysAgo(n){ const d=new Date(); d.setHours(12,0,0,0); d.setDate(d.getDate()-n); return d; }
+function dmy(s){ return s? s.slice(8,10)+"/"+s.slice(5,7)+"/"+s.slice(0,4) : ""; }
+
+function goList(o){
+  renderFilters();
+  ["#fType","#fLoc","#fEq","#fPpl","#fStat","#fSrc","#fFrom","#fTo"].forEach(id=>{ if($(id)) $(id).value=""; });
+  $("#q").value="";
+  if(o.type) $("#fType").value=o.type;
+  if(o.loc) $("#fLoc").value=o.loc;
+  if(o.stat) $("#fStat").value=o.stat;
+  $("#fFrom").value=o.from||""; $("#fTo").value=o.to||"";
+  $("#fPanel").hidden=false; $("#fToggle").setAttribute("aria-expanded","true");
+  shown=PAGE; renderList(); show("List"); window.scrollTo({top:0});
+}
+
+/* tooltip: value first, label second; same on hover and keyboard focus */
+function tipOn(el, value, label){
+  const show_=()=>{
+    const t=$("#dTip"); t.textContent="";
+    const b=document.createElement("b"); b.textContent=value;
+    const s=document.createElement("span"); s.textContent=label;
+    t.append(b,s); t.hidden=false;
+    const r=el.getBoundingClientRect(), tw=t.offsetWidth, th=t.offsetHeight;
+    let x=r.left+r.width/2-tw/2; x=Math.max(8,Math.min(x,innerWidth-tw-8));
+    let y=r.top-th-8; if(y<8) y=r.bottom+8;
+    t.style.left=x+"px"; t.style.top=y+"px";
+  };
+  const hide=()=>{ $("#dTip").hidden=true; };
+  el.addEventListener("pointerenter",show_); el.addEventListener("pointerleave",hide);
+  el.addEventListener("focus",show_); el.addEventListener("blur",hide);
+}
+function mk(tag,cls,text){ const e=document.createElement(tag); if(cls) e.className=cls; if(text!=null) e.textContent=text; return e; }
+function dcard(title,sub,body,rows,head){
+  const c=mk("div","card dcard");
+  c.appendChild(mk("h3",null,title));
+  if(sub) c.appendChild(mk("p","dsub",sub));
+  c.appendChild(body);
+  const det=mk("details","tv"); det.appendChild(mk("summary",null,"הצג כטבלה"));
+  const tb=mk("table"); const hr=mk("tr"); head.forEach(h=>hr.appendChild(mk("th",null,h))); tb.appendChild(hr);
+  rows.forEach(r=>{ const tr=mk("tr"); r.forEach(v=>tr.appendChild(mk("td",null,typeof v==="number"?nf(v):v))); tb.appendChild(tr); });
+  det.appendChild(tb); c.appendChild(det);
+  return c;
+}
+/* horizontal bars: label · bar · value at the tip */
+function hbars(items, max, cls){
+  const box=mk("div","hbars");
+  items.forEach(it=>{
+    const row=mk(it.go?"button":"div","hbar");
+    if(it.go){ row.type="button"; row.onclick=it.go; }
+    row.appendChild(mk("span","hl",it.l));
+    const tr=mk("span","ht"); const f=mk("span","hf "+(it.cls||cls||""));
+    // leave room at the end of the track for the value label
+    const r=max? it.v/max : 0;
+    f.style.width = it.v ? "max(3px, calc((100% - 46px) * "+r+"))" : "0px"; tr.appendChild(f);
+    tr.appendChild(mk("span","hv",nf(it.v))); row.appendChild(tr);
+    tipOn(row, nf(it.v)+" אירועים", it.l);
+    box.appendChild(row);
+  });
+  return box;
+}
+function renderDash(){
+  document.querySelectorAll("#dRange button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.r===dRange)));
+  const from = dRange==="all" ? "" : ymd(daysAgo(+dRange-1));
+  const today = ymd(daysAgo(0));
+  const rows = events.filter(e=>{ if(!from) return true; const d=(e.when||"").slice(0,10); return d && d>=from; });
+  const open = rows.filter(isOpen);
+  const closed = rows.length-open.length;
+  const faults = open.filter(e=>(e.type||[]).includes("תקלה")).length;
+  $("#dScope").textContent = (from? "מ-"+dmy(from)+" עד היום" : "כל התקופה")+" · "+nf(rows.length)+" אירועים";
+
+  /* KPI row */
+  const k=$("#dKpis"); k.textContent="";
+  [[ "פתוחים (לא נסגרו)", open.length, "hero", {stat:OPEN_ANY,from} ],
+   [ "תקלות פתוחות", faults, "", {stat:OPEN_ANY,type:"תקלה",from} ],
+   [ "נרשמו", rows.length, "", {from} ],
+   [ "נסגרו", closed, "", {stat:"נסגר",from} ]].forEach(([l,v,cls,q])=>{
+    const t=mk("button","kpi "+cls); t.type="button";
+    t.append(mk("span","kl",l), mk("b",null,nf(v)), mk("span","kgo","הצג ברשימה ‹"));
+    t.onclick=()=>goList(q); k.appendChild(t);
+  });
+
+  const cards=$("#dCards"); cards.textContent="";
+  if(!rows.length){ cards.appendChild(mk("p","dempty","אין אירועים בטווח הזה.")); return; }
+
+  /* status: one stacked bar + legend (legend carries every value) */
+  const sc={}; rows.forEach(e=>{ const s=(e.stat||[])[0]||"פתוח"; sc[s]=(sc[s]||0)+1; });
+  const stats=STAT_ORDER.filter(s=>sc[s]).concat(Object.keys(sc).filter(s=>!STAT_ORDER.includes(s)));
+  const sb=mk("div"); const bar=mk("div","sbar"); const lg=mk("div","legend");
+  stats.forEach(s=>{
+    const pct=Math.round(100*sc[s]/rows.length);
+    const seg=mk("button","seg-s "+(STAT_CLS[s]||"s-other")); seg.type="button";
+    seg.style.flexGrow=sc[s]; seg.setAttribute("aria-label",s+": "+nf(sc[s]));
+    seg.onclick=()=>goList({stat:s,from}); tipOn(seg, nf(sc[s])+" · "+pct+"%", s);
+    bar.appendChild(seg);
+    const li=mk("button","li"); li.type="button"; li.onclick=seg.onclick;
+    li.append(mk("i",STAT_CLS[s]||"s-other"), mk("span",null,s), mk("b",null,nf(sc[s])), mk("em",null,pct+"%"));
+    lg.appendChild(li);
+  });
+  sb.append(bar,lg);
+  cards.appendChild(dcard("סטטוס", null, sb, stats.map(s=>[s,sc[s],Math.round(100*sc[s]/rows.length)+"%"]), ["סטטוס","אירועים","אחוז"]));
+
+  /* open events by age (ordinal ramp: older = darker) */
+  const now=daysAgo(0).getTime();
+  const ages=AGE.map(()=>0);
+  open.forEach(e=>{ const d=(e.when||"").slice(0,10); if(!d) return;
+    const n=Math.round((now-new Date(d+"T12:00").getTime())/864e5);
+    const i=AGE.findIndex(g=>n>=g.a && n<=g.b); if(i>=0) ages[i]++; });
+  const ageItems=AGE.map((g,i)=>({l:g.l, v:ages[i], cls:"age"+i,
+    go:()=>{ let f=g.b===Infinity?"":ymd(daysAgo(g.b)); if(from && (!f || f<from)) f=from; goList({stat:OPEN_ANY, from:f, to:ymd(daysAgo(g.a))}); }}));
+  cards.appendChild(dcard("אירועים פתוחים לפי ותק", "כמה זמן עבר מאז האירוע", hbars(ageItems, Math.max(...ages)),
+    AGE.map((g,i)=>[g.l,ages[i]]), ["ותק","פתוחים"]));
+
+  /* over time: one series, bucket size follows the range */
+  const unit = dRange==="30"?"day": dRange==="90"?"week": dRange==="365"?"month":"year";
+  const keyOf=d=>{ // d = "YYYY-MM-DD"
+    if(unit==="day") return d;
+    if(unit==="month") return d.slice(0,7);
+    if(unit==="year") return d.slice(0,4);
+    const x=new Date(d+"T12:00"); x.setDate(x.getDate()-x.getDay()); return ymd(x); // week starts Sunday
+  };
+  const labelOf=kk=> unit==="day"||unit==="week" ? kk.slice(8,10)+"/"+kk.slice(5,7) : unit==="month" ? kk.slice(5,7)+"/"+kk.slice(2,4) : kk;
+  const buckets=[];
+  if(unit==="year"){
+    const ys=rows.map(e=>(e.when||"").slice(0,4)).filter(Boolean).sort();
+    if(ys.length) for(let y=+ys[0]; y<=+today.slice(0,4); y++) buckets.push(String(y));
+  } else {
+    const n = unit==="day"?30 : unit==="week"?13 : 12;
+    for(let i=n-1;i>=0;i--){
+      if(unit==="day") buckets.push(ymd(daysAgo(i)));
+      else if(unit==="week") buckets.push(keyOf(ymd(daysAgo(i*7))));
+      else { const d=daysAgo(0); d.setDate(1); d.setMonth(d.getMonth()-i); buckets.push(ymd(d).slice(0,7)); }
+    }
+  }
+  const tc={}; rows.forEach(e=>{ const d=(e.when||"").slice(0,10); if(d){ const kk=keyOf(d); tc[kk]=(tc[kk]||0)+1; } });
+  const vals=buckets.map(b=>tc[b]||0), vmax=Math.max(1,...vals), imax=vals.indexOf(Math.max(...vals));
+  const plot=mk("div","cols"); plot.style.setProperty("--n",buckets.length);
+  const bodyT=mk("div");
+  buckets.forEach((b,i)=>{
+    const c=mk("button","col"+(i===buckets.length-1?" cur":"")); c.type="button";
+    const bar_=mk("span","cb"); bar_.style.height=(100*vals[i]/vmax)+"%";
+    if(vals[i] && (i===imax || i===buckets.length-1)) bar_.appendChild(mk("span","cv",nf(vals[i])));
+    c.appendChild(bar_);
+    const unitName={day:"יום",week:"שבוע מ-",month:"חודש",year:"שנה"}[unit];
+    tipOn(c, nf(vals[i])+" אירועים", unitName+" "+labelOf(b));
+    c.onclick=()=>{
+      let f,t;
+      if(unit==="day"){ f=t=b; }
+      else if(unit==="week"){ f=b; const x=new Date(b+"T12:00"); x.setDate(x.getDate()+6); t=ymd(x); }
+      else if(unit==="month"){ f=b+"-01"; const x=new Date(b+"-01T12:00"); x.setMonth(x.getMonth()+1); x.setDate(0); t=ymd(x); }
+      else { f=b+"-01-01"; t=b+"-12-31"; }
+      if(from && f<from) f=from;   // first bucket may start before the range
+      goList({from:f,to:t});
+    };
+    plot.appendChild(c);
+  });
+  const axis=mk("div","cax");
+  [0, Math.floor((buckets.length-1)/2), buckets.length-1].filter((v,i,a)=>a.indexOf(v)===i).forEach(i=>{
+    const s=mk("span",null,labelOf(buckets[i])); s.style.setProperty("--i",i); axis.appendChild(s); });
+  axis.style.setProperty("--n",buckets.length);
+  bodyT.append(plot,axis);
+  const tTitle={day:"אירועים לפי יום",week:"אירועים לפי שבוע",month:"אירועים לפי חודש",year:"אירועים לפי שנה"}[unit];
+  cards.appendChild(dcard(tTitle, "כל האירועים שנרשמו, פתוחים וסגורים", bodyT,
+    buckets.map((b,i)=>[labelOf(b),vals[i]]), [{day:"יום",week:"שבוע",month:"חודש",year:"שנה"}[unit],"אירועים"]));
+
+  /* open by type / by location: top 6 + "other" */
+  const topBars=(key,title,filterKey)=>{
+    const c={}; open.forEach(e=>(e[key]||[]).forEach(v=>{ c[v]=(c[v]||0)+1; }));
+    const all=Object.keys(c).sort((a,b)=>c[b]-c[a]);
+    const top=all.slice(0,6), rest=all.slice(6).reduce((s,v)=>s+c[v],0);
+    const items=top.map(v=>({l:v,v:c[v],go:()=>goList({stat:OPEN_ANY,[filterKey]:v,from})}));
+    if(rest) items.push({l:"אחר ("+all.slice(6).length+")",v:rest,cls:"other"});
+    if(!items.length) return;
+    const max=Math.max(...items.map(i=>i.v));
+    cards.appendChild(dcard(title, null, hbars(items,max,"one"), all.map(v=>[v,c[v]]), [title.replace("פתוחים לפי ",""),"פתוחים"]));
+  };
+  topBars("type","פתוחים לפי סוג","type");
+  topBars("loc","פתוחים לפי מיקום","loc");
+}
+document.querySelectorAll("#dRange button").forEach(b=>b.onclick=()=>{
+  dRange=b.dataset.r; try{ localStorage.setItem("ogg-dash-range",dRange); }catch(e){}
+  renderDash();
+});
+addEventListener("scroll",()=>{ const t=$("#dTip"); if(t) t.hidden=true; },{passive:true});
 
 /* ================= tabs / theme ================= */
 function show(w){
-  ["New","List","Data"].forEach(v=>{
+  if($("#dTip")) $("#dTip").hidden=true;
+  ["New","List","Dash","Data"].forEach(v=>{
     $("#view"+v).hidden=(v!==w);
     $("#tab"+v).setAttribute("aria-selected",String(v===w));
   });
@@ -471,6 +669,7 @@ function show(w){
 }
 $("#tabNew").onclick=()=>show("New");
 $("#tabList").onclick=()=>{ renderFilters(); renderList(); show("List"); };
+$("#tabDash").onclick=()=>{ renderDash(); show("Dash"); };
 $("#tabData").onclick=()=>{ renderStats(); renderMgr(); show("Data"); };
 $("#themeBtn").onclick=()=>{
   const cur=document.documentElement.getAttribute("data-theme");
@@ -573,7 +772,7 @@ $("#wipeAll").onclick=()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.12", APP_DATE="26/09/2026";
+const APP_VER="1.13", APP_DATE="26/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 $("#reloadApp").onclick=()=>{ location.reload(true); };

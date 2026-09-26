@@ -60,12 +60,13 @@
     <div class="bar-row">
       <img class="logo" src="icons/logo-header.png" alt="מבט&quot;י — מפעלי ביוב וטיהור ירושלים" width="101" height="137">
       <div class="mark">יומן אירועים <span class="sub">מט"ש אוג</span></div>
-      <span class="ver" id="verChip" title="גרסה">v1.12</span>
+      <span class="ver" id="verChip" title="גרסה">v1.13</span>
       <button class="icon-btn" id="themeBtn" aria-label="מצב תצוגה">◐</button>
     </div>
     <nav class="tabs" role="tablist">
       <button role="tab" id="tabNew" aria-selected="true">רישום אירוע</button>
       <button role="tab" id="tabList" aria-selected="false">אירועים <span id="cnt"></span></button>
+      <button role="tab" id="tabDash" aria-selected="false">דשבורד</button>
       <button role="tab" id="tabData" aria-selected="false">רשימות וקובץ</button>
     </nav>
   </header>
@@ -155,6 +156,23 @@
     </div>
   </section>
 
+  <!-- ============ DASHBOARD ============ -->
+  <section id="viewDash" hidden>
+    <div class="dsh-head">
+      <h2>מצב אירועים</h2>
+      <div class="seg" role="group" aria-label="טווח זמן" id="dRange">
+        <button type="button" data-r="30">30 יום</button>
+        <button type="button" data-r="90">90 יום</button>
+        <button type="button" data-r="365">12 חודשים</button>
+        <button type="button" data-r="all">הכל</button>
+      </div>
+    </div>
+    <p class="dsh-scope" id="dScope"></p>
+    <div class="kpis" id="dKpis"></div>
+    <div id="dCards"></div>
+    <div class="dtip" id="dTip" role="tooltip" hidden></div>
+  </section>
+
   <!-- ============ DATA ============ -->
   <section id="viewData" hidden>
     <div class="card">
@@ -189,7 +207,7 @@
 
     <div class="card">
       <h3>גרסה</h3>
-      <p id="verLine">גרסה 1.12 · 26/09/2026</p>
+      <p id="verLine">גרסה 1.13 · 26/09/2026</p>
       <div class="row"><button class="btn" id="reloadApp">בדוק עדכון</button></div>
     </div>
 
