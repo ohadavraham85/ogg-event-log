@@ -4,5 +4,6 @@ Hebrew RTL PWA — event log for the Og wastewater plant. Static files only: `in
 
 - **Bump the version on every change**: `APP_VER`/`APP_DATE` in `app.js`, `CACHE` in `sw.js` (`ogg-log-<version>`), the initial `verChip`/`verLine` text in `index.html`, and add a row to the version table in `README.md`.
 - Never commit data: `*.json` is gitignored (backups contain real records and names).
+- Never put plant-specific values (people, locations, equipment) in the code — the site is readable by anyone with the link. Lists are built from the events on the device, values added in the app, and loaded backups.
 - Check phone widths (320px and ~400px) for horizontal overflow after layout changes.
 - GitHub Pages deploys from branch `claude/magical-bell-qcwse4`.

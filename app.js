@@ -1,18 +1,12 @@
 "use strict";
 const $ = s => document.querySelector(s);
 
-/* ================= seed lists (from the real plant log) ================= */
+/* ================= seed lists ================= */
 const SEED = {
   type:["תקלה","אחזקה חודשית","גלישות חרום","אחזקה","אחזקה מונעת","אחזקה שנתית","הפסקות חשמל",
         "תהליך","הודעת יומן","ביקור","נפילות/קפיצות חשמל","סיור בטיחות חודשי","כללי"],
-  loc:["קדם טיפול","צינור OVERFLOW","מט\"ש כללי","עבודות קבלן","בריכה B1","בריכה B2","בית מלאכה",
-       "חדר חשמל ראשי ECB","חדר חשמל EB1","חדר חשמל EB2","חדר חשמל מתח גבוה EB6","משרדים","מגובים",
-       "חממות","מאגר בוצה","סילוק בוצה","גנרטור","מעבדה","מחסן חשמל","שער כניסה","אחר"],
-  eq:["גנרטור 670KVA","מגוב גס A151","מגוב גס A152","מגוב עדין A101","מגוב עדין A102","משאבת סולר",
-      "דוגם אוטומטי קולחים","משאבת גרוסת A204","מיכל השקטה","דחסן חלזוני","ציוד כיבוי אש","מערבל",
-      "מאוורר","מדחס אוויר","שנאי","לוח חשמל ראשי"],
-  ppl:["יוסי לוי","אבי בצלאל","אוהד אברהם","אלדד אפרים","אלעד ניסים","אביב עובדיה","נעם גייגר",
-       "מחמוד דראושה","שגיא קוריס","קבלן"],
+  loc:[], eq:[], ppl:[],   // plant-specific values are not kept in the code: they come from
+                          // the events on this device, from values added in the app, and from loaded backups
   stat:["פתוח","בטיפול","ממתין לחלק","נסגר"]
 };
 const META = {
@@ -40,7 +34,8 @@ function load(){
   Object.keys(SEED).forEach(k=>{
     const custom = Array.isArray(saved[k]) ? saved[k] : [];
     const hidden = Array.isArray(saved["_hide_"+k]) ? saved["_hide_"+k] : [];
-    lists[k] = [...new Set(SEED[k].concat(custom))].filter(v=>!hidden.includes(v));
+    const used = events.flatMap(e=>Array.isArray(e[k])?e[k]:[]);
+    lists[k] = [...new Set(SEED[k].concat(custom, used))].filter(v=>!hidden.includes(v));
     lists["_custom_"+k] = custom; lists["_hide_"+k] = hidden;
   });
 }
@@ -561,7 +556,7 @@ $("#impFile").onchange=ev=>{
           if(!lists[k].includes(v)) lists[k].push(v); } });
       });
       events.sort((a,b)=>(b.when||"").localeCompare(a.when||""));
-      persist(); renderAll(); toast(n+" נוספו, "+u+" עודכנו");
+      persist(); load(); renderAll(); toast(n+" נוספו, "+u+" עודכנו");
     }catch(e){ toast("הקובץ לא בפורמט הנכון"); }
   };
   r.readAsText(f); ev.target.value="";
@@ -578,7 +573,7 @@ $("#wipeAll").onclick=()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.10", APP_DATE="26/09/2026";
+const APP_VER="1.11", APP_DATE="26/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 $("#reloadApp").onclick=()=>{ location.reload(true); };
