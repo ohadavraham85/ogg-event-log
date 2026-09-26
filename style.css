@@ -272,6 +272,22 @@ header.bar{background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filt
 @media (prefers-color-scheme:dark){ :root:not([data-theme="light"]) .app-bg{opacity:.28} }
 :root[data-theme="dark"] .app-bg{opacity:.28}
 
+/* desktop: blue side panels (from the opening-screen design) filling the space beside the content */
+.app-side{display:none}
+@media (min-width:1024px){
+  .app-side{display:block;position:fixed;top:0;bottom:0;z-index:0;overflow:hidden;pointer-events:none;
+    width:calc(50vw - 380px - 24px);background:#1565A8}
+  .app-side svg{position:absolute;inset:0;width:100%;height:100%}
+  .app-side-l{left:0}
+  .app-side-r{right:0}
+  .app-side-r svg{transform:scaleX(-1)}
+  .app-side-foot{position:absolute;bottom:40px;left:24px;right:24px;color:#fff;font-size:15px;line-height:1.5}
+}
+@media (min-width:1024px) and (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]) .app-side{background:#0E3A63;filter:brightness(.8)}
+}
+@media (min-width:1024px){ :root[data-theme="dark"] .app-side{background:#0E3A63;filter:brightness(.8)} }
+
 /* dashboard tab: first and prominent */
 .tabs button.tab-dash{display:flex;align-items:center;justify-content:center;gap:6px;
   border-color:var(--water);color:var(--water);background:color-mix(in srgb,var(--water) 10%,var(--panel))}
