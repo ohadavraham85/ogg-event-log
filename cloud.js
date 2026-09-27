@@ -285,7 +285,10 @@
     F=window.FB;
     app=F.initializeApp(window.FIREBASE_CONFIG);
     auth=F.initializeAuth(app,{persistence:[F.indexedDBLocalPersistence,F.browserLocalPersistence]});
-    db=F.initializeFirestore(app,{localCache:F.persistentLocalCache({tabManager:F.persistentMultipleTabManager()})});
+    // FIREBASE_DATABASE: a separate (named) Firestore database, so the log can live in a project that
+    // already has another app, without touching that app's data or security rules
+    db=F.initializeFirestore(app,{localCache:F.persistentLocalCache({tabManager:F.persistentMultipleTabManager()})},
+                             window.FIREBASE_DATABASE||undefined);
     if(window.FIREBASE_EMULATOR){
       F.connectAuthEmulator(auth,"http://127.0.0.1:9099",{disableWarnings:true});
       F.connectFirestoreEmulator(db,"127.0.0.1",8080);

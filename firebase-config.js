@@ -4,3 +4,6 @@
    window.FIREBASE_CONFIG = { apiKey:"…", authDomain:"….firebaseapp.com", projectId:"…", appId:"…" };
    These values are not secret — access is enforced by the Firestore security rules (firestore.rules). */
 window.FIREBASE_CONFIG = null;
+/* Optional: the Firestore database to use. Leave null for the project's default database; set a name
+   (e.g. "event-log") to keep the log in its own database when the project also serves another app. */
+window.FIREBASE_DATABASE = null;
