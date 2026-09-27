@@ -895,6 +895,113 @@ function download(name,text,mime){
   setTimeout(()=>URL.revokeObjectURL(url),1500);
 }
 $("#expJson").onclick=()=>{ download("יומן-אירועים-אוג.json",JSON.stringify(payload(),null,1),"application/json"); toast("הגיבוי הורד"); };
+/* ================= weekly summary + backup =================
+   Once a week (from Sunday 00:00) a window opens that can't be dismissed until both steps are done:
+   1) send the week's summary by e-mail (mail app) or copy it, 2) send/download a full backup.
+   Team mode: only admins, and only after the first full sync from the server (so the backup is complete). */
+const K_WEEK="ogg-weekly-done", K_WEEK_TO="ogg-weekly-to";
+let wkState=null;
+function weekStart(d){ const x=new Date(d); x.setHours(0,0,0,0); x.setDate(x.getDate()-x.getDay()); return x.getTime(); }
+function weekDone(){ try{ return +localStorage.getItem(K_WEEK)||0; }catch(e){ return 0; } }
+function weekSummary(){
+  const now=new Date(), from=new Date(now.getTime()-7*864e5), p=n=>String(n).padStart(2,"0");
+  const loc=d=>d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+"T"+p(d.getHours())+":"+p(d.getMinutes());
+  const since=loc(from), dm=d=>p(d.getDate())+"/"+p(d.getMonth()+1);
+  const isF=e=>(e.type||[]).includes("תקלה");
+  const week=events.filter(e=>String(e.when||"")>=since).sort((a,b)=>String(b.when).localeCompare(String(a.when)));
+  const closed=events.filter(e=>!isOpen(e) && String(e.closedAt||"")>=since).length;
+  const open=events.filter(isOpen), openF=open.filter(isF).length;
+  const byType={}; week.forEach(e=>((e.type||[]).length?e.type:["ללא סוג"]).forEach(t=>byType[t]=(byType[t]||0)+1));
+  const range=dm(from)+"–"+dm(now)+"/"+now.getFullYear();
+  const nums=[["נרשמו",week.length],["תקלות",week.filter(isF).length],["נסגרו",closed],["פתוחים כעת",open.length],["תקלות פתוחות",openF]];
+  const types=Object.keys(byType).sort((a,b)=>byType[b]-byType[a]).map(t=>t+" "+byType[t]).join(" · ");
+  const line=e=>fmtWhen(e.when).replace(/\/\d{4}/,"")+" · "+(e.type||[]).join(", ")+" · "+(e.title||String(e.desc||"").slice(0,60))+(isOpen(e)?" (פתוח)":"");
+  const head="סיכום שבועי "+range+"\n"+nums.map(([l,v])=>l+": "+v).join(" | ")+(types?"\nלפי סוג: "+types:"");
+  const full=head+(week.length?"\n\nאירועי השבוע:\n"+week.map(line).join("\n"):"");
+  // mail links get long fast (Hebrew is url-encoded) — keep the mail body short, "העתק" gives the full text
+  let short=head, i=0;
+  if(week.length){ short+="\n\nאירועי השבוע:"; for(;i<week.length && (short+line(week[i])).length<1100;i++) short+="\n"+line(week[i]); }
+  if(i<week.length) short+="\n…ועוד "+(week.length-i)+" — הרשימה המלאה באפליקציה";
+  return {range, nums, types, full, short};
+}
+function openWeekly(manual){
+  const d=$("#dlgWeek"); if(d.open) return;
+  wkState={s1:false,s2:false,manual:!!manual,sum:weekSummary()};
+  const S=wkState.sum;
+  $("#wkSum").innerHTML=""; const top=document.createElement("div");
+  top.textContent=S.range; $("#wkSum").appendChild(top);
+  const nums=document.createElement("div");
+  S.nums.forEach(([l,v],k)=>{ if(k) nums.append(" · "); const b=document.createElement("b"); b.textContent=v; nums.append(l+" ",b); });
+  $("#wkSum").appendChild(nums);
+  if(S.types){ const t=document.createElement("div"); t.textContent="לפי סוג: "+S.types; $("#wkSum").appendChild(t); }
+  try{ $("#wkTo").value=localStorage.getItem(K_WEEK_TO)||""; }catch(e){}
+  const canFile=wkShareFile(true);
+  $("#wkBackup").textContent= canFile ? "שלח גיבוי" : "הורד גיבוי";
+  $("#wkBkHint").textContent= canFile ? "נפתח חלון שיתוף — בוחרים באפליקציית המייל, והקובץ מצורף."
+                                      : "הקובץ יורד למחשב — מצרפים אותו למייל (או שומרים בתיקייה מגובה).";
+  $("#wkIntro").hidden=!!manual; $("#wkClose").hidden=!manual;
+  wkPaint(); d.showModal();
+}
+function wkShareFile(test){
+  const f=new File([JSON.stringify(payload())],"גיבוי-יומן-"+new Date().toISOString().slice(0,10)+".json",{type:"application/json"});
+  try{ if(!navigator.canShare || !navigator.canShare({files:[f]})) return false; }catch(e){ return false; }
+  return test ? true : f;
+}
+function wkPaint(){
+  $("#wkS1").classList.toggle("done",wkState.s1); $("#wkS2").classList.toggle("done",wkState.s2);
+  $("#wkDone").disabled=!(wkState.s1&&wkState.s2);
+}
+function wkSaveTo(){ try{ localStorage.setItem(K_WEEK_TO,$("#wkTo").value.trim()); }catch(e){} }
+$("#wkMail").onclick=()=>{
+  wkSaveTo(); const S=wkState.sum;
+  location.href="mailto:"+encodeURIComponent($("#wkTo").value.trim()).replace(/%40/g,"@").replace(/%2C/gi,",")+
+    "?subject="+encodeURIComponent("יומן אירועים — סיכום שבועי "+S.range)+"&body="+encodeURIComponent(S.short);
+  wkState.s1=true; wkPaint();
+};
+$("#wkCopy").onclick=async()=>{
+  try{ await navigator.clipboard.writeText(wkState.sum.full); toast("הסיכום הועתק — אפשר להדביק במייל"); wkState.s1=true; wkPaint(); }
+  catch(e){ toast("ההעתקה נכשלה"); }
+};
+$("#wkBackup").onclick=async()=>{
+  wkSaveTo();
+  const f=wkShareFile(false);
+  if(f){
+    try{ await navigator.share({files:[f], title:"גיבוי יומן אירועים", text:"גיבוי מלא של יומן האירועים ("+events.length+" אירועים)."}); }
+    catch(e){ if(e && e.name==="AbortError"){ toast("השליחה בוטלה"); return; } download(f.name,JSON.stringify(payload(),null,1),"application/json"); }
+  } else download("גיבוי-יומן-"+new Date().toISOString().slice(0,10)+".json",JSON.stringify(payload(),null,1),"application/json");
+  wkState.s2=true; wkPaint();
+};
+$("#wkDone").onclick=()=>{
+  if(!(wkState.s1&&wkState.s2)) return;
+  try{ localStorage.setItem(K_WEEK,String(Date.now())); }catch(e){}
+  wkState.closing=true; $("#dlgWeek").close(); wkLast(); toast("הסיכום והגיבוי השבועיים בוצעו");
+};
+$("#wkClose").onclick=()=>{ wkState.closing=true; $("#dlgWeek").close(); };
+$("#dlgWeek").addEventListener("cancel",e=>{ if(!wkState.manual) e.preventDefault(); });
+$("#dlgWeek").addEventListener("close",()=>{            // Escape pressed twice etc.: a due window comes straight back
+  if(wkState && !wkState.closing && !wkState.manual) setTimeout(()=>$("#dlgWeek").showModal(),0);
+  else wkState=null;
+});
+$("#wkOpen").onclick=()=>openWeekly(true);
+function wkLast(){
+  const t=weekDone();
+  $("#wkLast").textContent = t ? "בוצע לאחרונה: "+new Date(t).toLocaleDateString("he-IL")+" · החלון נפתח לבד בכל יום ראשון"
+                               : "החלון נפתח לבד בכל יום ראשון עד שמבצעים את שני השלבים.";
+}
+function weeklyCheck(){
+  if($("#dlgWeek").open || !$("#splash").hidden || !events.length) return;
+  if(CLOUD_ON){
+    let role=null; try{ role=localStorage.getItem("ogg-cloud-role"); }catch(e){}
+    if(!window.CLOUD_READY || role!=="admin") return;
+  }
+  if(weekDone()>=weekStart(new Date())) return;
+  openWeekly(false);
+}
+window.weeklyCheck=weeklyCheck;
+setInterval(weeklyCheck,5*60e3);
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden) setTimeout(weeklyCheck,800); });
+wkLast();
+
 function exportCsv(rows, filtered){
   rows = rows && rows.length ? rows : events;
   const head=["תאריך","סוג","כותרת","מיקום","ציוד","תיאור אירוע","פעולה שננקטה","מעורבים","סטטוס","מקור"];
@@ -940,7 +1047,7 @@ $("#wipeAll").onclick=()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.29", APP_DATE="27/09/2026";
+const APP_VER="1.30", APP_DATE="27/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -990,7 +1097,7 @@ let DEEP_OPEN=false;
   const enter=()=>{
     document.documentElement.classList.remove("sp-open");
     sp.classList.add("out");
-    setTimeout(()=>{ sp.hidden=true; },200);
+    setTimeout(()=>{ sp.hidden=true; weeklyCheck(); },200);
     $("#tabDash").focus({preventScroll:true});
   };
   $("#spEnter").onclick=enter;
@@ -1000,4 +1107,5 @@ let DEEP_OPEN=false;
 })();
 /* ================= boot ================= */
 load(); setNow(); renderAll(); renderDash(); show(REFRESH_VIEW||"Dash");
+setTimeout(weeklyCheck,1500);
 if(DEEP_OPEN) goList({stat:OPEN_ANY});

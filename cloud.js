@@ -152,7 +152,7 @@
       if(fresh.length) announce(fresh);
     }
     // first answer from the server (not the local cache): now we know what the cloud really has
-    if(!initialDone && !snap.metadata.fromCache){ initialDone=true; renderAccount(); }
+    if(!initialDone && !snap.metadata.fromCache){ initialDone=true; renderAccount(); window.CLOUD_READY=true; if(window.weeklyCheck) setTimeout(window.weeklyCheck,1000); }
     syncChip(snap.metadata);
   }
   /* new events recorded by someone else: tab counter, "חדש" marker, toast, and a device notification
