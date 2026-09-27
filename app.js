@@ -674,8 +674,9 @@ function renderDash(){
   axis.style.setProperty("--n",buckets.length);
   bodyT.append(plot,axis);
   const tTitle={day:"אירועים לפי יום",week:"אירועים לפי שבוע",month:"אירועים לפי חודש",year:"אירועים לפי שנה"}[unit];
-  cards.appendChild(dcard(tTitle, "כל האירועים שנרשמו, פתוחים וסגורים", bodyT,
-    buckets.map((b,i)=>[labelOf(b),vals[i]]), [{day:"יום",week:"שבוע",month:"חודש",year:"שנה"}[unit],"אירועים"]));
+  const tCard=dcard(tTitle, "כל האירועים שנרשמו, פתוחים וסגורים", bodyT,
+    buckets.map((b,i)=>[labelOf(b),vals[i]]), [{day:"יום",week:"שבוע",month:"חודש",year:"שנה"}[unit],"אירועים"]);
+  tCard.classList.add("wide"); cards.appendChild(tCard);
 
   /* open by type / by location: top 6 + "other" */
   const topBars=(key,title,filterKey)=>{
@@ -847,7 +848,7 @@ $("#wipeAll").onclick=()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.17", APP_DATE="27/09/2026";
+const APP_VER="1.18", APP_DATE="27/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 $("#reloadApp").onclick=()=>{ location.reload(true); };
