@@ -79,6 +79,26 @@ header.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:40;backgroun
 .ver{font-size:12.5px;font-weight:800;color:var(--water);background:var(--water-soft);
   border:1px solid var(--water);border-radius:99px;padding:3px 9px;letter-spacing:.02em;
   font-variant-numeric:tabular-nums}
+.bar-row{flex-wrap:wrap}
+/* clock: day · date · time */
+.clock{display:flex;align-items:baseline;gap:8px;padding:6px 12px;border-radius:11px;background:var(--panel);
+  border:1px solid var(--edge);white-space:nowrap;font-variant-numeric:tabular-nums}
+.clock .c-day{font-weight:800;font-size:14px;color:var(--ink)}
+.clock .c-date{font-weight:600;font-size:14px;color:var(--ink-2)}
+.clock .c-time{font-weight:900;font-size:19px;color:var(--water);letter-spacing:.01em}
+.icon-btn svg{width:19px;height:19px}
+.icon-btn.spin svg{animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (min-width:701px){
+  .clock{margin-inline-end:auto;padding:7px 16px}
+  .clock .c-day,.clock .c-date{font-size:15.5px}
+  .clock .c-time{font-size:23px}
+}
+/* phones: the clock gets its own full-width line under the title */
+@media (max-width:700px){
+  .clock{order:10;flex-basis:100%;justify-content:center;padding:5px 10px;margin-top:2px}
+}
+@media (max-width:360px){ .ver{display:none} .clock .c-date,.clock .c-day{font-size:13px} .clock .c-time{font-size:17px} }
 .icon-btn{border:1px solid var(--edge);background:var(--panel);border-radius:10px;width:40px;height:40px;
   display:grid;place-items:center;cursor:pointer;flex:none;font-size:17px}
 .tabs{display:flex;gap:6px;margin-top:10px}
@@ -468,6 +488,35 @@ html.sp-open,html.sp-open body{overflow:hidden}
   #splash .sp-side{display:block;flex:1;position:relative;overflow:hidden;background:var(--accent)}
   #splash .sp-side svg{position:absolute;inset:0;width:100%;height:100%}
   #splash .sp-side .sp-foot{position:absolute;bottom:48px;right:64px;left:64px;display:flex;justify-content:space-between;color:#fff;font-size:17px}
+}
+
+/* ---- list view: rows (compact) ---- */
+.seg.lv{background:var(--panel-2)}
+#viewList.rows #listBox{display:block}
+#viewList.rows .ev{display:grid;grid-template-columns:minmax(0,auto) minmax(0,1fr) auto;
+  grid-template-areas:"top text acts" "det det det";align-items:center;column-gap:14px;
+  padding:8px 12px;margin-bottom:6px;border-radius:11px}
+#viewList.rows .ev .top{grid-area:top;flex-wrap:nowrap;margin:0;min-width:0}
+#viewList.rows .ev .where{max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#viewList.rows .ev .hl,#viewList.rows .ev .body{grid-area:text;margin:0;min-width:0;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;font-size:15px;font-weight:600;letter-spacing:0;line-height:1.4}
+#viewList.rows .ev .hl ~ .body{display:none}
+#viewList.rows .ev .det{grid-area:det;margin:8px 0 4px}
+#viewList.rows .ev .det[hidden]{display:none}
+#viewList.rows .ev .acts{grid-area:acts;margin:0;flex-wrap:nowrap}
+#viewList.rows .ev .acts button{padding:5px 10px;font-size:12.5px}
+#viewList.rows .ev .lock{max-width:20px;overflow:hidden;white-space:nowrap;padding:0}
+#viewList.rows .daygap{margin:14px 2px 7px}
+@media (max-width:700px){
+  #viewList.rows .ev{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"top top" "text text" "acts acts" "det det";row-gap:5px;column-gap:8px}
+  #viewList.rows .ev .acts{justify-content:flex-end}
+  #viewList.rows .ev .when{white-space:nowrap;font-size:13px}
+  #viewList.rows .ev .top{gap:6px;overflow:hidden}
+  #viewList.rows .ev .top .badge,#viewList.rows .ev .top .pill{flex:none;font-size:12px;padding:2px 8px}
+  #viewList.rows .ev .where{max-width:none;flex:1;min-width:0}
+  #viewList.rows .ev .hl,#viewList.rows .ev .body{font-size:14px}
+  #viewList.rows .ev .acts{gap:4px}
+  #viewList.rows .ev .acts button{padding:4px 8px;font-size:12px}
 }
 
 /* ---- wide layout for computers (from 1100px): wider content, side panels become strips ---- */

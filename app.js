@@ -405,6 +405,18 @@ function renderList(reset){
   more.textContent = "הצג עוד "+Math.min(PAGE, rows.length-shown)+" מתוך "+(rows.length-shown);
 }
 $("#moreRows").onclick=()=>{ shown+=PAGE; renderList(false); };
+/* list view: tiles (cards) or rows (one compact line per event; details open on "פרטים") */
+let listView="tiles";
+try{ listView=localStorage.getItem("ogg-list-view")==="rows"?"rows":"tiles"; }catch(e){}
+function applyListView(){
+  $("#viewList").classList.toggle("rows", listView==="rows");
+  document.querySelectorAll("#listView button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===listView)));
+}
+document.querySelectorAll("#listView button").forEach(b=>b.onclick=()=>{
+  listView=b.dataset.v; try{ localStorage.setItem("ogg-list-view",listView); }catch(e){}
+  applyListView();
+});
+applyListView();
 $("#fToggle").onclick=()=>{
   const p=$("#fPanel"), open=p.hidden;
   p.hidden=!open; $("#fToggle").setAttribute("aria-expanded",String(open));
@@ -848,16 +860,39 @@ $("#wipeAll").onclick=()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.19", APP_DATE="27/09/2026";
+const APP_VER="1.20", APP_DATE="27/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
-$("#reloadApp").onclick=async()=>{
+async function refreshApp(){
+  const cur=["Dash","New","List","Data"].find(v=>!$("#view"+v).hidden)||"Dash";
+  try{ sessionStorage.setItem("ogg-refresh",cur); }catch(e){}
   try{ const r=navigator.serviceWorker && await navigator.serviceWorker.getRegistration(); if(r) await r.update(); }catch(e){}
   location.reload();
-};
+}
+$("#reloadApp").onclick=refreshApp;
+$("#refreshBtn").onclick=()=>{ $("#refreshBtn").classList.add("spin"); refreshApp(); };
+
+/* ================= clock: day, date, time in the header ================= */
+(function(){
+  const p=n=>String(n).padStart(2,"0");
+  const dayFmt=new Intl.DateTimeFormat("he-IL",{weekday:"long"});
+  const tick=()=>{
+    const d=new Date();
+    $("#cDay").textContent=dayFmt.format(d);
+    $("#cDate").textContent=p(d.getDate())+"/"+p(d.getMonth()+1)+"/"+d.getFullYear();
+    $("#cTime").textContent=p(d.getHours())+":"+p(d.getMinutes());
+    setTimeout(tick, 60000-(d.getSeconds()*1000+d.getMilliseconds())+50);   // next minute boundary
+  };
+  tick();
+  document.addEventListener("visibilitychange",()=>{ if(!document.hidden){ const d=new Date(); $("#cTime").textContent=p(d.getHours())+":"+p(d.getMinutes()); } });
+})();
 /* ================= splash ================= */
+let REFRESH_VIEW=null;
+try{ REFRESH_VIEW=sessionStorage.getItem("ogg-refresh"); sessionStorage.removeItem("ogg-refresh"); }catch(e){}
+if(!["Dash","New","List","Data"].includes(REFRESH_VIEW)) REFRESH_VIEW=null;
 (function(){
   const sp=$("#splash"); if(!sp) return;
+  if(REFRESH_VIEW){ sp.hidden=true; return; }   // came from the refresh button: skip the opening screen
   // shift and date (morning 07–15, evening 15–23, night 23–07)
   const d=new Date(), h=d.getHours();
   const shift = h>=7&&h<15 ? "בוקר" : h>=15&&h<23 ? "ערב" : "לילה";
@@ -874,4 +909,4 @@ $("#reloadApp").onclick=async()=>{
   $("#spEnter").onclick=enter;
 })();
 /* ================= boot ================= */
-load(); setNow(); renderAll(); renderDash(); show("Dash");
+load(); setNow(); renderAll(); renderDash(); show(REFRESH_VIEW||"Dash");
