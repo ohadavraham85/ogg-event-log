@@ -11,6 +11,10 @@
 (function(){
   if(!CLOUD_ON) return;
   const K_SYNC="ogg-cloud-sync", K_MAIL="ogg-cloud-mail", K_ROLE="ogg-cloud-role";
+  // invitation link (?invite=<mail>): pre-fills the sign-in mail, then leaves the address bar clean
+  let INVITE="";
+  try{ const u=new URL(location.href); INVITE=(u.searchParams.get("invite")||"").trim().toLowerCase();
+    if(INVITE){ u.searchParams.delete("invite"); history.replaceState(null,"",u.pathname+u.search+u.hash); } }catch(e){}
   const get=k=>{ try{ return localStorage.getItem(k); }catch(e){ return null; } };
   const put=(k,v)=>{ try{ v==null? localStorage.removeItem(k) : localStorage.setItem(k,v); }catch(e){} };
   const mk=(tag,cls,text)=>{ const e=document.createElement(tag); if(cls) e.className=cls; if(text!=null) e.textContent=text; return e; };
@@ -31,7 +35,7 @@
     if(state==="init"){ enterBtn.hidden=true; login.hidden=false; login.appendChild(mk("p","sp-msg","מתחבר…")); return; }
     if(state==="out"){
       login.appendChild(mk("p","sp-msg","כניסה ליומן המשותף: הקלד את המייל שלך ונשלח אליו קישור כניסה."));
-      const inp=mk("input","sp-input"); inp.type="email"; inp.placeholder="המייל שלך"; inp.value=get(K_MAIL)||""; inp.autocomplete="email"; inp.dir="ltr";
+      const inp=mk("input","sp-input"); inp.type="email"; inp.placeholder="המייל שלך"; inp.value=INVITE||get(K_MAIL)||""; inp.autocomplete="email"; inp.dir="ltr";
       const b=mk("button","sp-btn","שלח קישור כניסה"); b.type="button";
       const go=async()=>{
         const email=inp.value.trim().toLowerCase();
@@ -274,10 +278,11 @@
       const b=mk("button","btn","הוסף"); b.type="button";
       b.onclick=async()=>{
         const em=inp.value.trim().toLowerCase(); if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){ toast("מייל לא תקין"); return; }
-        try{ await F.setDoc(F.doc(db,"members",em),{role:sel.value,added:F.serverTimestamp(),by:me}); inp.value=""; toast("נוסף לצוות"); }
+        try{ await F.setDoc(F.doc(db,"members",em),{role:sel.value,added:F.serverTimestamp(),by:me}); inp.value=""; toast("נוסף לצוות — שלח לו הזמנה"); showInvite(em); }
         catch(e){ toast("ההוספה נכשלה"); }
       };
       add.append(inp,sel,b); card.appendChild(add);
+      const inv=mk("div","cloud-invite"); inv.id="cloudInvite"; inv.hidden=true; card.appendChild(inv);
       const list=mk("div","cloud-members"); list.id="cloudMembers"; card.appendChild(list);
       paintMembers();
     }
@@ -292,12 +297,41 @@
     members.forEach(m=>{
       const r=mk("div","listrow"); r.appendChild(mk("b",null,m.email)); r.appendChild(mk("span",null,m.role==="admin"?"מנהל":"איש צוות"));
       if(m.email!==me){
+        const iv=mk("button","btn mini","הזמן"); iv.type="button"; iv.onclick=()=>showInvite(m.email); r.appendChild(iv);
         const x=mk("button","btn mini","הסר"); x.type="button";
         x.onclick=async()=>{ if(!confirm("להסיר את "+m.email+" מהצוות?")) return; try{ await F.deleteDoc(F.doc(db,"members",m.email)); }catch(e){ toast("ההסרה נכשלה"); } };
         r.appendChild(x);
       }
       box.appendChild(r);
     });
+  }
+  /* invitation: a ready message with the app link (their mail pre-filled) and how to sign in —
+     sent by WhatsApp, mail, the share sheet, or copied. Adding to the team is what grants access. */
+  function inviteText(em){
+    const title=(document.querySelector(".bar .mark")||{}).textContent||"יומן אירועים";
+    const url=location.origin+location.pathname+"?invite="+encodeURIComponent(em);
+    return { url, subject:"הזמנה ל"+title.trim(),
+      text:"הוזמנת ל"+title.trim().replace(/\s+/g," ")+" — היומן המשותף של הצוות.\n\n"+
+        "1. פותחים את הקישור: "+url+"\n"+
+        "2. לוחצים \"שלח קישור כניסה\" (המייל "+em+" כבר ממולא).\n"+
+        "3. פותחים את המייל שמגיע ולוחצים על הקישור — וזהו, נכנסים ליומן.\n\n"+
+        "כדאי להתקין כאפליקציה: בתפריט הדפדפן ← \"הוסף למסך הבית\"." };
+  }
+  function showInvite(em){
+    const box=$("#cloudInvite"); if(!box) return;
+    const T=inviteText(em); box.textContent=""; box.hidden=false;
+    const head=mk("div","ci-head"); head.appendChild(mk("b",null,"הזמנה ל-"+em));
+    const x=mk("button","x","✕"); x.type="button"; x.setAttribute("aria-label","סגור"); x.onclick=()=>{ box.hidden=true; };
+    head.appendChild(x); box.appendChild(head);
+    const pre=mk("div","ci-text",T.text); box.appendChild(pre);
+    const row=mk("div","row");
+    const btn=(label,fn,cls)=>{ const b=mk("button","btn"+(cls?" "+cls:""),label); b.type="button"; b.onclick=fn; row.appendChild(b); };
+    btn("וואטסאפ",()=>window.open("https://wa.me/?text="+encodeURIComponent(T.text),"_blank","noopener"),"primary");
+    btn("מייל",()=>{ location.href="mailto:"+em+"?subject="+encodeURIComponent(T.subject)+"&body="+encodeURIComponent(T.text); });
+    if(navigator.share) btn("שתף",async()=>{ try{ await navigator.share({title:T.subject,text:T.text}); }catch(e){} });
+    btn("העתק",async()=>{ try{ await navigator.clipboard.writeText(T.text); toast("ההזמנה הועתקה"); }catch(e){ toast("ההעתקה נכשלה"); } });
+    box.appendChild(row);
+    box.scrollIntoView({block:"nearest",behavior:"smooth"});
   }
   async function logout(){
     if(!confirm("להתנתק? העותק של היומן המשותף יימחק מהמכשיר הזה (הוא נשאר בענן).")) return;

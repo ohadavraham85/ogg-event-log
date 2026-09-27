@@ -657,3 +657,12 @@ html.sp-open,html.sp-open body{overflow:hidden}
 .rp-open{color:#B8352F;font-weight:700;white-space:nowrap}
 .rp-closed{color:#0E7C86;white-space:nowrap}
 .rp-none{color:#8494A1;text-align:center}
+/* team invitation */
+.cloud-invite{border:1px solid var(--water);background:var(--water-soft);border-radius:12px;padding:12px;margin:10px 0}
+.cloud-invite[hidden]{display:none}
+.ci-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;overflow-wrap:anywhere}
+.ci-head .x{border:none;background:none;font-size:18px;color:var(--ink-2);cursor:pointer;padding:2px 6px}
+.ci-text{white-space:pre-line;font-size:13.5px;color:var(--ink-2);background:var(--panel);border-radius:9px;padding:9px 11px;
+  margin-bottom:10px;overflow-wrap:anywhere;line-height:1.55}
+.cloud-members .listrow{flex-wrap:wrap;row-gap:6px}
+.cloud-members .listrow b{flex:1 1 170px;min-width:0;overflow-wrap:anywhere;font-size:15px}
