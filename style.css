@@ -412,6 +412,7 @@ button.pseg:hover,button.pseg:focus-visible{filter:brightness(1.12)}
 .dtip{position:fixed;z-index:95;pointer-events:none;background:var(--panel);border:1px solid var(--edge);
   border-radius:9px;box-shadow:0 4px 14px rgba(0,0,0,.18);padding:6px 10px;display:flex;flex-direction:column;
   max-width:240px}
+.dtip[hidden]{display:none}
 .dtip b{font-size:15px;font-weight:800;color:var(--ink)}
 .dtip span{font-size:12.5px;color:var(--ink-2)}
 

@@ -848,10 +848,13 @@ $("#wipeAll").onclick=()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.18", APP_DATE="27/09/2026";
+const APP_VER="1.19", APP_DATE="27/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
-$("#reloadApp").onclick=()=>{ location.reload(true); };
+$("#reloadApp").onclick=async()=>{
+  try{ const r=navigator.serviceWorker && await navigator.serviceWorker.getRegistration(); if(r) await r.update(); }catch(e){}
+  location.reload();
+};
 /* ================= splash ================= */
 (function(){
   const sp=$("#splash"); if(!sp) return;
