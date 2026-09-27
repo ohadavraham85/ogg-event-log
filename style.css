@@ -535,11 +535,18 @@ html.sp-open,html.sp-open body{overflow:hidden}
 #viewList.rows .ev .det[hidden]{display:none}
 #viewList.rows .ev .acts{grid-area:acts;margin:0;flex-wrap:nowrap}
 #viewList.rows .ev .acts button{padding:5px 10px;font-size:12.5px}
-#viewList.rows .ev .lock{max-width:20px;overflow:hidden;white-space:nowrap;padding:0}
+#viewList.rows .ev .lock{padding:0}
+#viewList.rows .ev .lock .lk-t{display:none}
+/* "פרטים" in rows mode: show the whole title and description, not just the fields */
+#viewList.rows .ev.open{grid-template-areas:"top text acts" "body body body" "det det det"}
+#viewList.rows .ev.open .hl,#viewList.rows .ev.open .body{white-space:pre-wrap;overflow:visible;text-overflow:clip;overflow-wrap:anywhere}
+#viewList.rows .ev.open .body{font-weight:500}
+#viewList.rows .ev.open .hl ~ .body{display:block;grid-area:body;margin-top:6px}
 #viewList.rows .daygap{margin:14px 2px 7px}
 @media (max-width:700px){
   #viewList.rows .ev{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"top top" "text text" "acts acts" "det det";row-gap:5px;column-gap:8px}
   #viewList.rows .ev .acts{justify-content:flex-end}
+  #viewList.rows .ev.open{grid-template-areas:"top top" "text text" "body body" "acts acts" "det det"}
   #viewList.rows .ev .when{white-space:nowrap;font-size:13px}
   #viewList.rows .ev .top{gap:6px;overflow:hidden}
   #viewList.rows .ev .top .badge,#viewList.rows .ev .top .pill{flex:none;font-size:12px;padding:2px 8px}

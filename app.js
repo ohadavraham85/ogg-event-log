@@ -384,7 +384,7 @@ function renderList(reset){
 
     const acts=document.createElement("div"); acts.className="acts";
     const info=document.createElement("button"); info.textContent="פרטים";
-    info.onclick=()=>{ det.hidden=!det.hidden; info.textContent=det.hidden?"פרטים":"סגור פרטים"; };
+    info.onclick=()=>{ det.hidden=!det.hidden; d.classList.toggle("open",!det.hidden); info.textContent=det.hidden?"פרטים":"סגור פרטים"; };
     acts.appendChild(info);
     const closed_ = st==="נסגר";
     const sbtn=document.createElement("button"); sbtn.className="stbtn "+(closed_?"reopen":"close");
@@ -392,8 +392,10 @@ function renderList(reset){
     sbtn.onclick=()=>setStatus(e.id, !closed_);
     acts.appendChild(sbtn);
     if(isLocked(e)){
-      const lk=document.createElement("span"); lk.className="lock";
-      lk.textContent="🔒 ארכיון · " + (e.src||"");
+      const lk=document.createElement("span"); lk.className="lock"; lk.title="ארכיון · "+(e.src||"");
+      const li=document.createElement("span"); li.className="lk-i"; li.textContent="🔒";
+      const lt=document.createElement("span"); lt.className="lk-t"; lt.textContent=" ארכיון · " + (e.src||"");
+      lk.append(li,lt);
       acts.appendChild(lk);
       d.classList.add("locked");
     } else {
@@ -918,7 +920,7 @@ $("#wipeAll").onclick=()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.25", APP_DATE="27/09/2026";
+const APP_VER="1.26", APP_DATE="27/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
