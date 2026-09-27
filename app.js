@@ -688,6 +688,14 @@ function renderDash(){
     plot.appendChild(c);
   });
   const axis=mk("div","cax");
+  if(unit==="month" || (unit==="year" && buckets.length<=15)){
+    // a label under every bar: month number (year under the first month and every January), or the year
+    axis.classList.add("all");
+    buckets.forEach((b,i)=>{
+      const s=mk("span",null, unit==="month" ? String(+b.slice(5,7)) : b); s.style.setProperty("--i",i);
+      if(unit==="month" && (i===0 || b.slice(5,7)==="01")) s.appendChild(mk("small",null,b.slice(0,4)));
+      axis.appendChild(s); });
+  } else
   [0, Math.floor((buckets.length-1)/2), buckets.length-1].filter((v,i,a)=>a.indexOf(v)===i).forEach(i=>{
     const s=mk("span",null,labelOf(buckets[i])); s.style.setProperty("--i",i); axis.appendChild(s); });
   axis.style.setProperty("--n",buckets.length);
@@ -1047,7 +1055,7 @@ $("#wipeAll").onclick=()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.30", APP_DATE="27/09/2026";
+const APP_VER="1.31", APP_DATE="27/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){

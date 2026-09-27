@@ -410,6 +410,10 @@ button.hbar:hover,button.hbar:focus-visible{background:var(--panel-2)}
 .cax span{position:absolute;top:0;left:calc((var(--i) + .5) / var(--n) * 100%);transform:translateX(-50%);white-space:nowrap}
 .cax span:first-child{transform:none;left:0}
 .cax span:last-child{transform:none;left:auto;right:0}
+.cax.all{height:32px}
+.cax.all span,.cax.all span:first-child,.cax.all span:last-child{left:calc((var(--i) + .5) / var(--n) * 100%);right:auto;
+  transform:translateX(-50%);text-align:center;font-weight:700;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.cax.all small{display:block;font-size:10px;font-weight:600;color:var(--ink-3);line-height:1.1}
 
 /* person filter + people chart (open/closed stacked, 2px gap, open count also written as text) */
 .dsel{border:1px solid var(--edge);background:var(--panel);border-radius:11px;padding:8px 10px;font-weight:700;
