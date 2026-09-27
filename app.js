@@ -45,7 +45,9 @@ function persist(){
     const out={}; Object.keys(SEED).forEach(k=>{ out[k]=lists["_custom_"+k]; out["_hide_"+k]=lists["_hide_"+k]; });
     localStorage.setItem(LSL, JSON.stringify(out));
   }catch(e){ toast("הדפדפן חסם שמירה מקומית"); }
-  writeFile();
+  // a linked file that is waiting for the browser's permission: ask now (we are inside a click)
+  if(!fileHandle && pendingHandle) ensureFilePermission().then(ok=>{ if(ok) writeFile(); });
+  else writeFile();
 }
 function toast(m, act){
   const t=$("#toast"), s=t.firstElementChild; s.textContent=m;
@@ -804,10 +806,49 @@ $("#linkFile").onclick=async()=>{
   try{
     fileHandle=await window.showSaveFilePicker({suggestedName:"יומן-אירועים-אוג.json",
       types:[{description:"גיבוי יומן",accept:{"application/json":[".json"]}}]});
+    pendingHandle=null; await fhSave(fileHandle); fileLinkedUI();
     await writeFile(); toast("הקובץ חובר");
   }catch(e){}
 };
-$("#saveNow").onclick=async()=>{ if(!fileHandle){ toast("חבר קובץ קודם"); return; } await writeFile(); toast("נשמר לקובץ"); };
+$("#saveNow").onclick=async()=>{
+  if(!fileHandle && pendingHandle) await ensureFilePermission();
+  if(!fileHandle){ toast("חבר קובץ קודם"); return; }
+  await writeFile(); toast("נשמר לקובץ");
+};
+
+/* keep the linked file across reloads and updates: the file handle is stored in IndexedDB */
+let pendingHandle=null;
+function fhDb(){ return new Promise((res,rej)=>{ const r=indexedDB.open("ogg-file",1);
+  r.onupgradeneeded=()=>r.result.createObjectStore("h"); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
+async function fhSave(h){ try{ const db=await fhDb(); await new Promise((res,rej)=>{ const tx=db.transaction("h","readwrite");
+  tx.objectStore("h").put(h,"file"); tx.oncomplete=res; tx.onerror=()=>rej(tx.error); }); }catch(e){} }
+async function fhLoad(){ try{ const db=await fhDb(); return await new Promise(res=>{ const r=db.transaction("h").objectStore("h").get("file");
+  r.onsuccess=()=>res(r.result||null); r.onerror=()=>res(null); }); }catch(e){ return null; } }
+function fileLinkedUI(){
+  $("#fileState").textContent="מחובר לקובץ "+fileHandle.name+" · כל שמירה נכתבת אליו";
+  $("#fileAllow").hidden=true; $("#linkFile").textContent="חבר קובץ אחר";
+}
+async function ensureFilePermission(){          // must run inside a click: may show the browser's prompt
+  if(fileHandle) return true;
+  if(!pendingHandle) return false;
+  try{
+    if(await pendingHandle.requestPermission({mode:"readwrite"})==="granted"){
+      fileHandle=pendingHandle; pendingHandle=null; fileLinkedUI(); return true;
+    }
+  }catch(e){}
+  return false;
+}
+$("#fileAllow").onclick=async()=>{ if(await ensureFilePermission()){ await writeFile(); toast("הקובץ מחובר"); } };
+(async()=>{
+  if(!("indexedDB" in window)) return;
+  const h=await fhLoad(); if(!h || !h.queryPermission) return;
+  let st="prompt"; try{ st=await h.queryPermission({mode:"readwrite"}); }catch(e){}
+  if(st==="granted"){ fileHandle=h; fileLinkedUI(); return; }
+  pendingHandle=h;
+  $("#fileState").textContent="הקובץ "+h.name+" עדיין מחובר, אבל הדפדפן מבקש לאשר גישה אליו. זה יתבקש אוטומטית בשמירה הבאה, או לחץ \"אשר גישה לקובץ\". בחלון של הדפדפן בחר \"אפשר בכל ביקור\" כדי שלא יישאל שוב.";
+  $("#fileAllow").hidden=false;
+  toast("הקובץ "+h.name+" מחכה לאישור גישה",{label:"אשר",fn:()=>{ $("#fileAllow").click(); }});
+})();
 function download(name,text,mime){
   const blob=new Blob([mime.indexOf("csv")>=0?"\uFEFF"+text:text],{type:mime});
   const url=URL.createObjectURL(blob), a=document.createElement("a");
@@ -860,7 +901,7 @@ $("#wipeAll").onclick=()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.21", APP_DATE="27/09/2026";
+const APP_VER="1.22", APP_DATE="27/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
