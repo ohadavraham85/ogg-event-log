@@ -85,7 +85,7 @@ header.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:40;backgroun
   border:1px solid var(--edge);white-space:nowrap;font-variant-numeric:tabular-nums}
 .clock .c-day{font-weight:800;font-size:14px;color:var(--ink)}
 .clock .c-date{font-weight:600;font-size:14px;color:var(--ink-2)}
-.clock .c-time{font-weight:900;font-size:19px;color:var(--water);letter-spacing:.01em}
+.clock .c-time{font-weight:900;font-size:19px;color:var(--water);letter-spacing:.01em;min-width:5.2ch;text-align:center}
 .icon-btn svg{width:19px;height:19px}
 .icon-btn.spin svg{animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}

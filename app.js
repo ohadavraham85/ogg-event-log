@@ -860,7 +860,7 @@ $("#wipeAll").onclick=()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.20", APP_DATE="27/09/2026";
+const APP_VER="1.21", APP_DATE="27/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -880,11 +880,11 @@ $("#refreshBtn").onclick=()=>{ $("#refreshBtn").classList.add("spin"); refreshAp
     const d=new Date();
     $("#cDay").textContent=dayFmt.format(d);
     $("#cDate").textContent=p(d.getDate())+"/"+p(d.getMonth()+1)+"/"+d.getFullYear();
-    $("#cTime").textContent=p(d.getHours())+":"+p(d.getMinutes());
-    setTimeout(tick, 60000-(d.getSeconds()*1000+d.getMilliseconds())+50);   // next minute boundary
+    $("#cTime").textContent=p(d.getHours())+":"+p(d.getMinutes())+":"+p(d.getSeconds());
+    clearTimeout(tick._t); tick._t=setTimeout(tick, 1000-d.getMilliseconds()+20);   // next second boundary
   };
   tick();
-  document.addEventListener("visibilitychange",()=>{ if(!document.hidden){ const d=new Date(); $("#cTime").textContent=p(d.getHours())+":"+p(d.getMinutes()); } });
+  document.addEventListener("visibilitychange",()=>{ if(!document.hidden) tick(); });
 })();
 /* ================= splash ================= */
 let REFRESH_VIEW=null;
