@@ -909,7 +909,7 @@ $("#expJson").onclick=()=>{ download("יומן-אירועים-אוג.json",JSON.
    Team mode: only admins, and only after the first full sync from the server (so the backup is complete).
    The PDF is drawn from an off-screen A4 layout with html2canvas (vendor/, loaded on demand) and packed
    into a PDF by pdfFromJpegs() — no other library. */
-const K_WEEK="ogg-weekly-done";
+const K_WEEK="ogg-weekly-done", K_WEEK_TO="ogg-weekly-to";
 let wkState=null;
 function weekStart(d){ const x=new Date(d); x.setHours(0,0,0,0); x.setDate(x.getDate()-x.getDay()); return x.getTime(); }
 function weekDone(){ try{ return +localStorage.getItem(K_WEEK)||0; }catch(e){ return 0; } }
@@ -965,8 +965,10 @@ async function buildPdf(S){
   const pages=[]; let body;
   const newPage=()=>{
     const pg=mk("div","rp-page"); host.appendChild(pg); pages.push(pg);
-    const hd=mk("div","rp-head");
-    hd.append(mk("div","rp-title",title), mk("div","rp-range","סיכום אירועים · "+S.range));
+    const hd=mk("div","rp-head"), tx=mk("div","rp-tx"), lg=mk("img","rp-logo");
+    lg.src="icons/logo-header.png"; lg.alt="";
+    tx.append(mk("div","rp-title",title), mk("div","rp-range","סיכום אירועים · "+S.range));
+    hd.append(tx,lg);
     pg.appendChild(hd);
     body=mk("div","rp-body"); pg.appendChild(body);
     pg.appendChild(mk("div","rp-foot"));
@@ -1004,6 +1006,7 @@ async function buildPdf(S){
   table("תקלות פתוחות (כל התקופה)",S.openF);
   pages.forEach((pg,i)=>{ pg.querySelector(".rp-foot").textContent="עמוד "+(i+1)+" מתוך "+pages.length+" · הופק "+made; });
   const out=[];
+  await Promise.all([...host.querySelectorAll("img")].map(im=>im.decode().catch(()=>{})));
   try{
     for(const pg of pages){
       const c=await html2canvas(pg,{scale:2,backgroundColor:"#ffffff",logging:false});
@@ -1040,14 +1043,13 @@ function wkPaintSum(){
 }
 async function wkMakePdf(){                     // prepared ahead, so the share sheet opens right on the tap
   const S=wkState.sum, btn=$("#wkPdf"), my=wkState.pdfJob={};
-  wkState.pdf=null; btn.disabled=true; $("#wkPdfSave").hidden=true; btn.textContent="מכין PDF…";
+  wkState.pdf=null; btn.disabled=true; $("#wkPdfShare").hidden=true; btn.textContent="מכין PDF…";
   if(S.from>S.to){ btn.textContent="טווח תאריכים לא תקין"; return; }
   try{
     const f=await buildPdf(S);
     if(!wkState || wkState.pdfJob!==my) return;
-    wkState.pdf=f; btn.disabled=false;
-    const share=canShareFile(f);
-    btn.textContent= share ? "שלח PDF" : "הורד PDF"; $("#wkPdfSave").hidden=!share;
+    wkState.pdf=f; btn.disabled=false; btn.textContent="שלח במייל";
+    $("#wkPdfShare").hidden=!canShareFile(f); $("#wkShareHint").hidden=$("#wkPdfShare").hidden;
   }catch(e){ if(wkState && wkState.pdfJob===my) btn.textContent="יצירת ה-PDF נכשלה"; }
 }
 function openWeekly(manual){
@@ -1055,10 +1057,8 @@ function openWeekly(manual){
   wkState={s1:false,s2:false,manual:!!manual};
   const t=new Date(), f=new Date(); f.setDate(f.getDate()-6);
   $("#wkFrom").value=ymd(f); $("#wkTo").value=ymd(t);
-  const bk=new File(["{}"],"x.json",{type:"application/json"});
-  $("#wkBackup").textContent= canShareFile(bk) ? "שלח גיבוי" : "הורד גיבוי";
-  $("#wkBkHint").textContent= canShareFile(bk) ? "נפתח חלון שיתוף — בוחרים באפליקציית המייל, והקובץ מצורף."
-                                              : "הקובץ יורד למחשב — מצרפים אותו למייל (או שומרים בתיקייה מגובה).";
+  $("#wkBkShare").hidden=!canShareFile(new File(["{}"],"x.json",{type:"application/json"}));
+  try{ $("#wkMailTo").value=localStorage.getItem(K_WEEK_TO)||""; }catch(e){}
   $("#wkIntro").hidden=!!manual; $("#wkClose").hidden=!manual;
   wkPaint(); d.showModal(); wkPaintSum();
 }
@@ -1067,16 +1067,42 @@ function wkPaint(){
   $("#wkDone").disabled=!(wkState.s1&&wkState.s2);
 }
 $("#wkFrom").onchange=$("#wkTo").onchange=()=>{ if(wkState) wkPaintSum(); };
-$("#wkPdf").onclick=async()=>{
-  const f=wkState && wkState.pdf; if(!f) return;
+/* "שלח במייל": the file is saved to the device and a ready mail opens (a mail link can't carry an attachment).
+   "שתף": the share sheet, with the file already attached (phones, and Chrome/Edge on Windows). */
+function wkMail(subject, body){
+  const to=$("#wkMailTo").value.trim();
+  try{ localStorage.setItem(K_WEEK_TO,to); }catch(e){}
+  const addr=to.split(/[,;\s]+/).filter(Boolean).map(encodeURIComponent).join(",").replace(/%40/g,"@");
+  setTimeout(()=>{ location.href="mailto:"+addr+"?subject="+encodeURIComponent(subject)+"&body="+encodeURIComponent(body); },350);
+}
+function wkPdfText(){
   const S=wkState.sum;
-  if(await shareOrSave(f, appTitle()+" — סיכום "+S.range, appTitle()+" — סיכום אירועים "+S.range)){ wkState.s1=true; wkPaint(); }
+  let t=appTitle()+"\nסיכום אירועים "+S.range+"\n\n"+S.nums.map(([l,v])=>l+": "+v).join("\n");
+  if(S.types.length) t+="\n\nלפי סוג: "+S.types.map(([x,n])=>x+" "+n).join(" · ");
+  return t;
+}
+$("#wkPdf").onclick=()=>{
+  const f=wkState && wkState.pdf; if(!f) return;
+  saveBlob(f);
+  wkMail(appTitle()+" — סיכום אירועים "+wkState.sum.range, wkPdfText()+"\n\nמצורף הדוח המלא: "+f.name);
+  toast("ה-PDF ירד — צרף אותו למייל שנפתח");
+  wkState.s1=true; wkPaint();
+};
+$("#wkPdfShare").onclick=async()=>{
+  const f=wkState && wkState.pdf; if(!f) return;
+  if(await shareOrSave(f, appTitle()+" — סיכום אירועים "+wkState.sum.range, wkPdfText())){ wkState.s1=true; wkPaint(); }
   else toast("השליחה בוטלה");
 };
-$("#wkPdfSave").onclick=()=>{ if(wkState && wkState.pdf){ saveBlob(wkState.pdf); wkState.s1=true; wkPaint(); } };
-$("#wkBackup").onclick=async()=>{
-  const f=new File([JSON.stringify(payload(),null,1)],"גיבוי-יומן-"+ymd(new Date())+".json",{type:"application/json"});
-  if(await shareOrSave(f,"גיבוי "+appTitle(),"גיבוי מלא של היומן ("+events.length+" אירועים).")){ wkState.s2=true; wkPaint(); }
+const backupFile=()=>new File([JSON.stringify(payload(),null,1)],"גיבוי-יומן-"+ymd(new Date())+".json",{type:"application/json"});
+$("#wkBackup").onclick=()=>{
+  const f=backupFile(); saveBlob(f);
+  wkMail("גיבוי "+appTitle()+" — "+dmy(ymd(new Date())),
+    "גיבוי מלא של היומן ("+events.length+" אירועים).\nמצורף הקובץ: "+f.name+"\n\nלשחזור: באפליקציה ← רשימות וקובץ ← טען גיבוי.");
+  toast("הגיבוי ירד — צרף אותו למייל שנפתח");
+  wkState.s2=true; wkPaint();
+};
+$("#wkBkShare").onclick=async()=>{
+  if(await shareOrSave(backupFile(),"גיבוי "+appTitle(),"גיבוי מלא של היומן ("+events.length+" אירועים).")){ wkState.s2=true; wkPaint(); }
   else toast("השליחה בוטלה");
 };
 $("#wkDone").onclick=()=>{
@@ -1155,7 +1181,7 @@ $("#wipeAll").onclick=()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.32", APP_DATE="27/09/2026";
+const APP_VER="1.33", APP_DATE="27/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){

@@ -608,6 +608,10 @@ html.sp-open,html.sp-open body{overflow:hidden}
 .credit a{color:inherit;text-decoration:none;white-space:nowrap}
 /* weekly summary + backup window */
 #dlgWeek{max-height:calc(100dvh - 24px);overflow:auto}
+.wk-to{display:grid;gap:5px;font-size:13.5px;color:var(--ink-2);margin-bottom:12px}
+.wk-to input{font:inherit;font-size:15px;padding:9px 11px;border:1px solid var(--edge);border-radius:10px;
+  background:var(--panel-2);color:var(--ink);min-width:0;text-align:left}
+.wk-how{margin:-2px 2px 12px}
 .wk-range{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
 .wk-range label{display:grid;gap:4px;font-size:13px;color:var(--ink-2);min-width:0}
 .wk-range input{font:inherit;font-size:15px;padding:8px 9px;border:1px solid var(--edge);border-radius:10px;
@@ -631,7 +635,9 @@ html.sp-open,html.sp-open body{overflow:hidden}
 .rp-host{position:fixed;left:-10000px;top:0;direction:rtl;font-family:Heebo,"Segoe UI",Arial,sans-serif}
 .rp-page{width:794px;height:1123px;box-sizing:border-box;padding:40px 44px 30px;background:#fff;color:#16202A;
   display:flex;flex-direction:column;margin-bottom:10px}
-.rp-head{border-bottom:3px solid #0E7C86;padding-bottom:10px;margin-bottom:14px}
+.rp-head{border-bottom:3px solid #0E7C86;padding-bottom:10px;margin-bottom:14px;display:flex;align-items:center;gap:16px}
+.rp-head .rp-tx{flex:1;min-width:0}
+.rp-logo{height:74px;width:auto;flex:none}
 .rp-title{font-size:26px;font-weight:900;color:#0E7C86;line-height:1.2}
 .rp-range{font-size:16px;font-weight:700;color:#566877;margin-top:3px}
 .rp-body{flex:1;overflow:hidden;min-height:0}
