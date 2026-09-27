@@ -23,7 +23,8 @@ const HUE = {"תקלה":"fault","גלישות חרום":"flood","הפסקות ח
 function hueOf(t){ return HUE[t] || "gen"; }
 
 /* ================= state ================= */
-const LS="ogg-log-v2", LSL="ogg-lists-v2";
+const CLOUD_ON=!!window.FIREBASE_CONFIG;   // team log (cloud.js) when firebase-config.js is filled in
+const LS = CLOUD_ON ? "ogg-cloud-log" : "ogg-log-v2", LSL = CLOUD_ON ? "ogg-cloud-lists" : "ogg-lists-v2";
 let events=[], lists=null, editId=null, fileHandle=null;
 const sel = {type:[], loc:[], eq:[], ppl:[], stat:["פתוח"]};
 
@@ -48,6 +49,7 @@ function persist(){
   // a linked file that is waiting for the browser's permission: ask now (we are inside a click)
   if(!fileHandle && pendingHandle) ensureFilePermission().then(ok=>{ if(ok) writeFile(); });
   else writeFile();
+  if(window.cloudPush) window.cloudPush();   // team log: send what changed
 }
 function toast(m, act){
   const t=$("#toast"), s=t.firstElementChild; s.textContent=m;
@@ -901,7 +903,7 @@ $("#wipeAll").onclick=()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.22", APP_DATE="27/09/2026";
+const APP_VER="1.23", APP_DATE="27/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -933,14 +935,12 @@ try{ REFRESH_VIEW=sessionStorage.getItem("ogg-refresh"); sessionStorage.removeIt
 if(!["Dash","New","List","Data"].includes(REFRESH_VIEW)) REFRESH_VIEW=null;
 (function(){
   const sp=$("#splash"); if(!sp) return;
-  if(REFRESH_VIEW){ sp.hidden=true; return; }   // came from the refresh button: skip the opening screen
   // shift and date (morning 07–15, evening 15–23, night 23–07)
   const d=new Date(), h=d.getHours();
   const shift = h>=7&&h<15 ? "בוקר" : h>=15&&h<23 ? "ערב" : "לילה";
   const date = d.toLocaleDateString("he-IL",{day:"2-digit",month:"2-digit",year:"numeric"});
   $("#spShift").textContent = "משמרת "+shift+" · "+date;
   $("#spVer").textContent = "גרסה "+APP_VER;
-  document.documentElement.classList.add("sp-open");
   const enter=()=>{
     document.documentElement.classList.remove("sp-open");
     sp.classList.add("out");
@@ -948,6 +948,9 @@ if(!["Dash","New","List","Data"].includes(REFRESH_VIEW)) REFRESH_VIEW=null;
     $("#tabDash").focus({preventScroll:true});
   };
   $("#spEnter").onclick=enter;
+  window.splashEnter=enter;
+  if(REFRESH_VIEW){ sp.hidden=true; return; }   // came from the refresh button: skip the opening screen
+  document.documentElement.classList.add("sp-open");
 })();
 /* ================= boot ================= */
 load(); setNow(); renderAll(); renderDash(); show(REFRESH_VIEW||"Dash");

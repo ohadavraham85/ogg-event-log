@@ -490,6 +490,34 @@ html.sp-open,html.sp-open body{overflow:hidden}
   #splash .sp-side .sp-foot{position:absolute;bottom:48px;right:64px;left:64px;display:flex;justify-content:space-between;color:#fff;font-size:17px}
 }
 
+/* ---- team log: login on the opening screen, sync chip, team card ---- */
+#splash .sp-login{margin-top:30px;display:flex;flex-direction:column;align-items:stretch;gap:10px;width:min(320px,100%)}
+#splash .sp-msg{margin:0;font-size:16px;line-height:1.5;color:var(--muted)}
+#splash .sp-small{font-size:14px}
+#splash .sp-input{height:50px;border:1px solid #C9D6E2;border-radius:12px;padding:0 14px;font-size:17px;background:#fff;color:var(--ink)}
+#splash .sp-link{border:none;background:none;color:var(--accent);font-size:15px;cursor:pointer;text-decoration:underline;padding:4px}
+#splash .sp-btn[hidden]{display:none}
+#splash .sp-btn:disabled{opacity:.6;cursor:default}
+@media (min-width:1024px){ #splash .sp-login{align-items:stretch;width:360px} }
+@media (max-width:1023px){
+  #splash.sp-auth .sp-logo{width:104px;height:104px}
+  #splash.sp-auth .sp-text{margin-top:16px}
+  #splash.sp-auth .sp-lead,#splash.sp-auth .sp-footer{display:none}
+  #splash.sp-auth .sp-actions{margin-top:14px}
+  #splash.sp-auth .sp-content{padding:32px 24px 120px}
+  #splash.sp-auth .sp-waves{height:100px}
+}
+.sync-chip{font-size:13px;font-weight:800;padding:3px 9px;border-radius:99px;border:1px solid var(--edge);white-space:nowrap;
+  color:var(--ink-3);background:var(--panel)}
+.sync-chip[data-s="ok"]{color:var(--c-visit);border-color:var(--c-visit);background:var(--c-visit-bg)}
+.sync-chip[data-s="pending"]{color:var(--c-flood);border-color:var(--c-flood);background:var(--c-flood-bg)}
+.sync-chip[data-s="off"]{color:var(--ink-3)}
+.cloud-up{margin-top:12px;padding:12px;border-radius:11px;background:var(--c-flood-bg);border:1px solid var(--c-flood)}
+.cloud-up p{margin:0 0 10px;color:var(--ink)}
+.cloud-h{margin-top:16px!important}
+.cloud-members{margin-top:8px}
+.cloud-members .listrow .btn{padding:6px 12px;font-size:13px}
+
 /* ---- list view: rows (compact) ---- */
 .seg.lv{background:var(--panel-2)}
 #viewList.rows #listBox{display:block}
