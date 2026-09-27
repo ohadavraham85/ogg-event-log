@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;900&family=Rubik:wght@500;600;700&family=Assistant:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=1.27">
+<link rel="stylesheet" href="style.css?v=1.28">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0E7C86">
 <link rel="icon" href="icons/icon-notebook.svg" type="image/svg+xml">
@@ -103,14 +103,14 @@
       <img class="logo" src="icons/logo-header.png" alt="מבט&quot;י — מפעלי ביוב וטיהור ירושלים" width="101" height="137">
       <div class="mark">יומן אירועים <span class="sub">מט"ש אוג</span></div>
       <div class="clock" id="clock" aria-live="off"><span class="c-day" id="cDay"></span><span class="c-date" id="cDate"></span><b class="c-time" id="cTime"></b></div>
-      <span class="ver" id="verChip" title="גרסה">v1.27</span>
+      <span class="ver" id="verChip" title="גרסה">v1.28</span>
       <button class="icon-btn" id="refreshBtn" aria-label="רענון" title="רענון — טעינה מחדש ובדיקת עדכון"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M20.5 3.5v5h-5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       <button class="icon-btn" id="themeBtn" aria-label="מצב תצוגה">◐</button>
     </div>
     <nav class="tabs" role="tablist">
       <button role="tab" id="tabDash" class="tab-dash" aria-selected="true"><svg class="ti" viewBox="0 0 16 16" aria-hidden="true"><rect x="1" y="8" width="3.2" height="7" rx="1"/><rect x="6.4" y="4" width="3.2" height="11" rx="1"/><rect x="11.8" y="1" width="3.2" height="14" rx="1"/></svg>דשבורד</button>
       <button role="tab" id="tabNew" aria-selected="false">רישום אירוע</button>
-      <button role="tab" id="tabList" aria-selected="false">אירועים <span id="cnt"></span></button>
+      <button role="tab" id="tabList" aria-selected="false">אירועים <span id="cnt"></span><span class="newcnt" id="newCnt" hidden></span></button>
       <button role="tab" id="tabData" aria-selected="false">רשימות וקובץ</button>
     </nav>
   </header>
@@ -271,7 +271,7 @@
 
     <div class="card">
       <h3>גרסה</h3>
-      <p id="verLine">גרסה 1.27 · 27/09/2026</p>
+      <p id="verLine">גרסה 1.28 · 27/09/2026</p>
       <div class="row"><button class="btn" id="reloadApp">בדוק עדכון</button></div>
     </div>
 
@@ -284,6 +284,7 @@
       </div>
     </div>
   </section>
+  <footer class="credit">כל הזכויות לפיתוח ובנייה שמורות לאוהד אברהם · <a href="tel:0535505382" dir="ltr">053-5505382</a></footer>
 </div>
 
 <div class="savebar" id="savebar">
@@ -318,9 +319,9 @@
   </div>
 </dialog>
 
-<script src="firebase-config.js?v=1.27"></script>
-<script src="app.js?v=1.27"></script>
-<script src="cloud.js?v=1.27"></script>
+<script src="firebase-config.js?v=1.28"></script>
+<script src="app.js?v=1.28"></script>
+<script src="cloud.js?v=1.28"></script>
 <script>
 if("serviceWorker" in navigator){
   window.addEventListener("load",()=>{ navigator.serviceWorker.register("sw.js").catch(()=>{}); });

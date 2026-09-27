@@ -128,6 +128,7 @@
     if(ch.length){
       const idx=new Map(events.map((e,i)=>[e.id,i]));
       let maxU=+get(K_SYNC)||0, changed=false;
+      const firstEver=!maxU, fresh=[];          // first full download on this device is not "news"
       ch.forEach(c=>{
         if(c.type==="removed") return;
         const d=c.doc.data({serverTimestamps:"estimate"}), id=c.doc.id;
@@ -138,7 +139,8 @@
         }
         const e=clean(d), js=JSON.stringify(e);
         if(synced[id]===js && idx.has(id)) return;         // our own write coming back
-        if(idx.has(id)) events[idx.get(id)]=e; else { idx.set(id,events.length); events.push(e); }
+        if(idx.has(id)) events[idx.get(id)]=e;
+        else { idx.set(id,events.length); events.push(e); if(!firstEver && d._by && d._by!==me) fresh.push({e,by:d._by}); }
         synced[id]=js; changed=true;
       });
       put(K_SYNC,String(maxU));
@@ -147,10 +149,27 @@
         try{ localStorage.setItem(LS, JSON.stringify(events)); }catch(e){}
         rebuildLists(); renderAll();
       }
+      if(fresh.length) announce(fresh);
     }
     // first answer from the server (not the local cache): now we know what the cloud really has
     if(!initialDone && !snap.metadata.fromCache){ initialDone=true; renderAccount(); }
     syncChip(snap.metadata);
+  }
+  /* new events recorded by someone else: tab counter, "חדש" marker, toast, and a device notification
+     when the app is in the background (needs the user's permission; not when the app is closed) */
+  function announce(fresh){
+    fresh.forEach(f=>UNSEEN.add(f.e.id)); saveUnseen(); renderList(false);
+    const who=m=>(m||"").split("@")[0];
+    const one=fresh[0].e, what=[(one.type||[])[0],(one.loc||[])[0]].filter(Boolean).join(" · ");
+    const title = fresh.length===1 ? "אירוע חדש ביומן" : fresh.length+" אירועים חדשים ביומן";
+    const body  = fresh.length===1 ? [what, (one.title||one.desc||"").slice(0,90), "נרשם ע\"י "+who(fresh[0].by)].filter(Boolean).join("\n")
+                                   : "נרשמו ע\"י "+[...new Set(fresh.map(f=>who(f.by)))].join(", ");
+    toast(fresh.length===1 ? "אירוע חדש"+(what?" · "+what:"")+" · "+who(fresh[0].by) : title, {label:"הצג", fn:showNew});
+    if(document.hidden && "Notification" in window && Notification.permission==="granted"){
+      const opt={body, tag:"ogg-new", renotify:true, icon:"icons/icon-notebook-192.png", lang:"he", dir:"rtl"};
+      (navigator.serviceWorker ? navigator.serviceWorker.ready.then(r=>r.showNotification(title,opt)) : Promise.reject())
+        .catch(()=>{ try{ const n=new Notification(title,opt); n.onclick=()=>{ window.focus(); showNew(); n.close(); }; }catch(e){} });
+    }
   }
   function listsJSON(){ const o={}; Object.keys(SEED).forEach(k=>{ o[k]=lists["_custom_"+k]; o["_hide_"+k]=lists["_hide_"+k]; }); return JSON.stringify(o); }
   function rebuildLists(){
@@ -210,6 +229,22 @@
     card.appendChild(mk("h3",null,"יומן משותף"));
     card.appendChild(mk("p",null,"מחובר כ-"+me+(role==="admin"?" · מנהל":"")+". כל רישום נשמר ביומן המשותף ומגיע לכל הצוות."));
     const row=mk("div","row"); const out=mk("button","btn","התנתק"); out.type="button"; out.onclick=logout; row.appendChild(out); card.appendChild(row);
+
+    // device notifications for new events (while the app is open or in the background)
+    const nt=mk("div","cloud-notif");
+    if(!("Notification" in window)){
+      nt.appendChild(mk("p","hint","התראות במכשיר לא נתמכות בדפדפן הזה. באייפון — רק כשהאפליקציה מותקנת במסך הבית."));
+    } else if(Notification.permission==="granted"){
+      nt.appendChild(mk("p","hint","🔔 התראות במכשיר פעילות: כשמישהו רושם אירוע חדש תופיע התראה, גם כשהאפליקציה ברקע."));
+    } else if(Notification.permission==="denied"){
+      nt.appendChild(mk("p","hint","התראות חסומות בדפדפן. כדי להפעיל: הגדרות האתר בדפדפן ← התראות ← אפשר."));
+    } else {
+      nt.appendChild(mk("p","hint","קבל התראה במכשיר כשמישהו בצוות רושם אירוע חדש."));
+      const nb=mk("button","btn","הפעל התראות"); nb.type="button";
+      nb.onclick=async()=>{ try{ await Notification.requestPermission(); }catch(e){} renderAccount(); };
+      nt.appendChild(nb);
+    }
+    card.appendChild(nt);
 
     // local-only log on this device (from before the team log) -> admin can upload it once
     let local=[]; try{ local=JSON.parse(get("ogg-log-v2")||"[]"); }catch(e){}

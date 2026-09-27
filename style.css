@@ -520,6 +520,17 @@ html.sp-open,html.sp-open body{overflow:hidden}
 .cloud-members{margin-top:8px}
 .cloud-members .listrow .btn{padding:6px 12px;font-size:13px}
 
+/* ---- new events from the team ---- */
+#tabList{position:relative}
+.newcnt{position:absolute;top:-7px;inset-inline-end:-5px;min-width:22px;height:22px;padding:0 6px;border-radius:99px;
+  background:var(--c-fault);color:#fff;font-size:12.5px;font-weight:900;line-height:22px;text-align:center;
+  box-shadow:0 0 0 2px var(--bg);font-variant-numeric:tabular-nums}
+.newcnt[hidden]{display:none}
+.ev.is-new{box-shadow:0 0 0 2px var(--water),var(--shadow)}
+.newtag{background:var(--water);color:#fff;border-radius:99px;padding:2px 9px;font-size:12px;font-weight:900}
+.cloud-notif{margin-top:10px}
+.cloud-notif .hint{margin:0 0 8px}
+
 /* ---- list view: rows (compact) ---- */
 .seg.lv{background:var(--panel-2)}
 #viewList.rows #listBox{display:block}
@@ -588,3 +599,6 @@ html.sp-open,html.sp-open body{overflow:hidden}
   #viewData > .card{break-inside:avoid}
 }
 
+/* ---- credits ---- */
+.credit{display:table;margin:26px auto 6px;padding:5px 14px;border-radius:99px;background:var(--panel);border:1px solid var(--edge-2);text-align:center;font-size:12.5px;color:var(--ink-2);line-height:1.6;max-width:100%}
+.credit a{color:inherit;text-decoration:none;white-space:nowrap}

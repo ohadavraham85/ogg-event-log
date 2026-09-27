@@ -345,7 +345,7 @@ function renderList(reset){
       }
     }
     const t=(e.type||[])[0]||"";
-    const d=document.createElement("article"); d.className="ev";
+    const d=document.createElement("article"); d.className="ev"+(UNSEEN.has(e.id)?" is-new":"");
     d.style.borderInlineStartColor="var(--c-"+hueOf(t)+")";
     let top=document.createElement("div"); top.className="top";
     const w=document.createElement("span"); w.className="when"; w.textContent=fmtWhen(e.when);
@@ -357,6 +357,7 @@ function renderList(reset){
     const wh=document.createElement("span"); wh.className="where";
     wh.textContent=[(e.loc||[]).join(" · "),(e.eq||[]).join(" · ")].filter(Boolean).join(" · ");
     top.append(w,kd,sp,wh);
+    if(UNSEEN.has(e.id)){ const nw=document.createElement("span"); nw.className="newtag"; nw.textContent="חדש"; top.insertBefore(nw,top.firstChild); }
     if(e.title){
       const hh=document.createElement("div"); hh.className="hl"; hh.textContent=e.title;
       d.appendChild(top); d.appendChild(hh); top=null;
@@ -503,7 +504,7 @@ function renderStats(){
   });
   $("#cnt").textContent = events.length? "("+events.length+")":"";
 }
-function renderAll(){ paintRows(); renderFilters(); renderList(); renderStats(); renderMgr(); if(!$("#viewDash").hidden) renderDash(); updateBadge(); }
+function renderAll(){ paintRows(); renderFilters(); renderList(); renderStats(); renderMgr(); if(!$("#viewDash").hidden) renderDash(); updateBadge(); paintNewCount(); }
 $("#q").oninput=renderList; $("#fType").onchange=renderList; $("#fLoc").onchange=renderList;
 
 /* ================= dashboard ================= */
@@ -751,6 +752,22 @@ document.querySelectorAll("#dRange button").forEach(b=>b.onclick=()=>{
 });
 addEventListener("scroll",()=>{ const t=$("#dTip"); if(t) t.hidden=true; },{passive:true});
 
+/* ================= new events from the team (unseen marker) ================= */
+let UNSEEN=new Set(), curView=null;
+try{ UNSEEN=new Set(JSON.parse(localStorage.getItem("ogg-unseen")||"[]")); }catch(e){}
+function saveUnseen(){ try{ localStorage.setItem("ogg-unseen",JSON.stringify([...UNSEEN])); }catch(e){} paintNewCount(); }
+function paintNewCount(){
+  const have=new Set(events.map(e=>e.id)); const n=[...UNSEEN].filter(id=>have.has(id)).length;
+  const el=$("#newCnt"); el.textContent = n ? (n>99?"99+":String(n)) : ""; el.title = n ? n+" אירועים חדשים" : "";
+  el.hidden = !n || curView==="List";
+}
+function showNew(){                       // open the list with the newest changes on top, new ones highlighted
+  const sp=$("#splash"); if(sp && !sp.hidden && window.splashEnter && !$("#spEnter").hidden) window.splashEnter();
+  $("#sortBy").value="edit"; goList({ppl:""});
+  setTimeout(()=>{ const el=document.querySelector(".ev.is-new"); if(el) el.scrollIntoView({block:"center",behavior:"smooth"}); },150);
+}
+if(navigator.serviceWorker) navigator.serviceWorker.addEventListener("message",ev=>{ if(ev.data && ev.data.type==="show-new") showNew(); });
+
 /* ================= app icon badge ================= */
 let badgeMode="recent";
 try{ badgeMode=localStorage.getItem("ogg-badge")||"recent"; }catch(e){}
@@ -769,6 +786,9 @@ if(!("setAppBadge" in navigator)) $("#badgeNote").textContent="הדפדפן הז
 /* ================= tabs / theme ================= */
 function show(w){
   if($("#dTip")) $("#dTip").hidden=true;
+  const prev=curView; curView=w;
+  if(prev==="List" && w!=="List" && UNSEEN.size){ UNSEEN.clear(); saveUnseen(); }   // seen once you leave the list
+  if($("#newCnt")) paintNewCount();
   ["New","List","Dash","Data"].forEach(v=>{
     $("#view"+v).hidden=(v!==w);
     $("#tab"+v).setAttribute("aria-selected",String(v===w));
@@ -920,7 +940,7 @@ $("#wipeAll").onclick=()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.27", APP_DATE="27/09/2026";
+const APP_VER="1.28", APP_DATE="27/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
