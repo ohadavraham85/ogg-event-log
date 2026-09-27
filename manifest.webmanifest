@@ -32,5 +32,43 @@
       "sizes": "any",
       "type": "image/svg+xml"
     }
+  ],
+  "shortcuts": [
+    {
+      "name": "רישום אירוע",
+      "short_name": "רישום",
+      "url": "./?app=ogg-log-2&view=New",
+      "icons": [
+        {
+          "src": "icons/sc-new-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "דשבורד",
+      "short_name": "דשבורד",
+      "url": "./?app=ogg-log-2&view=Dash",
+      "icons": [
+        {
+          "src": "icons/sc-dash-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "אירועים פתוחים",
+      "short_name": "פתוחים",
+      "url": "./?app=ogg-log-2&view=open",
+      "icons": [
+        {
+          "src": "icons/sc-open-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
   ]
 }

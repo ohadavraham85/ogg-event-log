@@ -501,7 +501,7 @@ function renderStats(){
   });
   $("#cnt").textContent = events.length? "("+events.length+")":"";
 }
-function renderAll(){ paintRows(); renderFilters(); renderList(); renderStats(); renderMgr(); if(!$("#viewDash").hidden) renderDash(); }
+function renderAll(){ paintRows(); renderFilters(); renderList(); renderStats(); renderMgr(); if(!$("#viewDash").hidden) renderDash(); updateBadge(); }
 $("#q").oninput=renderList; $("#fType").onchange=renderList; $("#fLoc").onchange=renderList;
 
 /* ================= dashboard ================= */
@@ -749,6 +749,21 @@ document.querySelectorAll("#dRange button").forEach(b=>b.onclick=()=>{
 });
 addEventListener("scroll",()=>{ const t=$("#dTip"); if(t) t.hidden=true; },{passive:true});
 
+/* ================= app icon badge ================= */
+let badgeMode="recent";
+try{ badgeMode=localStorage.getItem("ogg-badge")||"recent"; }catch(e){}
+function updateBadge(){
+  if(!("setAppBadge" in navigator)) return;
+  let n=0;
+  if(badgeMode==="recent"){ const from=ymd(daysAgo(29)); n=events.filter(e=>isOpen(e) && (e.when||"").slice(0,10)>=from).length; }
+  else if(badgeMode==="open") n=events.filter(isOpen).length;
+  else if(badgeMode==="faults") n=events.filter(e=>isOpen(e) && (e.type||[]).includes("תקלה")).length;
+  try{ n ? navigator.setAppBadge(n) : navigator.clearAppBadge(); }catch(e){}
+}
+$("#badgeMode").value=badgeMode;
+$("#badgeMode").onchange=()=>{ badgeMode=$("#badgeMode").value; try{ localStorage.setItem("ogg-badge",badgeMode); }catch(e){} updateBadge(); };
+if(!("setAppBadge" in navigator)) $("#badgeNote").textContent="הדפדפן הזה לא מציג מספר על האייקון (למשל כרום באנדרואיד). במחשב, ובאייפון כשהאפליקציה מותקנת, זה עובד.";
+
 /* ================= tabs / theme ================= */
 function show(w){
   if($("#dTip")) $("#dTip").hidden=true;
@@ -903,7 +918,7 @@ $("#wipeAll").onclick=()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.23", APP_DATE="27/09/2026";
+const APP_VER="1.24", APP_DATE="27/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -933,6 +948,15 @@ $("#refreshBtn").onclick=()=>{ $("#refreshBtn").classList.add("spin"); refreshAp
 let REFRESH_VIEW=null;
 try{ REFRESH_VIEW=sessionStorage.getItem("ogg-refresh"); sessionStorage.removeItem("ogg-refresh"); }catch(e){}
 if(!["Dash","New","List","Data"].includes(REFRESH_VIEW)) REFRESH_VIEW=null;
+// app-icon shortcuts open a screen directly (?view=New|Dash|List|Data|open)
+let DEEP_OPEN=false;
+(function(){
+  const u=new URL(location.href), v=u.searchParams.get("view");
+  if(!v) return;
+  if(v==="open"){ DEEP_OPEN=true; if(!REFRESH_VIEW) REFRESH_VIEW="List"; }
+  else if(["Dash","New","List","Data"].includes(v) && !REFRESH_VIEW) REFRESH_VIEW=v;
+  u.searchParams.delete("view"); history.replaceState(null,"",u.pathname+u.search);
+})();
 (function(){
   const sp=$("#splash"); if(!sp) return;
   // shift and date (morning 07–15, evening 15–23, night 23–07)
@@ -954,3 +978,4 @@ if(!["Dash","New","List","Data"].includes(REFRESH_VIEW)) REFRESH_VIEW=null;
 })();
 /* ================= boot ================= */
 load(); setNow(); renderAll(); renderDash(); show(REFRESH_VIEW||"Dash");
+if(DEEP_OPEN) goList({stat:OPEN_ANY});
