@@ -726,3 +726,5 @@ html.sp-open,html.sp-open body{overflow:hidden}
 .tk-sels{padding:10px 10px 0;margin:0 -2px 12px;border-radius:12px;background:var(--panel-2);border:1px solid var(--edge-2)}
 .tk-sels .tk-f select,.tk-sels .tk-f input{background:var(--panel)}
 .tk-tag.today{background:var(--c-flood-bg);color:var(--c-flood);border-color:transparent}
+.tf-clear{grid-column:1/-1;padding:8px 12px;font-size:14px;border-color:var(--c-fault);color:var(--c-fault);background:var(--panel)}
+.tf-clear[hidden]{display:none}

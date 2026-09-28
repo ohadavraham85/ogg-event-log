@@ -89,7 +89,7 @@ Object.keys(ROW).forEach(k=>{ $(ROW[k]).onclick = ()=>openSheet(k); });
 let shKey=null;
 function openSheet(k){
   shKey=k;
-  $("#shTitle").textContent = META[k].title + (META[k].multi? " — אפשר לבחור כמה" : "");
+  $("#shTitle").textContent = META[k].title + (META[k].multi && sel[k].length ? " — לחיצה על מסומן מבטלת אותו" : "");
   $("#shQ").value=""; $("#shNew").value="";
   $("#shNew").placeholder = "הוסף " + META[k].title + " חדש";
   drawOpts();
@@ -128,8 +128,8 @@ function drawOpts(){
     b.onclick = ()=>{
       if(META[k].multi){
         const i=sel[k].indexOf(v);
-        if(i>=0) sel[k].splice(i,1); else sel[k].push(v);
-        drawOpts(); paintRows();
+        if(i>=0){ sel[k].splice(i,1); drawOpts(); paintRows(); }      // un-pick: stay open
+        else { sel[k].push(v); paintRows(); closeSheet(); }        // pick: close (open again to add more)
       }else{
         sel[k]=[v]; paintRows(); closeSheet();
       }
@@ -161,7 +161,7 @@ function hideSeed(k, v){
   persist(); paintRows(); renderMgr(); toast("הוסר מהרשימה");
 }
 $("#shQ").oninput = drawOpts;
-$("#shAdd").onclick = ()=>{ addValue(shKey, $("#shNew").value); $("#shNew").value=""; };
+$("#shAdd").onclick = ()=>{ const v=$("#shNew").value.trim(); if(!v) return; addValue(shKey, v); $("#shNew").value=""; closeSheet(); };
 $("#shNew").onkeydown = e=>{ if(e.key==="Enter"){ e.preventDefault(); $("#shAdd").click(); } };
 $("#shDone").onclick = closeSheet;
 $("#shClose").onclick = closeSheet;
@@ -1200,7 +1200,7 @@ $("#wipeAll").onclick=()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.40", APP_DATE="28/09/2026";
+const APP_VER="1.41", APP_DATE="28/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -1321,8 +1321,10 @@ function renderTkFilters(){
   fillSelect($("#tfPrio"), PRIOS, tkF.prio, "כל העדיפויות");
   colorSelect($("#tfPrio"), PRIO_HUE[tkF.prio]); colorSelect($("#tfType"), tkF.type ? hueOf(tkF.type) : "");
   ["#tfPpl","#tfLoc","#tfType"].forEach(id=>$(id).classList.toggle("on",!!$(id).value));
+  $("#tfClear").hidden=!Object.values(tkF).some(Boolean);
   const dl=$("#dlPpl"); dl.textContent=""; (lists.ppl||[]).forEach(v=>{ const x=document.createElement("option"); x.value=v; dl.appendChild(x); });
 }
+$("#tfClear").onclick=()=>{ Object.keys(tkF).forEach(k=>tkF[k]=""); renderTasks(); };
 ["ppl","loc","type","prio"].forEach(k=>{ const el=$("#tf"+k[0].toUpperCase()+k.slice(1)); el.onchange=()=>{ tkF[k]=el.value; renderTasks(); }; });
 function renderTasks(){
   paintTaskCount(); renderTkFilters();
