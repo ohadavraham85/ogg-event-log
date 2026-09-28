@@ -32,7 +32,10 @@
     --c-gen:#9FB3C2;  --c-gen-bg:#22303B;
   }
 }
-:root[data-theme="dark"]{
+:root{color-scheme:light}
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){color-scheme:dark} }
+:root[data-theme="light"]{color-scheme:light}
+:root[data-theme="dark"]{color-scheme:dark;
   --bg:#0E161C; --panel:#17222B; --panel-2:#1D2A34; --edge:#2C3E4C; --edge-2:#233240;
   --ink:#E4ECF2; --ink-2:#9BAEBD; --ink-3:#71879A;
   --water:#41BDB4; --water-soft:#0F3038;

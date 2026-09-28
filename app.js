@@ -808,14 +808,24 @@ $("#tabNew").onclick=()=>show("New");
 $("#tabList").onclick=()=>{ renderFilters(); renderList(); show("List"); };
 $("#tabDash").onclick=()=>{ renderDash(); show("Dash"); };
 $("#tabData").onclick=()=>{ renderStats(); renderMgr(); show("Data"); };
+/* theme: one tap switches between light and dark (whatever is showing now — the phone's setting or a saved choice) */
+const darkMQ=window.matchMedia ? matchMedia("(prefers-color-scheme: dark)") : {matches:false};
+function isDark(){ const t=document.documentElement.getAttribute("data-theme"); return t ? t==="dark" : darkMQ.matches; }
+function paintThemeBtn(){
+  const d=isDark(), b=$("#themeBtn");
+  b.textContent = d ? "☀" : "☾";
+  b.title = b.ariaLabel = d ? "מעבר לרקע בהיר" : "מעבר לרקע כהה";
+  const m=document.querySelector('meta[name="theme-color"]'); if(m) m.content = d ? "#0E161C" : "#0E7C86";
+}
 $("#themeBtn").onclick=()=>{
-  const cur=document.documentElement.getAttribute("data-theme");
-  const next=cur==="dark"?"light":cur==="light"?"":"dark";
-  if(next) document.documentElement.setAttribute("data-theme",next);
-  else document.documentElement.removeAttribute("data-theme");
+  const next = isDark() ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme",next);
   try{ localStorage.setItem("ogg-theme",next); }catch(e){}
+  paintThemeBtn();
 };
-try{ const th=localStorage.getItem("ogg-theme"); if(th) document.documentElement.setAttribute("data-theme",th); }catch(e){}
+try{ const th=localStorage.getItem("ogg-theme"); if(th==="light"||th==="dark") document.documentElement.setAttribute("data-theme",th); }catch(e){}
+if(darkMQ.addEventListener) darkMQ.addEventListener("change",paintThemeBtn);
+paintThemeBtn();
 
 /* ================= voice ================= */
 (function(){
@@ -1181,7 +1191,7 @@ $("#wipeAll").onclick=()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.34", APP_DATE="27/09/2026";
+const APP_VER="1.35", APP_DATE="28/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
