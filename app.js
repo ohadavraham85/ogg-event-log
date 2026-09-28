@@ -775,7 +775,10 @@ function showNew(){                       // open the list with the newest chang
   $("#sortBy").value="edit"; goList({ppl:""});
   setTimeout(()=>{ const el=document.querySelector(".ev.is-new"); if(el) el.scrollIntoView({block:"center",behavior:"smooth"}); },150);
 }
-if(navigator.serviceWorker) navigator.serviceWorker.addEventListener("message",ev=>{ if(ev.data && ev.data.type==="show-new") showNew(); });
+if(navigator.serviceWorker) navigator.serviceWorker.addEventListener("message",ev=>{
+  if(ev.data && ev.data.type==="show-new") showNew();
+  if(ev.data && ev.data.type==="show-tasks") setTimeout(()=>showMyTasks(),0);
+});
 
 /* ================= app icon badge ================= */
 let badgeMode="recent";
@@ -1197,7 +1200,7 @@ $("#wipeAll").onclick=()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.37", APP_DATE="28/09/2026";
+const APP_VER="1.38", APP_DATE="28/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -1271,20 +1274,34 @@ function saveTasks(){
 const newId=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const tkOpen=t=>t.status!=="הושלמה";
 function tkSortKey(t){ return (t.urgent?"0":"1")+(t.due||"9999-99-99")+(t.created||""); }
-function paintTaskCount(){ const n=tasks.filter(tkOpen).length; $("#tkCnt").textContent = n ? "("+n+")" : ""; }
+/* "mine": the signed-in team member's name (set by the admin in the team list) is the link to the assignee */
+function myName(){ return window.cloudMyName ? window.cloudMyName() : ""; }
+const isMine=t=>{ const n=myName(); return !!n && (t.ppl||[]).includes(n); };
+function paintTaskCount(){
+  const n=tasks.filter(tkOpen).length; $("#tkCnt").textContent = n ? "("+n+")" : "";
+  const m=tasks.filter(t=>tkOpen(t)&&isMine(t)).length, el=$("#tkMine");
+  el.textContent = m ? String(m) : ""; el.title = m ? m+" משימות פתוחות שלך" : ""; el.hidden=!m;
+  $("#tkSegMine").hidden=!myName();
+  if(tkView==="mine" && !myName()){ tkView="open"; paintTkSeg(); }
+}
+function showMyTasks(){
+  const sp=$("#splash"); if(sp && !sp.hidden && window.splashEnter && !$("#spEnter").hidden) window.splashEnter();
+  tkView = myName() ? "mine" : "open"; paintTkSeg(); renderTasks(); show("Tasks"); window.scrollTo({top:0});
+}
 function renderTasks(){
   paintTaskCount();
   const box=$("#tkList"); if(!box) return; box.textContent="";
   const today=ymd(new Date());
-  const rows = tkView==="open"
-    ? tasks.filter(tkOpen).sort((a,b)=>tkSortKey(a).localeCompare(tkSortKey(b)))
+  const rows = tkView!=="done"
+    ? tasks.filter(t=>tkOpen(t) && (tkView!=="mine" || isMine(t))).sort((a,b)=>tkSortKey(a).localeCompare(tkSortKey(b)))
     : tasks.filter(t=>!tkOpen(t)).sort((a,b)=>String(b.doneAt||"").localeCompare(String(a.doneAt||"")));
-  if(!rows.length){ box.appendChild(mk("div","tk-empty", tkView==="open" ? "אין משימות פתוחות." : "עדיין לא הושלמו משימות.")); return; }
+  if(!rows.length){ box.appendChild(mk("div","tk-empty", tkView==="mine" ? "אין משימות פתוחות שלך." : tkView==="open" ? "אין משימות פתוחות." : "עדיין לא הושלמו משימות.")); return; }
   rows.forEach(t=>{
     const c=mk("div","tk"+(t.urgent&&tkOpen(t)?" urgent":"")+(tkOpen(t)?"":" done"));
     c.appendChild(mk("div","tk-t",t.title||"(ללא כותרת)"));
     const tags=mk("div","tk-tags"), tag=(txt,cls)=>tags.appendChild(mk("span","tk-tag"+(cls?" "+cls:""),txt));
     if(tkOpen(t)){
+      if(isMine(t)) tag("שלי","me");
       if(t.urgent) tag("דחוף","u");
       if(t.status==="בטיפול") tag("בטיפול","w");
       if(t.due) tag((t.due<today?"באיחור · ":"יעד ")+dmy(t.due).slice(0,5), t.due<today?"late":"");
@@ -1312,7 +1329,9 @@ function renderTasks(){
 }
 function fillDatalists(){
   [["#dlPpl","ppl"],["#dlLoc","loc"],["#dlEq","eq"]].forEach(([id,k])=>{
-    const dl=$(id); dl.textContent=""; (lists[k]||[]).forEach(v=>{ const o=document.createElement("option"); o.value=v; dl.appendChild(o); });
+    const dl=$(id); dl.textContent="";
+    const vals = k==="ppl" ? [...new Set((window.TEAM_NAMES||[]).concat(lists[k]||[]))] : (lists[k]||[]);
+    vals.forEach(v=>{ const o=document.createElement("option"); o.value=v; dl.appendChild(o); });
   });
 }
 function openTaskForm(id){

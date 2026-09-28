@@ -67,7 +67,7 @@
 
   /* ---------- Firebase ---------- */
   let F, app, auth, db, me=null, role=null, unsubEv=null, unsubLists=null, unsubMembers=null;
-  let tSynced={}, unsubTasks=null;
+  let tSynced={}, unsubTasks=null, tFresh=false, tInit=false;   // tFresh: this device never synced tasks
   let synced={}, listsSynced="", pending=0, started=false, initialDone=false;
 
   function loadSdk(){
@@ -121,15 +121,17 @@
     const q=F.query(F.collection(db,"events"), F.where("_upd",">",F.Timestamp.fromMillis(since)));
     unsubEv=F.onSnapshot(q,{includeMetadataChanges:true}, applyEvents, err=>{ setChip("off","שגיאת סנכרון: "+(err.code||err.message)); });
     unsubLists=F.onSnapshot(F.doc(db,"meta","lists"), applyLists, ()=>{});
-    if(role==="admin") watchMembers();
+    watchMembers();                                        // everyone: names for "assigned to me"
     // tasks: one document each in "meta" (task-<id>) — the rules already allow team members there
     tSynced={}; tasks.forEach(t=>{ tSynced[t.id]=JSON.stringify(t); });
+    tFresh=!(+get(K_SYNC_T)); tInit=false;
     const tSince=Math.max(0,(+get(K_SYNC_T)||0)-5*60*1000);
     unsubTasks=F.onSnapshot(F.query(F.collection(db,"meta"), F.where("_upd",">",F.Timestamp.fromMillis(tSince))), applyTasks, ()=>{});
     cloudPush(); cloudPushTasks();                         // anything changed while signed out / offline
   }
   function stopSync(){
     initialDone=false;
+    members=[]; window.TEAM_NAMES=[];
     [unsubEv,unsubLists,unsubMembers,unsubTasks].forEach(u=>{ if(u) u(); }); unsubEv=unsubLists=unsubMembers=unsubTasks=null; started=false;
   }
   function applyEvents(snap){
@@ -165,7 +167,8 @@
     syncChip(snap.metadata);
   }
   function applyTasks(snap){
-    let maxU=+get(K_SYNC_T)||0, changed=false; const firstEver=!maxU, fresh=[];
+    // the first server answer on a brand-new device is the initial download, not news
+    let maxU=+get(K_SYNC_T)||0, changed=false; const firstEver=tFresh && !tInit, fresh=[], assigned=[];
     snap.docChanges().forEach(c=>{
       const id=c.doc.id; if(c.type==="removed" || id.indexOf("task-")!==0) return;
       const d=c.doc.data({serverTimestamps:"estimate"}), tid=id.slice(5);
@@ -174,12 +177,23 @@
       if(d._del){ if(i>=0){ tasks.splice(i,1); changed=true; } delete tSynced[tid]; return; }
       const t=clean(d), js=JSON.stringify(t);
       if(tSynced[tid]===js && i>=0) return;                // our own write coming back
+      const mine=window.cloudMyName(), was=i>=0 ? tasks[i] : null;
+      if(!firstEver && mine && d._by && d._by!==me && t.status!=="הושלמה" && (t.ppl||[]).includes(mine)
+         && !(was && (was.ppl||[]).includes(mine))) assigned.push(t);
       if(i>=0) tasks[i]=t; else { tasks.push(t); if(!firstEver && d._by && d._by!==me) fresh.push(t); }
       tSynced[tid]=js; changed=true;
     });
     put(K_SYNC_T,String(maxU));
+    if(!snap.metadata.fromCache) tInit=true;
     if(changed){ try{ localStorage.setItem("ogg-cloud-tasks", JSON.stringify(tasks)); }catch(e){} renderTasks(); }
-    if(fresh.length) toast(fresh.length===1 ? "משימה חדשה: "+(fresh[0].title||"") : fresh.length+" משימות חדשות",
+    const openMine=()=>{ if(typeof showMyTasks==="function") showMyTasks(); };
+    if(assigned.length){
+      const title = assigned.length===1 ? "הוקצתה לך משימה" : "הוקצו לך "+assigned.length+" משימות";
+      const body = assigned.map(t=>(t.urgent?"דחוף · ":"")+(t.title||"")+(t.due?" · יעד "+t.due.slice(8,10)+"/"+t.due.slice(5,7):"")).join("\n");
+      toast(title+": "+(assigned[0].title||""), {label:"הצג", fn:openMine});
+      notifyDevice(title, body, "ogg-task", openMine);
+      if(typeof addMineUnseen==="function") addMineUnseen(assigned.map(t=>t.id));
+    } else if(fresh.length) toast(fresh.length===1 ? "משימה חדשה: "+(fresh[0].title||"") : fresh.length+" משימות חדשות",
       {label:"הצג", fn:()=>{ $("#tabTasks").click(); }});
   }
   function cloudPushTasks(){
@@ -273,6 +287,7 @@
     card.textContent="";
     card.appendChild(mk("h3",null,"יומן משותף"));
     card.appendChild(mk("p",null,"מחובר כ-"+me+(role==="admin"?" · מנהל":"")+". כל רישום נשמר ביומן המשותף ומגיע לכל הצוות."));
+    const nm=mk("p","hint cloud-myname"); nm.id="cloudMyName"; card.appendChild(nm); paintMyName();
     const row=mk("div","row"); const out=mk("button","btn","התנתק"); out.type="button"; out.onclick=logout; row.appendChild(out); card.appendChild(row);
 
     // device notifications for new events (while the app is open or in the background)
@@ -314,15 +329,18 @@
     if(role==="admin"){
       card.appendChild(mk("h3","cloud-h","צוות"));
       card.appendChild(mk("p",null,"רק המיילים ברשימה יכולים להיכנס, לראות ולרשום."));
-      const add=mk("div","row"); const inp=mk("input","txt"); inp.type="email"; inp.placeholder="מייל של איש צוות"; inp.dir="ltr"; inp.style.flex="1";
+      const add=mk("div","row cloud-add"); const inp=mk("input","txt"); inp.type="email"; inp.placeholder="מייל של איש צוות"; inp.dir="ltr"; inp.style.flex="1";
+      const nameIn=mk("input","txt"); nameIn.placeholder="שם (כמו ברשימת המעורבים)"; nameIn.setAttribute("list","dlPpl"); nameIn.style.flex="1";
       const sel=mk("select","dsel"); [["member","איש צוות"],["admin","מנהל"]].forEach(([v,l])=>{ const o=mk("option",null,l); o.value=v; sel.appendChild(o); });
       const b=mk("button","btn","הוסף"); b.type="button";
       b.onclick=async()=>{
         const em=inp.value.trim().toLowerCase(); if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){ toast("מייל לא תקין"); return; }
-        try{ await F.setDoc(F.doc(db,"members",em),{role:sel.value,added:F.serverTimestamp(),by:me}); inp.value=""; toast("נוסף לצוות — שלח לו הזמנה"); showInvite(em); }
+        const name=nameIn.value.trim();
+        try{ await F.setDoc(F.doc(db,"members",em),{role:sel.value,added:F.serverTimestamp(),by:me,...(name?{name}:{})}); inp.value=""; nameIn.value=""; toast("נוסף לצוות — שלח לו הזמנה"); showInvite(em); }
         catch(e){ toast("ההוספה נכשלה"); }
       };
-      add.append(inp,sel,b); card.appendChild(add);
+      card.appendChild(mk("p","hint","השם מחבר את איש הצוות למשימות: משימה שהאחראי בה הוא השם הזה תופיע אצלו ב\"שלי\" ויקבל עליה התראה."));
+      add.append(inp,nameIn,sel,b); card.appendChild(add);
       const inv=mk("div","cloud-invite"); inv.id="cloudInvite"; inv.hidden=true; card.appendChild(inv);
       const list=mk("div","cloud-members"); list.id="cloudMembers"; card.appendChild(list);
       paintMembers();
@@ -331,12 +349,32 @@
   let members=[];
   function watchMembers(){
     if(unsubMembers) return;
-    unsubMembers=F.onSnapshot(F.collection(db,"members"), s=>{ members=s.docs.map(d=>({email:d.id,...d.data()})).sort((a,b)=>a.email.localeCompare(b.email)); paintMembers(); }, ()=>{});
+    unsubMembers=F.onSnapshot(F.collection(db,"members"), s=>{
+      members=s.docs.map(d=>({email:d.id,...d.data()})).sort((a,b)=>(a.name||a.email).localeCompare(b.name||b.email));
+      window.TEAM_NAMES=members.map(m=>m.name).filter(Boolean);
+      paintMembers(); paintMyName(); if(typeof renderTasks==="function") renderTasks();
+    }, ()=>{});
+  }
+  window.cloudMyName=()=>{ const m=members.find(x=>x.email===me); return m && m.name ? m.name : ""; };
+  function paintMyName(){
+    const el=$("#cloudMyName"); if(!el) return;
+    const n=window.cloudMyName();
+    el.textContent = n ? "השם שלך ביומן: "+n+" — משימות שהאחראי בהן \""+n+"\" מופיעות אצלך ב\"שלי\"."
+                       : (role==="admin" ? "עדיין לא הוגדר לך שם — לחץ \"שם\" ליד המייל שלך ברשימת הצוות, כדי לקבל משימות והתראות."
+                                          : "מנהל היומן עדיין לא הגדיר את השם שלך — בלי שם לא תקבל התראה על משימות שהוקצו לך.");
   }
   function paintMembers(){
     const box=$("#cloudMembers"); if(!box) return; box.textContent="";
     members.forEach(m=>{
-      const r=mk("div","listrow"); r.appendChild(mk("b",null,m.email)); r.appendChild(mk("span",null,m.role==="admin"?"מנהל":"איש צוות"));
+      const r=mk("div","listrow"), who=mk("div","cm-who");
+      who.appendChild(mk("b",null,m.name||"(בלי שם)")); who.appendChild(mk("span","cm-mail",m.email));
+      r.appendChild(who); r.appendChild(mk("span",null,m.role==="admin"?"מנהל":"איש צוות"));
+      const nb=mk("button","btn mini","שם"); nb.type="button";
+      nb.onclick=async()=>{
+        const v=prompt("השם של "+m.email+" ביומן (כמו שמופיע ברשימת המעורבים):", m.name||""); if(v===null) return;
+        try{ await F.setDoc(F.doc(db,"members",m.email),{name:v.trim()},{merge:true}); toast("השם נשמר"); }catch(e){ toast("השמירה נכשלה"); }
+      };
+      r.appendChild(nb);
       if(m.email!==me){
         const iv=mk("button","btn mini","הזמן"); iv.type="button"; iv.onclick=()=>showInvite(m.email); r.appendChild(iv);
         const x=mk("button","btn mini","הסר"); x.type="button";
@@ -346,33 +384,12 @@
       box.appendChild(r);
     });
   }
-  /* invitation: a ready message with the app link (their mail pre-filled) and how to sign in —
-     sent by WhatsApp, mail, the share sheet, or copied. Adding to the team is what grants access. */
-  function inviteText(em){
-    const title=(document.querySelector(".bar .mark")||{}).textContent||"יומן אירועים";
-    const url=location.origin+location.pathname+"?invite="+encodeURIComponent(em);
-    return { url, subject:"הזמנה ל"+title.trim(),
-      text:"הוזמנת ל"+title.trim().replace(/\s+/g," ")+" — היומן המשותף של הצוות.\n\n"+
-        "1. פותחים את הקישור: "+url+"\n"+
-        "2. לוחצים \"שלח קישור כניסה\" (המייל "+em+" כבר ממולא).\n"+
-        "3. פותחים את המייל שמגיע ולוחצים על הקישור — וזהו, נכנסים ליומן.\n\n"+
-        "כדאי להתקין כאפליקציה: בתפריט הדפדפן ← \"הוסף למסך הבית\"." };
-  }
-  function showInvite(em){
-    const box=$("#cloudInvite"); if(!box) return;
-    const T=inviteText(em); box.textContent=""; box.hidden=false;
-    const head=mk("div","ci-head"); head.appendChild(mk("b",null,"הזמנה ל-"+em));
-    const x=mk("button","x","✕"); x.type="button"; x.setAttribute("aria-label","סגור"); x.onclick=()=>{ box.hidden=true; };
-    head.appendChild(x); box.appendChild(head);
-    const pre=mk("div","ci-text",T.text); box.appendChild(pre);
-    const row=mk("div","row");
-    const btn=(label,fn,cls)=>{ const b=mk("button","btn"+(cls?" "+cls:""),label); b.type="button"; b.onclick=fn; row.appendChild(b); };
-    btn("וואטסאפ",()=>window.open("https://wa.me/?text="+encodeURIComponent(T.text),"_blank","noopener"),"primary");
-    btn("מייל",()=>{ location.href="mailto:"+em+"?subject="+encodeURIComponent(T.subject)+"&body="+encodeURIComponent(T.text); });
-    if(navigator.share) btn("שתף",async()=>{ try{ await navigator.share({title:T.subject,text:T.text}); }catch(e){} });
-    btn("העתק",async()=>{ try{ await navigator.clipboard.writeText(T.text); toast("ההזמנה הועתקה"); }catch(e){ toast("ההעתקה נכשלה"); } });
-    box.appendChild(row);
-    box.scrollIntoView({block:"nearest",behavior:"smooth"});
+  /* device notification (when the app is in the background and the user allowed it) */
+  function notifyDevice(title, body, tag, onClick){
+    if(!(document.hidden && "Notification" in window && Notification.permission==="granted")) return;
+    const opt={body, tag, renotify:true, icon:"icons/icon-notebook-192.png", lang:"he", dir:"rtl"};
+    (navigator.serviceWorker ? navigator.serviceWorker.ready.then(r=>r.showNotification(title,opt)) : Promise.reject())
+      .catch(()=>{ try{ const n=new Notification(title,opt); n.onclick=()=>{ window.focus(); onClick(); n.close(); }; }catch(e){} });
   }
   async function logout(){
     if(!confirm("להתנתק? העותק של היומן המשותף יימחק מהמכשיר הזה (הוא נשאר בענן).")) return;

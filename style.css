@@ -711,3 +711,10 @@ html.sp-open,html.sp-open body{overflow:hidden}
   .tabs button{font-size:12.5px;padding:9px 1px;border-width:1.5px;border-radius:10px;letter-spacing:-.01em}
   .tabs .ti{display:none}
 }
+.tk-tag.me{background:var(--water);color:#fff;border-color:transparent}
+#tabTasks{position:relative}
+.cm-who{flex:1 1 170px;min-width:0;display:grid}
+.cm-who b{overflow-wrap:anywhere}
+.cm-mail{font-size:12.5px;color:var(--ink-3);direction:ltr;text-align:right;overflow-wrap:anywhere}
+.cloud-add{flex-wrap:wrap}
+.cloud-add .txt{min-width:150px}
