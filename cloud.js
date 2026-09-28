@@ -168,7 +168,7 @@
   }
   function applyTasks(snap){
     // the first server answer on a brand-new device is the initial download, not news
-    let maxU=+get(K_SYNC_T)||0, changed=false; const firstEver=tFresh && !tInit, fresh=[], assigned=[];
+    let maxU=+get(K_SYNC_T)||0, changed=false; const firstEver=tFresh && !tInit, fresh=[], assigned=[]; let mergedLog=false;
     snap.docChanges().forEach(c=>{
       const id=c.doc.id; if(c.type==="removed" || id.indexOf("task-")!==0) return;
       const d=c.doc.data({serverTimestamps:"estimate"}), tid=id.slice(5);
@@ -180,12 +180,18 @@
       const mine=window.cloudMyName(), was=i>=0 ? tasks[i] : null;
       if(!firstEver && mine && d._by && d._by!==me && t.status!=="הושלמה" && (t.ppl||[]).includes(mine)
          && !(was && (was.ppl||[]).includes(mine))) assigned.push(t);
+      // update log: keep entries this device has that the incoming copy lacks (two people updating at once)
+      if(was && Array.isArray(was.log) && was.log.length){
+        const have=new Set((t.log||[]).map(l=>l.id)), extra=was.log.filter(l=>l && !have.has(l.id));
+        if(extra.length){ t.log=(t.log||[]).concat(extra).sort((x,y)=>String(x.at).localeCompare(String(y.at))); mergedLog=true; }
+      }
       if(i>=0) tasks[i]=t; else { tasks.push(t); if(!firstEver && d._by && d._by!==me) fresh.push(t); }
       tSynced[tid]=js; changed=true;
     });
     put(K_SYNC_T,String(maxU));
     if(!snap.metadata.fromCache) tInit=true;
     if(changed){ try{ localStorage.setItem("ogg-cloud-tasks", JSON.stringify(tasks)); }catch(e){} renderTasks(); }
+    if(mergedLog) setTimeout(cloudPushTasks,0);           // send the merged log back
     const openMine=()=>{ if(typeof showMyTasks==="function") showMyTasks(); };
     if(assigned.length){
       const title = assigned.length===1 ? "הוקצתה לך משימה" : "הוקצו לך "+assigned.length+" משימות";

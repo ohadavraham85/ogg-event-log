@@ -1200,7 +1200,7 @@ $("#wipeAll").onclick=()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.41", APP_DATE="28/09/2026";
+const APP_VER="1.42", APP_DATE="28/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -1326,6 +1326,52 @@ function renderTkFilters(){
 }
 $("#tfClear").onclick=()=>{ Object.keys(tkF).forEach(k=>tkF[k]=""); renderTasks(); };
 ["ppl","loc","type","prio"].forEach(k=>{ const el=$("#tf"+k[0].toUpperCase()+k.slice(1)); el.onchange=()=>{ tkF[k]=el.value; renderTasks(); }; });
+/* update log: every task keeps a running log — time, who reported, what happened.
+   Status changes are logged automatically; when the task is finished the log goes into the event ("המשך טיפול"). */
+const K_REPORTER="ogg-reporter";
+function reporter(){ return myName() || (()=>{ try{ return localStorage.getItem(K_REPORTER)||""; }catch(e){ return ""; } })(); }
+function tkLog(t, text, by, sys){
+  if(!Array.isArray(t.log)) t.log=[];
+  t.log.push({id:newId(), at:nowLocal()+":"+String(new Date().getSeconds()).padStart(2,"0"), by:by||reporter()||"", text, ...(sys?{sys:true}:{})});
+}
+const logLine=l=>"• "+l.text+" ("+[l.by, fmtWhen(l.at).replace(/\/\d{4}/,"")].filter(Boolean).join(", ")+")";
+let tkOpenLogs=new Set(), tkUpdFor=null;
+function renderLog(t, c){
+  const log=(t.log||[]).slice().sort((x,y)=>String(x.at).localeCompare(String(y.at)));
+  if(!log.length && tkUpdFor!==t.id) return;
+  const box=mk("div","tk-log");
+  if(log.length){
+    const all=tkOpenLogs.has(t.id), show=all ? log : log.slice(-3);
+    const head=mk("div","tk-log-h","יומן עדכונים ("+log.length+")");
+    if(log.length>3){ const b=mk("button","tk-more", all ? "הצג פחות" : "הצג את כל "+log.length);
+      b.type="button"; b.onclick=()=>{ all ? tkOpenLogs.delete(t.id) : tkOpenLogs.add(t.id); renderTasks(); }; head.appendChild(b); }
+    box.appendChild(head);
+    show.forEach(l=>{
+      const r=mk("div","tk-le"+(l.sys?" sys":""));
+      r.appendChild(mk("span","tk-le-t",fmtWhen(l.at).replace(/\/\d{4}/,"")));
+      if(l.by) r.appendChild(mk("b",null,l.by));
+      r.appendChild(mk("span","tk-le-x",l.text));
+      box.appendChild(r);
+    });
+  }
+  if(tkUpdFor===t.id){
+    const f=mk("div","tk-upd");
+    const ta=mk("textarea"); ta.rows=2; ta.placeholder="מה התחדש? מה נעשה עכשיו?";
+    const row=mk("div","tk-upd-row");
+    const who=mk("select"); fillSelect(who, pplValues(), reporter(), "— מדווח —");
+    const ok=mk("button","btn primary","שמור עדכון"), no=mk("button","btn ghost","ביטול"); ok.type=no.type="button";
+    ok.onclick=()=>{
+      const txt=ta.value.trim(); if(!txt){ toast("כתוב מה התחדש"); ta.focus(); return; }
+      const by=who.value; if(by && !myName()) try{ localStorage.setItem(K_REPORTER,by); }catch(e){}
+      tkLog(t, txt, by); if(t.status!=="בטיפול") t.status="בטיפול";
+      t.upd=new Date().toISOString(); tkUpdFor=null; saveTasks(); toast("העדכון נוסף");
+    };
+    no.onclick=()=>{ tkUpdFor=null; renderTasks(); };
+    row.append(who,ok,no); f.append(ta,row); box.appendChild(f);
+    setTimeout(()=>ta.focus(),50);
+  }
+  c.appendChild(box);
+}
 function renderTasks(){
   paintTaskCount(); renderTkFilters();
   const box=$("#tkList"); if(!box) return; box.textContent="";
@@ -1360,10 +1406,13 @@ function renderTasks(){
     if(meta) c.appendChild(mk("div","tk-m",meta));
     if(t.desc) c.appendChild(mk("div","tk-d",t.desc));
     if(!tkOpen(t) && t.act) c.appendChild(mk("div","tk-d","בוצע: "+t.act));
+    renderLog(t, c);
     const acts=mk("div","tk-acts"), btn=(label,cls,fn)=>{ const b=mk("button","btn"+(cls?" "+cls:""),label); b.type="button"; b.onclick=fn; acts.appendChild(b); };
     if(tkOpen(t)){
       btn("✓ סיים ורשום ביומן","primary",()=>openTaskDone(t.id));
-      btn(t.status==="בטיפול"?"החזר לפתוחה":"בטיפול","",()=>{ t.status = t.status==="בטיפול" ? "פתוחה" : "בטיפול"; t.upd=new Date().toISOString(); saveTasks(); });
+      btn("+ עדכון","upd",()=>{ tkUpdFor=t.id; renderTasks(); });
+      btn(t.status==="בטיפול"?"החזר לפתוחה":"בטיפול","",()=>{ t.status = t.status==="בטיפול" ? "פתוחה" : "בטיפול";
+        tkLog(t, t.status==="בטיפול" ? "הועברה לטיפול" : "הוחזרה לפתוחה", "", true); t.upd=new Date().toISOString(); saveTasks(); });
       btn("ערוך","",()=>openTaskForm(t.id));
     }
     btn("מחק","ghost",()=>{
@@ -1412,7 +1461,8 @@ $("#tkSave").onclick=()=>{
     ppl:one($("#tkPpl").value), loc:one($("#tkLoc").value), eq:one($("#tkEq").value), due:$("#tkDue").value||"", upd:now};
   const was=tkEdit;
   if(was){ const t=tasks.find(x=>x.id===was); if(t) Object.assign(t,data); }
-  else tasks.push(Object.assign({id:newId(), status:"פתוחה", created:now}, data));
+  else { const t=Object.assign({id:newId(), status:"פתוחה", created:now, log:[]}, data);
+    tkLog(t, "המשימה נפתחה"+(data.ppl.length?" · אחראי: "+data.ppl[0]:""), "", true); tasks.push(t); }
   closeTaskForm(); if(tkView==="done"){ tkView="open"; paintTkSeg(); } saveTasks(); toast(was?"המשימה עודכנה":"המשימה נשמרה");
 };
 function paintTkSeg(){ document.querySelectorAll("#tkSeg button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===tkView))); }
@@ -1435,10 +1485,12 @@ $("#tdOk").onclick=()=>{
   const when=$("#tdWhen").value||nowLocal(), act=$("#tdAct").value.trim(), type=$("#tdType").value;
   const ev={ id:newId(), type:type?[type]:[], loc:(t.loc||[]).slice(), eq:(t.eq||[]).slice(), ppl:(t.ppl||[]).slice(),
     stat:["נסגר"], title:t.title, desc:t.desc||"", act, when, closedAt:when, ts:new Date().toISOString(),
+    ...((t.log||[]).some(l=>!l.sys) ? {follow:(t.log||[]).slice().sort((x,y)=>String(x.at).localeCompare(String(y.at))).map(logLine).join("\n")} : {}),
     taskId:t.id, taskCreated:t.created||"" };
   events.push(ev); events.sort((a,b)=>(b.when||"").localeCompare(a.when||""));
   ["loc","eq","ppl"].forEach(k=>(ev[k]||[]).forEach(v=>{ if(!lists[k].includes(v)) lists[k].push(v); }));
   Object.assign(t,{status:"הושלמה", doneAt:when, act, eventType:type, eventId:ev.id, upd:new Date().toISOString()});
+  tkLog(t, "הושלמה ונרשמה ביומן"+(act?": "+act:""), "", true);
   $("#dlgTaskDone").close();
   persist(); renderAll(); saveTasks();
   toast("המשימה הושלמה ונרשמה ביומן",{label:"הצג",fn:()=>{ $("#sortBy").value="edit"; goList({ppl:""}); }});
