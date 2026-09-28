@@ -1200,7 +1200,7 @@ $("#wipeAll").onclick=()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.39", APP_DATE="28/09/2026";
+const APP_VER="1.40", APP_DATE="28/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -1292,8 +1292,15 @@ function showMyTasks(){
   const sp=$("#splash"); if(sp && !sp.hidden && window.splashEnter && !$("#spEnter").hidden) window.splashEnter();
   tkView = myName() ? "mine" : "open"; paintTkSeg(); renderTasks(); show("Tasks"); window.scrollTo({top:0});
 }
-/* dropdown helpers */
-function pplValues(){ return [...new Set((window.TEAM_NAMES||[]).concat(lists.ppl||[]))]; }
+/* dropdown helpers: the values come from the log's lists (events + added values), most used in events first */
+let freqCache=null;
+function byUse(k){
+  if(!freqCache || freqCache.n!==events.length){ freqCache={n:events.length};
+    ["loc","eq","ppl","type"].forEach(f=>{ const m=new Map(); events.forEach(e=>(e[f]||[]).forEach(v=>m.set(v,(m.get(v)||0)+1))); freqCache[f]=m; }); }
+  const m=freqCache[k];
+  return (lists[k]||[]).slice().sort((x,y)=>(m.get(y)||0)-(m.get(x)||0) || x.localeCompare(y,"he"));
+}
+function pplValues(){ return [...new Set((window.TEAM_NAMES||[]).concat(byUse("ppl")))]; }
 function fillSelect(el, values, cur, first, other){
   el.textContent="";
   if(first!==undefined){ const o=mk("option",null,first); o.value=""; el.appendChild(o); }
@@ -1308,11 +1315,9 @@ function colorSelect(el, hue){                            // a chosen value gets
 }
 function paintFormColors(){ colorSelect($("#tkPrio"), PRIO_HUE[$("#tkPrio").value]); colorSelect($("#tkType"), $("#tkType").value ? hueOf($("#tkType").value) : ""); }
 function renderTkFilters(){
-  const open=tasks.filter(t=>tkView==="done" ? !tkOpen(t) : tkOpen(t));
-  const used=k=>[...new Set(open.flatMap(t=>k==="type" ? (t.type?[t.type]:[]) : (t[k]||[])))].sort((a,b)=>a.localeCompare(b,"he"));
-  fillSelect($("#tfPpl"), used("ppl"), tkF.ppl, "כל האחראים");
-  fillSelect($("#tfLoc"), used("loc"), tkF.loc, "כל המיקומים");
-  fillSelect($("#tfType"), used("type"), tkF.type, "כל הסוגים");
+  fillSelect($("#tfPpl"), pplValues(), tkF.ppl, "כל האחראים");
+  fillSelect($("#tfLoc"), byUse("loc"), tkF.loc, "כל המיקומים");
+  fillSelect($("#tfType"), byUse("type"), tkF.type, "כל הסוגים");
   fillSelect($("#tfPrio"), PRIOS, tkF.prio, "כל העדיפויות");
   colorSelect($("#tfPrio"), PRIO_HUE[tkF.prio]); colorSelect($("#tfType"), tkF.type ? hueOf(tkF.type) : "");
   ["#tfPpl","#tfLoc","#tfType"].forEach(id=>$(id).classList.toggle("on",!!$(id).value));
@@ -1369,11 +1374,11 @@ function renderTasks(){
 function openTaskForm(id){
   const t=id ? tasks.find(x=>x.id===id) : null; tkEdit=t ? t.id : null;
   const types=lists.type||[], defType=types.includes("אחזקה") ? "אחזקה" : (types[0]||"");
-  fillSelect($("#tkType"), types, t ? (t.type||"") : defType, "— ללא —");
+  fillSelect($("#tkType"), byUse("type"), t ? (t.type||"") : defType, "— ללא —");
   fillSelect($("#tkPrio"), PRIOS, t ? prioOf(t) : "רגילה");
   fillSelect($("#tkPpl"), pplValues(), t ? (t.ppl||[])[0]||"" : (tkView==="mine" ? myName() : ""), "— ללא אחראי —", true);
-  fillSelect($("#tkLoc"), lists.loc||[], t ? (t.loc||[])[0]||"" : "", "— ללא —", true);
-  fillSelect($("#tkEq"), lists.eq||[], t ? (t.eq||[])[0]||"" : "", "— ללא —", true);
+  fillSelect($("#tkLoc"), byUse("loc"), t ? (t.loc||[])[0]||"" : "", "— ללא —", true);
+  fillSelect($("#tkEq"), byUse("eq"), t ? (t.eq||[])[0]||"" : "", "— ללא —", true);
   paintFormColors();
   $("#tkFormTitle").textContent = t ? "עריכת משימה" : "משימה חדשה";
   $("#tkTitle").value=t?t.title||"":""; $("#tkDesc").value=t?t.desc||"":"";
