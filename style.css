@@ -675,3 +675,39 @@ html.sp-open,html.sp-open body{overflow:hidden}
   margin-bottom:10px;overflow-wrap:anywhere;line-height:1.55}
 .cloud-members .listrow{flex-wrap:wrap;row-gap:6px}
 .cloud-members .listrow b{flex:1 1 170px;min-width:0;overflow-wrap:anywhere;font-size:15px}
+/* ---- tasks ---- */
+.tk-hint{margin:0 2px 10px}
+.tk-top{margin-bottom:12px}
+.tk-form{margin-bottom:14px}
+.tk-f{display:grid;gap:4px;font-size:13.5px;color:var(--ink-2);margin-bottom:10px;min-width:0}
+.tk-f input,.tk-f textarea,.tk-f select{font:inherit;font-size:16px;padding:9px 11px;border:1px solid var(--edge);border-radius:10px;
+  background:var(--panel-2);color:var(--ink);min-width:0;width:100%;box-sizing:border-box}
+.tk-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}
+@media (max-width:360px){ .tk-grid{grid-template-columns:1fr} }
+.tk-chk{display:flex;align-items:center;gap:8px;font-weight:700;margin:2px 0 12px;cursor:pointer}
+.tk-chk input{width:20px;height:20px;accent-color:var(--c-fault)}
+.tk{background:var(--panel);border:1px solid var(--edge);border-radius:14px;padding:12px 14px;margin-bottom:10px;
+  box-shadow:var(--shadow);border-inline-start:5px solid var(--water)}
+.tk.urgent{border-inline-start-color:var(--c-fault)}
+.tk.done{border-inline-start-color:var(--edge);opacity:.9}
+.tk-t{font-weight:800;font-size:16.5px;line-height:1.35;overflow-wrap:anywhere}
+.tk-tags{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 2px}
+.tk-tag{font-size:12.5px;font-weight:800;padding:2px 9px;border-radius:99px;background:var(--panel-2);color:var(--ink-2);border:1px solid var(--edge-2)}
+.tk-tag.u{background:var(--c-fault-bg);color:var(--c-fault);border-color:transparent}
+.tk-tag.w{background:var(--c-maint-bg);color:var(--c-maint);border-color:transparent}
+.tk-tag.late{background:var(--c-fault);color:#fff;border-color:transparent}
+.tk-tag.ok{background:var(--water-soft);color:var(--water);border-color:transparent}
+.tk-m{font-size:13.5px;color:var(--ink-2);margin-top:4px;overflow-wrap:anywhere}
+.tk-d{font-size:14px;color:var(--ink-2);margin-top:6px;white-space:pre-line;overflow-wrap:anywhere}
+.tk-acts{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+.tk-acts .btn{padding:8px 12px;font-size:14px;flex:none}
+.tk-acts .btn.primary{flex:1 1 150px}
+.tk-empty{text-align:center;color:var(--ink-3);padding:30px 10px}
+#dlgTaskDone p{font-weight:700;color:var(--ink)}
+/* five tabs on narrow phones */
+.tabs button{min-width:0}
+@media (max-width:380px){
+  .tabs{gap:3px}
+  .tabs button{font-size:12.5px;padding:9px 1px;border-width:1.5px;border-radius:10px;letter-spacing:-.01em}
+  .tabs .ti{display:none}
+}

@@ -10,7 +10,7 @@
      Firestore's persistent cache keeps unsent writes across reloads while offline. */
 (function(){
   if(!CLOUD_ON) return;
-  const K_SYNC="ogg-cloud-sync", K_MAIL="ogg-cloud-mail", K_ROLE="ogg-cloud-role";
+  const K_SYNC_T="ogg-cloud-tsync", K_SYNC="ogg-cloud-sync", K_MAIL="ogg-cloud-mail", K_ROLE="ogg-cloud-role";
   // invitation link (?invite=<mail>): pre-fills the sign-in mail, then leaves the address bar clean
   let INVITE="";
   try{ const u=new URL(location.href); INVITE=(u.searchParams.get("invite")||"").trim().toLowerCase();
@@ -67,6 +67,7 @@
 
   /* ---------- Firebase ---------- */
   let F, app, auth, db, me=null, role=null, unsubEv=null, unsubLists=null, unsubMembers=null;
+  let tSynced={}, unsubTasks=null;
   let synced={}, listsSynced="", pending=0, started=false, initialDone=false;
 
   function loadSdk(){
@@ -121,11 +122,15 @@
     unsubEv=F.onSnapshot(q,{includeMetadataChanges:true}, applyEvents, err=>{ setChip("off","שגיאת סנכרון: "+(err.code||err.message)); });
     unsubLists=F.onSnapshot(F.doc(db,"meta","lists"), applyLists, ()=>{});
     if(role==="admin") watchMembers();
-    cloudPush();                                           // anything changed while signed out / offline
+    // tasks: one document each in "meta" (task-<id>) — the rules already allow team members there
+    tSynced={}; tasks.forEach(t=>{ tSynced[t.id]=JSON.stringify(t); });
+    const tSince=Math.max(0,(+get(K_SYNC_T)||0)-5*60*1000);
+    unsubTasks=F.onSnapshot(F.query(F.collection(db,"meta"), F.where("_upd",">",F.Timestamp.fromMillis(tSince))), applyTasks, ()=>{});
+    cloudPush(); cloudPushTasks();                         // anything changed while signed out / offline
   }
   function stopSync(){
     initialDone=false;
-    [unsubEv,unsubLists,unsubMembers].forEach(u=>{ if(u) u(); }); unsubEv=unsubLists=unsubMembers=null; started=false;
+    [unsubEv,unsubLists,unsubMembers,unsubTasks].forEach(u=>{ if(u) u(); }); unsubEv=unsubLists=unsubMembers=unsubTasks=null; started=false;
   }
   function applyEvents(snap){
     const ch=snap.docChanges();
@@ -159,6 +164,42 @@
     if(!initialDone && !snap.metadata.fromCache){ initialDone=true; renderAccount(); window.CLOUD_READY=true; if(window.weeklyCheck) setTimeout(window.weeklyCheck,1000); }
     syncChip(snap.metadata);
   }
+  function applyTasks(snap){
+    let maxU=+get(K_SYNC_T)||0, changed=false; const firstEver=!maxU, fresh=[];
+    snap.docChanges().forEach(c=>{
+      const id=c.doc.id; if(c.type==="removed" || id.indexOf("task-")!==0) return;
+      const d=c.doc.data({serverTimestamps:"estimate"}), tid=id.slice(5);
+      if(!c.doc.metadata.hasPendingWrites && d._upd && d._upd.toMillis) maxU=Math.max(maxU,d._upd.toMillis());
+      const i=tasks.findIndex(t=>t.id===tid);
+      if(d._del){ if(i>=0){ tasks.splice(i,1); changed=true; } delete tSynced[tid]; return; }
+      const t=clean(d), js=JSON.stringify(t);
+      if(tSynced[tid]===js && i>=0) return;                // our own write coming back
+      if(i>=0) tasks[i]=t; else { tasks.push(t); if(!firstEver && d._by && d._by!==me) fresh.push(t); }
+      tSynced[tid]=js; changed=true;
+    });
+    put(K_SYNC_T,String(maxU));
+    if(changed){ try{ localStorage.setItem("ogg-cloud-tasks", JSON.stringify(tasks)); }catch(e){} renderTasks(); }
+    if(fresh.length) toast(fresh.length===1 ? "משימה חדשה: "+(fresh[0].title||"") : fresh.length+" משימות חדשות",
+      {label:"הצג", fn:()=>{ $("#tabTasks").click(); }});
+  }
+  function cloudPushTasks(){
+    if(!started || !me) return;
+    const cur={}; tasks.forEach(t=>{ cur[t.id]=JSON.stringify(t); });
+    const writes=[];
+    for(const id in cur) if(tSynced[id]!==cur[id]) writes.push({id, data:Object.assign(plain(JSON.parse(cur[id])),{_del:false})});
+    for(const id in tSynced) if(!(id in cur)) writes.push({id, data:{id, _del:true}});
+    if(!writes.length) return;
+    for(let i=0;i<writes.length;i+=400){
+      const b=F.writeBatch(db);
+      writes.slice(i,i+400).forEach(w=>{
+        b.set(F.doc(db,"meta","task-"+w.id), Object.assign(w.data,{_upd:F.serverTimestamp(),_by:me}), {merge: !!w.data._del});
+      });
+      b.commit().catch(err=>toast("שמירת משימה ליומן המשותף נכשלה: "+(err.code||"")));
+    }
+    writes.forEach(w=>{ if(w.data._del) delete tSynced[w.id]; else tSynced[w.id]=cur[w.id]; });
+  }
+  window.cloudPushTasks=cloudPushTasks;
+
   /* new events recorded by someone else: tab counter, "חדש" marker, toast, and a device notification
      when the app is in the background (needs the user's permission; not when the app is closed) */
   function announce(fresh){
@@ -337,7 +378,7 @@
     if(!confirm("להתנתק? העותק של היומן המשותף יימחק מהמכשיר הזה (הוא נשאר בענן).")) return;
     stopSync();
     try{ await F.signOut(auth); }catch(e){}
-    ["ogg-cloud-log","ogg-cloud-lists",K_SYNC,K_ROLE].forEach(k=>put(k,null));
+    ["ogg-cloud-log","ogg-cloud-lists","ogg-cloud-tasks",K_SYNC,K_SYNC_T,K_ROLE].forEach(k=>put(k,null));
     try{ await F.terminate(db); await F.clearIndexedDbPersistence(db); }catch(e){}
     location.reload();
   }

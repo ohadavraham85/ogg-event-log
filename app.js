@@ -380,7 +380,8 @@ function renderList(reset){
     put("המשך טיפול", e.follow||"");
     put("נרשם על ידי", e.by||"");
     put("אירוע קשור", e.ref||"");
-    put("מקור", e.src||"רישום ידני");
+    put("מקור", e.src||(e.taskId?"משימה":"רישום ידני"));
+    put("המשימה נפתחה", e.taskCreated ? new Date(e.taskCreated).toLocaleDateString("he-IL") : "");
     put("הערה", e.note||"");
 
     const acts=document.createElement("div"); acts.className="acts";
@@ -797,7 +798,7 @@ function show(w){
   const prev=curView; curView=w;
   if(prev==="List" && w!=="List" && UNSEEN.size){ UNSEEN.clear(); saveUnseen(); }   // seen once you leave the list
   if($("#newCnt")) paintNewCount();
-  ["New","List","Dash","Data"].forEach(v=>{
+  ["New","List","Dash","Data","Tasks"].forEach(v=>{
     $("#view"+v).hidden=(v!==w);
     $("#tab"+v).setAttribute("aria-selected",String(v===w));
   });
@@ -848,7 +849,7 @@ paintThemeBtn();
 
 /* ================= file / export ================= */
 function payload(){
-  const out={app:"ogg-event-log",version:2,saved:new Date().toISOString(),events,lists:{}};
+  const out={app:"ogg-event-log",version:2,saved:new Date().toISOString(),events,lists:{},tasks};
   Object.keys(SEED).forEach(k=>{ out.lists[k]=lists["_custom_"+k]; out.lists["_hide_"+k]=lists["_hide_"+k]; });
   return out;
 }
@@ -1175,8 +1176,11 @@ $("#impFile").onchange=ev=>{
         (d.lists[k]||[]).forEach(v=>{ if(!lists["_custom_"+k].includes(v)){ lists["_custom_"+k].push(v);
           if(!lists[k].includes(v)) lists[k].push(v); } });
       });
+      let tn=0;
+      if(Array.isArray(d.tasks)){ const ti=new Map(tasks.map((t,i)=>[t.id,i]));
+        d.tasks.forEach(t=>{ if(!t||!t.id) return; if(ti.has(t.id)) tasks[ti.get(t.id)]=t; else { tasks.push(t); tn++; } }); saveTasks(); }
       events.sort((a,b)=>(b.when||"").localeCompare(a.when||""));
-      persist(); load(); renderAll(); toast(n+" נוספו, "+u+" עודכנו");
+      persist(); load(); renderAll(); toast(n+" נוספו, "+u+" עודכנו"+(tn?", "+tn+" משימות":""));
     }catch(e){ toast("הקובץ לא בפורמט הנכון"); }
   };
   r.readAsText(f); ev.target.value="";
@@ -1193,11 +1197,11 @@ $("#wipeAll").onclick=()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.36", APP_DATE="28/09/2026";
+const APP_VER="1.37", APP_DATE="28/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
-  const cur=["Dash","New","List","Data"].find(v=>!$("#view"+v).hidden)||"Dash";
+  const cur=["Dash","New","List","Data","Tasks"].find(v=>!$("#view"+v).hidden)||"Dash";
   try{ sessionStorage.setItem("ogg-refresh",cur); }catch(e){}
   try{ const r=navigator.serviceWorker && await navigator.serviceWorker.getRegistration(); if(r) await r.update(); }catch(e){}
   location.reload();
@@ -1222,14 +1226,14 @@ $("#refreshBtn").onclick=()=>{ $("#refreshBtn").classList.add("spin"); refreshAp
 /* ================= splash ================= */
 let REFRESH_VIEW=null;
 try{ REFRESH_VIEW=sessionStorage.getItem("ogg-refresh"); sessionStorage.removeItem("ogg-refresh"); }catch(e){}
-if(!["Dash","New","List","Data"].includes(REFRESH_VIEW)) REFRESH_VIEW=null;
+if(!["Dash","New","List","Data","Tasks"].includes(REFRESH_VIEW)) REFRESH_VIEW=null;
 // app-icon shortcuts open a screen directly (?view=New|Dash|List|Data|open)
 let DEEP_OPEN=false;
 (function(){
   const u=new URL(location.href), v=u.searchParams.get("view");
   if(!v) return;
   if(v==="open"){ DEEP_OPEN=true; if(!REFRESH_VIEW) REFRESH_VIEW="List"; }
-  else if(["Dash","New","List","Data"].includes(v) && !REFRESH_VIEW) REFRESH_VIEW=v;
+  else if(["Dash","New","List","Data","Tasks"].includes(v) && !REFRESH_VIEW) REFRESH_VIEW=v;
   u.searchParams.delete("view"); history.replaceState(null,"",u.pathname+u.search);
 })();
 (function(){
@@ -1251,7 +1255,120 @@ let DEEP_OPEN=false;
   if(REFRESH_VIEW){ sp.hidden=true; return; }   // came from the refresh button: skip the opening screen
   document.documentElement.classList.add("sp-open");
 })();
+/* ================= tasks =================
+   A task is open work (what, who, where, until when). Finishing it writes a closed event to the log
+   ("what was done" becomes the action taken), so the log keeps the history and the task list stays short.
+   Storage: this device (localStorage); team mode syncs them through cloud.js (window.cloudPushTasks). */
+const LST = CLOUD_ON ? "ogg-cloud-tasks" : "ogg-tasks-v1";
+let tasks=[], tkView="open", tkEdit=null, tkDoneId=null;
+function loadTasks(){ try{ tasks=JSON.parse(localStorage.getItem(LST)||"[]"); if(!Array.isArray(tasks)) tasks=[]; }catch(e){ tasks=[]; } }
+function saveTasks(){
+  try{ localStorage.setItem(LST, JSON.stringify(tasks)); }catch(e){ toast("הדפדפן חסם שמירה מקומית"); }
+  if(window.cloudPushTasks) window.cloudPushTasks();
+  writeFile();
+  renderTasks();
+}
+const newId=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const tkOpen=t=>t.status!=="הושלמה";
+function tkSortKey(t){ return (t.urgent?"0":"1")+(t.due||"9999-99-99")+(t.created||""); }
+function paintTaskCount(){ const n=tasks.filter(tkOpen).length; $("#tkCnt").textContent = n ? "("+n+")" : ""; }
+function renderTasks(){
+  paintTaskCount();
+  const box=$("#tkList"); if(!box) return; box.textContent="";
+  const today=ymd(new Date());
+  const rows = tkView==="open"
+    ? tasks.filter(tkOpen).sort((a,b)=>tkSortKey(a).localeCompare(tkSortKey(b)))
+    : tasks.filter(t=>!tkOpen(t)).sort((a,b)=>String(b.doneAt||"").localeCompare(String(a.doneAt||"")));
+  if(!rows.length){ box.appendChild(mk("div","tk-empty", tkView==="open" ? "אין משימות פתוחות." : "עדיין לא הושלמו משימות.")); return; }
+  rows.forEach(t=>{
+    const c=mk("div","tk"+(t.urgent&&tkOpen(t)?" urgent":"")+(tkOpen(t)?"":" done"));
+    c.appendChild(mk("div","tk-t",t.title||"(ללא כותרת)"));
+    const tags=mk("div","tk-tags"), tag=(txt,cls)=>tags.appendChild(mk("span","tk-tag"+(cls?" "+cls:""),txt));
+    if(tkOpen(t)){
+      if(t.urgent) tag("דחוף","u");
+      if(t.status==="בטיפול") tag("בטיפול","w");
+      if(t.due) tag((t.due<today?"באיחור · ":"יעד ")+dmy(t.due).slice(0,5), t.due<today?"late":"");
+    } else {
+      tag("הושלמה "+(t.doneAt?fmtWhen(t.doneAt).slice(0,10):""),"ok");
+      if(t.eventId && events.some(e=>e.id===t.eventId)) tag("נרשמה ביומן");
+    }
+    if(tags.childElementCount) c.appendChild(tags);
+    const meta=[(t.ppl||[]).length?"אחראי: "+t.ppl.join(", "):"", (t.loc||[]).concat(t.eq||[]).join(" · ")].filter(Boolean).join("  |  ");
+    if(meta) c.appendChild(mk("div","tk-m",meta));
+    if(t.desc) c.appendChild(mk("div","tk-d",t.desc));
+    if(!tkOpen(t) && t.act) c.appendChild(mk("div","tk-d","בוצע: "+t.act));
+    const acts=mk("div","tk-acts"), btn=(label,cls,fn)=>{ const b=mk("button","btn"+(cls?" "+cls:""),label); b.type="button"; b.onclick=fn; acts.appendChild(b); };
+    if(tkOpen(t)){
+      btn("✓ סיים ורשום ביומן","primary",()=>openTaskDone(t.id));
+      btn(t.status==="בטיפול"?"החזר לפתוחה":"בטיפול","",()=>{ t.status = t.status==="בטיפול" ? "פתוחה" : "בטיפול"; t.upd=new Date().toISOString(); saveTasks(); });
+      btn("ערוך","",()=>openTaskForm(t.id));
+    }
+    btn("מחק","ghost",()=>{
+      if(!confirm("למחוק את המשימה \""+(t.title||"")+"\"?"+(t.eventId?" (האירוע ביומן נשאר)":""))) return;
+      tasks=tasks.filter(x=>x.id!==t.id); saveTasks(); toast("המשימה נמחקה");
+    });
+    c.appendChild(acts); box.appendChild(c);
+  });
+}
+function fillDatalists(){
+  [["#dlPpl","ppl"],["#dlLoc","loc"],["#dlEq","eq"]].forEach(([id,k])=>{
+    const dl=$(id); dl.textContent=""; (lists[k]||[]).forEach(v=>{ const o=document.createElement("option"); o.value=v; dl.appendChild(o); });
+  });
+}
+function openTaskForm(id){
+  const t=id ? tasks.find(x=>x.id===id) : null; tkEdit=t ? t.id : null;
+  fillDatalists();
+  $("#tkFormTitle").textContent = t ? "עריכת משימה" : "משימה חדשה";
+  $("#tkTitle").value=t?t.title||"":""; $("#tkDesc").value=t?t.desc||"":"";
+  $("#tkPpl").value=t?(t.ppl||[]).join(", "):""; $("#tkLoc").value=t?(t.loc||[]).join(", "):""; $("#tkEq").value=t?(t.eq||[]).join(", "):"";
+  $("#tkDue").value=t?t.due||"":""; $("#tkUrgent").checked=!!(t&&t.urgent);
+  $("#tkForm").hidden=false; $("#tkNewBtn").hidden=true;
+  $("#tkForm").scrollIntoView({block:"start",behavior:"smooth"}); setTimeout(()=>$("#tkTitle").focus({preventScroll:true}),250);
+}
+function closeTaskForm(){ $("#tkForm").hidden=true; $("#tkNewBtn").hidden=false; tkEdit=null; }
+const splitVals=v=>v.split(",").map(x=>x.trim()).filter(Boolean);
+$("#tkNewBtn").onclick=()=>openTaskForm(null);
+$("#tkCancel").onclick=closeTaskForm;
+$("#tkSave").onclick=()=>{
+  const title=$("#tkTitle").value.trim(); if(!title){ toast("כתוב מה צריך לעשות"); $("#tkTitle").focus(); return; }
+  const now=new Date().toISOString();
+  const data={title, desc:$("#tkDesc").value.trim(), ppl:splitVals($("#tkPpl").value), loc:splitVals($("#tkLoc").value),
+    eq:splitVals($("#tkEq").value), due:$("#tkDue").value||"", urgent:$("#tkUrgent").checked, upd:now};
+  const was=tkEdit;
+  if(was){ const t=tasks.find(x=>x.id===was); if(t) Object.assign(t,data); }
+  else tasks.push(Object.assign({id:newId(), status:"פתוחה", created:now}, data));
+  closeTaskForm(); tkView="open"; paintTkSeg(); saveTasks(); toast(was?"המשימה עודכנה":"המשימה נשמרה");
+};
+function paintTkSeg(){ document.querySelectorAll("#tkSeg button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===tkView))); }
+document.querySelectorAll("#tkSeg button").forEach(b=>b.onclick=()=>{ tkView=b.dataset.v; paintTkSeg(); renderTasks(); });
+/* finish a task -> a closed event in the log */
+function openTaskDone(id){
+  const t=tasks.find(x=>x.id===id); if(!t) return; tkDoneId=id;
+  $("#tdName").textContent=t.title;
+  $("#tdAct").value=t.act||"";
+  const sel_=$("#tdType"); sel_.textContent="";
+  const types=lists.type||[], def=types.includes("אחזקה") ? "אחזקה" : types[0];
+  types.forEach(v=>{ const o=document.createElement("option"); o.value=o.textContent=v; if(v===(t.eventType||def)) o.selected=true; sel_.appendChild(o); });
+  $("#tdWhen").value=nowLocal();
+  $("#dlgTaskDone").showModal();
+}
+$("#tdCancel").onclick=()=>$("#dlgTaskDone").close();
+$("#tdOk").onclick=()=>{
+  const t=tasks.find(x=>x.id===tkDoneId); if(!t){ $("#dlgTaskDone").close(); return; }
+  const when=$("#tdWhen").value||nowLocal(), act=$("#tdAct").value.trim(), type=$("#tdType").value;
+  const ev={ id:newId(), type:type?[type]:[], loc:(t.loc||[]).slice(), eq:(t.eq||[]).slice(), ppl:(t.ppl||[]).slice(),
+    stat:["נסגר"], title:t.title, desc:t.desc||"", act, when, closedAt:when, ts:new Date().toISOString(),
+    taskId:t.id, taskCreated:t.created||"" };
+  events.push(ev); events.sort((a,b)=>(b.when||"").localeCompare(a.when||""));
+  ["loc","eq","ppl"].forEach(k=>(ev[k]||[]).forEach(v=>{ if(!lists[k].includes(v)) lists[k].push(v); }));
+  Object.assign(t,{status:"הושלמה", doneAt:when, act, eventType:type, eventId:ev.id, upd:new Date().toISOString()});
+  $("#dlgTaskDone").close();
+  persist(); renderAll(); saveTasks();
+  toast("המשימה הושלמה ונרשמה ביומן",{label:"הצג",fn:()=>{ $("#sortBy").value="edit"; goList({ppl:""}); }});
+};
+$("#tabTasks").onclick=()=>{ renderTasks(); show("Tasks"); };
+
 /* ================= boot ================= */
-load(); setNow(); renderAll(); renderDash(); show(REFRESH_VIEW||"Dash");
+load(); loadTasks(); setNow(); renderAll(); renderTasks(); renderDash(); show(REFRESH_VIEW||"Dash");
 setTimeout(weeklyCheck,1500);
 if(DEEP_OPEN) goList({stat:OPEN_ANY});
