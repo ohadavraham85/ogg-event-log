@@ -361,6 +361,7 @@
       paintMembers(); paintMyName(); if(typeof renderTasks==="function") renderTasks();
     }, ()=>{});
   }
+  window.cloudMe=()=>me||"";
   window.cloudMyName=()=>{ const m=members.find(x=>x.email===me); return m && m.name ? m.name : ""; };
   function paintMyName(){
     const el=$("#cloudMyName"); if(!el) return;

@@ -1200,7 +1200,7 @@ $("#wipeAll").onclick=()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.42", APP_DATE="28/09/2026";
+const APP_VER="1.43", APP_DATE="28/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -1329,12 +1329,18 @@ $("#tfClear").onclick=()=>{ Object.keys(tkF).forEach(k=>tkF[k]=""); renderTasks(
 /* update log: every task keeps a running log — time, who reported, what happened.
    Status changes are logged automatically; when the task is finished the log goes into the event ("המשך טיפול"). */
 const K_REPORTER="ogg-reporter";
-function reporter(){ return myName() || (()=>{ try{ return localStorage.getItem(K_REPORTER)||""; }catch(e){ return ""; } })(); }
+/* who is updating: team log — the signed-in user (their team name, else the mail's user part); this device — the chosen reporter */
+function reporter(){
+  if(myName()) return myName();
+  const m=window.cloudMe ? window.cloudMe() : ""; if(m) return m.split("@")[0];
+  try{ return localStorage.getItem(K_REPORTER)||""; }catch(e){ return ""; }
+}
 function tkLog(t, text, by, sys){
   if(!Array.isArray(t.log)) t.log=[];
-  t.log.push({id:newId(), at:nowLocal()+":"+String(new Date().getSeconds()).padStart(2,"0"), by:by||reporter()||"", text, ...(sys?{sys:true}:{})});
+  const mail=window.cloudMe ? window.cloudMe() : "";
+  t.log.push({id:newId(), at:nowLocal()+":"+String(new Date().getSeconds()).padStart(2,"0"), by:by||reporter()||"", ...(mail?{mail}:{}), text, ...(sys?{sys:true}:{})});
 }
-const logLine=l=>"• "+l.text+" ("+[l.by, fmtWhen(l.at).replace(/\/\d{4}/,"")].filter(Boolean).join(", ")+")";
+const logLine=l=>"• "+(l.by?l.by+": ":"")+l.text+" ("+fmtWhen(l.at).replace(/\/\d{4}/,"")+")";
 let tkOpenLogs=new Set(), tkUpdFor=null;
 function renderLog(t, c){
   const log=(t.log||[]).slice().sort((x,y)=>String(x.at).localeCompare(String(y.at)));
@@ -1348,9 +1354,9 @@ function renderLog(t, c){
     box.appendChild(head);
     show.forEach(l=>{
       const r=mk("div","tk-le"+(l.sys?" sys":""));
-      r.appendChild(mk("span","tk-le-t",fmtWhen(l.at).replace(/\/\d{4}/,"")));
-      if(l.by) r.appendChild(mk("b",null,l.by));
-      r.appendChild(mk("span","tk-le-x",l.text));
+      const x=mk("div","tk-le-x"); if(l.by){ x.appendChild(mk("b",null,l.by+": ")); } x.append(l.text);
+      if(l.mail) x.title=l.mail;
+      r.append(x, mk("span","tk-le-t",fmtWhen(l.at).replace(/\/\d{4}/,"")));
       box.appendChild(r);
     });
   }
@@ -1358,16 +1364,21 @@ function renderLog(t, c){
     const f=mk("div","tk-upd");
     const ta=mk("textarea"); ta.rows=2; ta.placeholder="מה התחדש? מה נעשה עכשיו?";
     const row=mk("div","tk-upd-row");
-    const who=mk("select"); fillSelect(who, pplValues(), reporter(), "— מדווח —");
+    // team log: the signed-in user is the reporter (no choice); this device: pick who reports (required)
+    const auto = window.cloudMe && window.cloudMe();
+    const who=mk("select"); fillSelect(who, pplValues(), reporter(), "— מי מדווח? —");
+    const whoTxt=mk("span","tk-upd-who","מדווח: "+reporter());
     const ok=mk("button","btn primary","שמור עדכון"), no=mk("button","btn ghost","ביטול"); ok.type=no.type="button";
     ok.onclick=()=>{
       const txt=ta.value.trim(); if(!txt){ toast("כתוב מה התחדש"); ta.focus(); return; }
-      const by=who.value; if(by && !myName()) try{ localStorage.setItem(K_REPORTER,by); }catch(e){}
+      const by = auto ? reporter() : who.value;
+      if(!by){ toast("בחר מי מדווח"); who.focus(); return; }
+      if(!auto) try{ localStorage.setItem(K_REPORTER,by); }catch(e){}
       tkLog(t, txt, by); if(t.status!=="בטיפול") t.status="בטיפול";
       t.upd=new Date().toISOString(); tkUpdFor=null; saveTasks(); toast("העדכון נוסף");
     };
     no.onclick=()=>{ tkUpdFor=null; renderTasks(); };
-    row.append(who,ok,no); f.append(ta,row); box.appendChild(f);
+    row.append(auto ? whoTxt : who, ok, no); f.append(ta,row); box.appendChild(f);
     setTimeout(()=>ta.focus(),50);
   }
   c.appendChild(box);

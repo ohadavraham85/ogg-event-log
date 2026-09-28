@@ -735,10 +735,12 @@ html.sp-open,html.sp-open body{overflow:hidden}
 .tk-le{display:flex;flex-wrap:wrap;gap:3px 8px;align-items:baseline;font-size:13.5px;padding:5px 9px 5px 0;
   border-inline-start:3px solid var(--water);padding-inline-start:9px;margin:3px 0;background:color-mix(in srgb,var(--water-soft) 45%,transparent);border-radius:0 8px 8px 0}
 .tk-le.sys{border-inline-start-color:var(--edge);background:none;color:var(--ink-3);font-size:12.5px}
-.tk-le-t{font-size:12px;color:var(--ink-3);font-variant-numeric:tabular-nums;direction:ltr;unicode-bidi:isolate}
+.tk-le-t{font-size:12px;color:var(--ink-3);font-variant-numeric:tabular-nums;direction:ltr;unicode-bidi:isolate;margin-inline-start:auto;white-space:nowrap}
 .tk-le b{color:var(--ink)}
 .tk-le.sys b{color:var(--ink-3);font-weight:700}
-.tk-le-x{flex-basis:100%;overflow-wrap:anywhere;white-space:pre-line;color:var(--ink)}
+.tk-le-x{flex:1 1 180px;overflow-wrap:anywhere;white-space:pre-line;color:var(--ink)}
+.tk-le-x b{font-weight:900;color:var(--water)}
+.tk-upd-who{flex:1 1 130px;align-self:center;font-weight:800;color:var(--ink-2);font-size:14px}
 .tk-le.sys .tk-le-x{flex-basis:auto;color:var(--ink-3)}
 .tk-upd{margin-top:8px;display:grid;gap:7px}
 .tk-upd textarea{font:inherit;font-size:16px;padding:9px 11px;border:1.5px solid var(--water);border-radius:10px;background:var(--panel-2);color:var(--ink);width:100%;box-sizing:border-box}
