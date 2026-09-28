@@ -580,6 +580,73 @@ function hbars(items, max, cls){
   });
   return box;
 }
+/* dashboard: tasks card — tiles, open tasks by priority (ordinal red ramp, validated light & dark),
+   open tasks by assignee, and the ones that need attention now (overdue / urgent). Every piece opens the task list filtered. */
+function goTasks(o){
+  Object.keys(tkF).forEach(k=>tkF[k]= k==="late" ? false : "");
+  Object.assign(tkF, o.f||{}); tkView=o.view||"open"; closeTaskForm();
+  paintTkSeg(); renderTasks(); show("Tasks"); window.scrollTo({top:0});
+}
+function dashTasks(cards, from){
+  const today=ymd(new Date()), byP=t=>!dPpl || (t.ppl||[]).includes(dPpl);
+  const open=tasks.filter(t=>tkOpen(t) && byP(t));
+  const done=tasks.filter(t=>!tkOpen(t) && byP(t) && (!from || String(t.doneAt||"").slice(0,10)>=from)).length;
+  if(!tasks.length){
+    const b=mk("div","dt-empty"); b.appendChild(mk("p",null,"אין עדיין משימות. משימה שמסיימים נרשמת ביומן כאירוע."));
+    const go=mk("button","btn","+ משימה חדשה"); go.type="button"; go.onclick=()=>{ goTasks({}); openTaskForm(null); };
+    b.appendChild(go); const c=dcard("משימות",null,b,[],["",""]); c.querySelector("details").remove(); cards.appendChild(c); return;
+  }
+  const late=open.filter(t=>t.due && t.due<today), urgent=open.filter(t=>prioOf(t)==="דחופה"), mine=open.filter(isMine);
+  const body=mk("div");
+  // tiles
+  const tk=mk("div","dt-tiles");
+  const tile=(label,v,cls,fn)=>{ const b=mk("button","dt-tile"+(cls?" "+cls:"")); b.type="button";
+    b.append(mk("b",null,nf(v)), mk("span",null,label)); b.onclick=fn; tk.appendChild(b); };
+  tile("פתוחות", open.length, "", ()=>goTasks({}));
+  tile("דחופות", urgent.length, urgent.length?"hot":"", ()=>goTasks({f:{prio:"דחופה"}}));
+  tile("באיחור", late.length, late.length?"hot":"", ()=>goTasks({f:{late:true}}));
+  if(myName()) tile("שלי", mine.length, "", ()=>goTasks({view:"mine"}));
+  tile(from ? "הושלמו בטווח" : "הושלמו", done, "", ()=>goTasks({view:"done"}));
+  body.appendChild(tk);
+  if(open.length){
+    // by priority: one stacked bar + legend with counts (the legend carries the labels)
+    const pc={}; open.forEach(t=>{ const p=prioOf(t); pc[p]=(pc[p]||0)+1; });
+    const order=PRIOS.filter(p=>pc[p]), bar=mk("div","sbar"), lg=mk("div","legend");
+    order.forEach(p=>{
+      const cls="pr-"+PRIOS.indexOf(p), go=()=>goTasks({f:{prio:p}});
+      const seg=mk("button","seg-s "+cls); seg.type="button"; seg.style.flexGrow=pc[p]; seg.setAttribute("aria-label",p+": "+pc[p]);
+      seg.onclick=go; tipOn(seg, nf(pc[p])+" משימות", "עדיפות "+p); bar.appendChild(seg);
+      const li=mk("button","li"); li.type="button"; li.onclick=go; li.append(mk("i",cls), mk("span",null,p), mk("b",null,nf(pc[p]))); lg.appendChild(li);
+    });
+    body.append(mk("div","dt-h","פתוחות לפי עדיפות"), bar, lg);
+    // by assignee
+    const ac={}; open.forEach(t=>{ const who=(t.ppl||[])[0]||"ללא אחראי"; ac[who]=(ac[who]||0)+1; });
+    const names=Object.keys(ac).sort((x,y)=>ac[y]-ac[x]), top=names.slice(0,8);
+    if(names.length>8){ const rest=names.slice(8).reduce((s,n)=>s+ac[n],0); top.push("אחרים"); ac["אחרים"]=rest; }
+    const items=top.map(n=>({l:n, v:ac[n], go: n==="אחרים"||n==="ללא אחראי" ? ()=>goTasks({}) : ()=>goTasks({f:{ppl:n}})}));
+    const hb=hbars(items, Math.max(...items.map(i=>i.v)), "one");
+    hb.querySelectorAll(".hbar").forEach((r,i)=>tipOn(r, nf(items[i].v)+" משימות פתוחות", items[i].l));
+    body.append(mk("div","dt-h","פתוחות לפי אחראי"), hb);
+    // needs attention now
+    const hot=open.filter(t=>(t.due && t.due<=today) || prioOf(t)==="דחופה")
+      .sort((x,y)=>tkSortKey(x).localeCompare(tkSortKey(y))).slice(0,5);
+    if(hot.length){
+      const ul=mk("div","dt-hot");
+      hot.forEach(t=>{
+        const r=mk("button","dt-row"); r.type="button"; r.onclick=()=>goTasks({});
+        const p=prioOf(t); r.style.borderInlineStartColor="var(--c-"+PRIO_HUE[p]+")";
+        r.appendChild(mk("span","dt-t",t.title||""));
+        const meta=[p!=="רגילה"?p:"", t.due ? (t.due<today?"באיחור · ":t.due===today?"היום · ":"")+dmy(t.due).slice(0,5) : "", (t.ppl||[])[0]||""].filter(Boolean).join(" · ");
+        r.appendChild(mk("span","dt-m",meta)); ul.appendChild(r);
+      });
+      body.append(mk("div","dt-h","דורשות טיפול עכשיו"), ul);
+    }
+  }
+  const c=dcard("משימות", dPpl ? "משימות של "+dPpl : "משימות פתוחות כעת", body,
+    [["פתוחות",open.length],["דחופות",urgent.length],["באיחור",late.length]].concat(myName()?[["שלי",mine.length]]:[]).concat([[from?"הושלמו בטווח":"הושלמו",done]])
+      .concat(PRIOS.map(p=>["עדיפות "+p, open.filter(t=>prioOf(t)===p).length])), ["מדד","משימות"]);
+  c.classList.add("wide"); cards.appendChild(c);
+}
 function renderDash(){
   document.querySelectorAll("#dRange button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.r===dRange)));
   const from = dRange==="all" ? "" : ymd(daysAgo(+dRange-1));
@@ -611,6 +678,7 @@ function renderDash(){
   });
 
   const cards=$("#dCards"); cards.textContent="";
+  dashTasks(cards, from);
   if(!rows.length){
     const em=mk("div","dempty"); em.appendChild(mk("p",null, events.length? "אין אירועים בטווח הזה." : "עדיין אין אירועים ביומן."));
     const go=mk("button","btn primary","רישום אירוע"); go.type="button"; go.onclick=()=>show("New");
@@ -1200,7 +1268,7 @@ $("#wipeAll").onclick=()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.43", APP_DATE="28/09/2026";
+const APP_VER="1.44", APP_DATE="28/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -1264,7 +1332,7 @@ let DEEP_OPEN=false;
    Storage: this device (localStorage); team mode syncs them through cloud.js (window.cloudPushTasks). */
 const LST = CLOUD_ON ? "ogg-cloud-tasks" : "ogg-tasks-v1";
 let tasks=[], tkView="open", tkEdit=null, tkDoneId=null;
-const tkF={ppl:"",loc:"",type:"",prio:""};                 // list filters (dropdowns at the top)
+const tkF={ppl:"",loc:"",type:"",prio:"",late:false};                 // list filters (dropdowns at the top)
 const PRIOS=["דחופה","גבוהה","רגילה","נמוכה"];
 const PRIO_HUE={"דחופה":"fault","גבוהה":"flood","רגילה":"maint","נמוכה":"gen"};
 const prioOf=t=>PRIOS.includes(t.prio) ? t.prio : (t.urgent ? "דחופה" : "רגילה");   // older tasks: urgent flag
@@ -1322,9 +1390,10 @@ function renderTkFilters(){
   colorSelect($("#tfPrio"), PRIO_HUE[tkF.prio]); colorSelect($("#tfType"), tkF.type ? hueOf(tkF.type) : "");
   ["#tfPpl","#tfLoc","#tfType"].forEach(id=>$(id).classList.toggle("on",!!$(id).value));
   $("#tfClear").hidden=!Object.values(tkF).some(Boolean);
+  $("#tfClear").textContent = "✕ נקה סינון"+(tkF.late ? " (באיחור)" : "");
   const dl=$("#dlPpl"); dl.textContent=""; (lists.ppl||[]).forEach(v=>{ const x=document.createElement("option"); x.value=v; dl.appendChild(x); });
 }
-$("#tfClear").onclick=()=>{ Object.keys(tkF).forEach(k=>tkF[k]=""); renderTasks(); };
+$("#tfClear").onclick=()=>{ Object.keys(tkF).forEach(k=>tkF[k]= k==="late" ? false : ""); renderTasks(); };
 ["ppl","loc","type","prio"].forEach(k=>{ const el=$("#tf"+k[0].toUpperCase()+k.slice(1)); el.onchange=()=>{ tkF[k]=el.value; renderTasks(); }; });
 /* update log: every task keeps a running log — time, who reported, what happened.
    Status changes are logged automatically; when the task is finished the log goes into the event ("המשך טיפול"). */
@@ -1385,10 +1454,12 @@ function renderLog(t, c){
 }
 function renderTasks(){
   paintTaskCount(); renderTkFilters();
+  if(!$("#viewDash").hidden && typeof renderDash==="function") setTimeout(renderDash,0);   // keep the tasks card current
   const box=$("#tkList"); if(!box) return; box.textContent="";
   const today=ymd(new Date());
   const pass=t=>(!tkF.ppl || (t.ppl||[]).includes(tkF.ppl)) && (!tkF.loc || (t.loc||[]).includes(tkF.loc))
-             && (!tkF.type || t.type===tkF.type) && (!tkF.prio || prioOf(t)===tkF.prio);
+             && (!tkF.type || t.type===tkF.type) && (!tkF.prio || prioOf(t)===tkF.prio)
+             && (!tkF.late || (t.due && t.due<today));
   const rows = (tkView!=="done"
     ? tasks.filter(t=>tkOpen(t) && (tkView!=="mine" || isMine(t))).sort((a,b)=>tkSortKey(a).localeCompare(tkSortKey(b)))
     : tasks.filter(t=>!tkOpen(t)).sort((a,b)=>String(b.doneAt||"").localeCompare(String(a.doneAt||"")))).filter(pass);
