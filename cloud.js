@@ -189,7 +189,7 @@
     const openMine=()=>{ if(typeof showMyTasks==="function") showMyTasks(); };
     if(assigned.length){
       const title = assigned.length===1 ? "הוקצתה לך משימה" : "הוקצו לך "+assigned.length+" משימות";
-      const body = assigned.map(t=>(t.urgent?"דחוף · ":"")+(t.title||"")+(t.due?" · יעד "+t.due.slice(8,10)+"/"+t.due.slice(5,7):"")).join("\n");
+      const body = assigned.map(t=>(t.prio&&t.prio!=="רגילה"&&t.prio!=="נמוכה" ? t.prio+" · " : t.urgent?"דחופה · ":"")+(t.title||"")+(t.due?" · יעד "+t.due.slice(8,10)+"/"+t.due.slice(5,7):"")).join("\n");
       toast(title+": "+(assigned[0].title||""), {label:"הצג", fn:openMine});
       notifyDevice(title, body, "ogg-task", openMine);
       if(typeof addMineUnseen==="function") addMineUnseen(assigned.map(t=>t.id));
