@@ -34,8 +34,8 @@
 }
 :root{color-scheme:light}
 @media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){color-scheme:dark} }
-:root[data-theme="light"]{color-scheme:light}
-:root[data-theme="dark"]{color-scheme:dark;
+:root[data-theme="light"]{color-scheme:only light}
+:root[data-theme="dark"]{color-scheme:only dark;
   --bg:#0E161C; --panel:#17222B; --panel-2:#1D2A34; --edge:#2C3E4C; --edge-2:#233240;
   --ink:#E4ECF2; --ink-2:#9BAEBD; --ink-3:#71879A;
   --water:#41BDB4; --water-soft:#0F3038;
@@ -70,8 +70,14 @@ header.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:40;backgroun
 :root[data-theme="dark"] .logo{filter:drop-shadow(0 0 .6px #fff) drop-shadow(0 0 .6px #fff) drop-shadow(0 0 3px rgba(255,255,255,.35))}
 .mark{line-height:1.15}
 .mark .sub{display:block;font-size:16px;font-weight:800;color:var(--water);letter-spacing:0}
-@media (max-width:360px){
+@media (max-width:430px){
   .bar-row{gap:7px}
+  .bar-row .ver{display:none}          /* the version is shown in "רשימות וקובץ" */
+}
+@media (max-width:360px){
+  .bar-row{gap:6px}
+  .bar-row .icon-btn{width:36px;height:36px}
+  .bar-row .sync-chip{padding:3px 6px}
   .mark{font-size:20px}
   .mark .sub{font-size:14px}
   .logo{height:42px}

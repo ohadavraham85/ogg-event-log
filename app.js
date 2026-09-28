@@ -816,6 +816,8 @@ function paintThemeBtn(){
   b.textContent = d ? "☀" : "☾";
   b.title = b.ariaLabel = d ? "מעבר לרקע בהיר" : "מעבר לרקע כהה";
   const m=document.querySelector('meta[name="theme-color"]'); if(m) m.content = d ? "#0E161C" : "#0E7C86";
+  const t=document.documentElement.getAttribute("data-theme"), cs=document.querySelector('meta[name="color-scheme"]');
+  if(cs) cs.content = t==="light" ? "only light" : t==="dark" ? "only dark" : "light dark";
 }
 $("#themeBtn").onclick=()=>{
   const next = isDark() ? "light" : "dark";
@@ -1191,7 +1193,7 @@ $("#wipeAll").onclick=()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.35", APP_DATE="28/09/2026";
+const APP_VER="1.36", APP_DATE="28/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
