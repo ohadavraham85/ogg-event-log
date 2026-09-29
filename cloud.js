@@ -411,6 +411,34 @@
       box.appendChild(r);
     });
   }
+  /* invitation: a ready message with the app link (their mail pre-filled) and how to sign in —
+     sent by WhatsApp, mail, the share sheet, or copied. Adding to the team is what grants access. */
+  function inviteText(em){
+    const title=(document.querySelector(".bar .mark")||{}).textContent||"יומן אירועים";
+    const url=location.origin+location.pathname+"?invite="+encodeURIComponent(em);
+    return { url, subject:"הזמנה ל"+title.trim().replace(/\s+/g," "),
+      text:"הוזמנת ל"+title.trim().replace(/\s+/g," ")+" — היומן המשותף של הצוות.\n\n"+
+        "1. פותחים את הקישור: "+url+"\n"+
+        "2. לוחצים \"שלח קישור כניסה\" (המייל "+em+" כבר ממולא).\n"+
+        "3. פותחים את המייל שמגיע ולוחצים על הקישור — וזהו, נכנסים ליומן.\n\n"+
+        "כדאי להתקין כאפליקציה: בתפריט הדפדפן ← \"הוסף למסך הבית\"." };
+  }
+  function showInvite(em){
+    const box=$("#cloudInvite"); if(!box) return;
+    const T=inviteText(em); box.textContent=""; box.hidden=false;
+    const head=mk("div","ci-head"); head.appendChild(mk("b",null,"הזמנה ל-"+em));
+    const x=mk("button","x","✕"); x.type="button"; x.setAttribute("aria-label","סגור"); x.onclick=()=>{ box.hidden=true; };
+    head.appendChild(x); box.appendChild(head);
+    box.appendChild(mk("div","ci-text",T.text));
+    const row=mk("div","row");
+    const btn=(label,fn,cls)=>{ const b=mk("button","btn"+(cls?" "+cls:""),label); b.type="button"; b.onclick=fn; row.appendChild(b); };
+    btn("וואטסאפ",()=>window.open("https://wa.me/?text="+encodeURIComponent(T.text),"_blank","noopener"),"primary");
+    btn("מייל",()=>{ location.href="mailto:"+em+"?subject="+encodeURIComponent(T.subject)+"&body="+encodeURIComponent(T.text); });
+    if(navigator.share) btn("שתף",async()=>{ try{ await navigator.share({title:T.subject,text:T.text}); }catch(e){} });
+    btn("העתק",async()=>{ try{ await navigator.clipboard.writeText(T.text); toast("ההזמנה הועתקה"); }catch(e){ toast("ההעתקה נכשלה"); } });
+    box.appendChild(row);
+    box.scrollIntoView({block:"nearest",behavior:"smooth"});
+  }
   /* device notification (when the app is in the background and the user allowed it) */
   function notifyDevice(title, body, tag, onClick){
     if(!(document.hidden && "Notification" in window && Notification.permission==="granted")) return;
