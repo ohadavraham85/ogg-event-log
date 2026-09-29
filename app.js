@@ -1367,7 +1367,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.47", APP_DATE="29/09/2026";
+const APP_VER="1.48", APP_DATE="29/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -1449,7 +1449,9 @@ function tkSortKey(t){ return PRIOS.indexOf(prioOf(t))+(t.due||"9999-99-99")+(t.
 function myName(){ return window.cloudMyName ? window.cloudMyName() : ""; }
 const isMine=t=>{ const n=myName(); return !!n && (t.ppl||[]).includes(n); };
 function paintTaskCount(){
-  const n=tasks.filter(tkOpen).length; $("#tkCnt").textContent = n ? "("+n+")" : "";
+  const n=tasks.filter(tkOpen).length;                     // "(open/total)": 4/5 = 4 open out of 5
+  $("#tkCnt").textContent = "("+(tasks.length ? nf(n)+"/"+nf(tasks.length) : "0")+")";
+  $("#tkCnt").title = n+" פתוחות מתוך "+tasks.length+" משימות"; $("#tkCnt").dir="ltr";
   const m=tasks.filter(t=>tkOpen(t)&&isMine(t)).length, el=$("#tkMine");
   el.textContent = m ? String(m) : ""; el.title = m ? m+" משימות פתוחות שלך" : ""; el.hidden=!m;
   $("#tkSegMine").hidden=!myName();
