@@ -923,3 +923,10 @@ small.role{font-size:12px;font-weight:700;color:var(--ink-3);background:var(--pa
 .role-ed{flex:1 1 100%;display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
 .role-ed .txt{flex:1 1 180px;min-width:0}
 .mgr-list .btn.role-btn{border-color:var(--c-power);color:var(--c-power)}
+small.dept{font-size:12px;font-weight:700;color:var(--c-maint);background:var(--c-maint-bg);border-radius:99px;padding:0 7px;white-space:nowrap}
+.ss-opt small.dept{margin-inline-start:6px}
+.role-ed{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.role-ed .row{grid-column:1/-1}
+.role-f{display:grid;gap:3px;font-size:12.5px;color:var(--ink-2);font-weight:700;min-width:0}
+.role-f .txt{width:100%;box-sizing:border-box}
+@media (max-width:380px){ .role-ed{grid-template-columns:1fr} }

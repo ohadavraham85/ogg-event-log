@@ -236,7 +236,7 @@
         .catch(()=>{ try{ const n=new Notification(title,opt); n.onclick=()=>{ window.focus(); showNew(); n.close(); }; }catch(e){} });
     }
   }
-  function listsJSON(){ const o={}; Object.keys(SEED).forEach(k=>{ o[k]=lists["_custom_"+k]; o["_hide_"+k]=lists["_hide_"+k]; }); o._core_ppl=lists._core_ppl||[]; o._roles_ppl=lists._roles_ppl||{}; return JSON.stringify(o); }
+  function listsJSON(){ const o={}; Object.keys(SEED).forEach(k=>{ o[k]=lists["_custom_"+k]; o["_hide_"+k]=lists["_hide_"+k]; }); o._core_ppl=lists._core_ppl||[]; o._roles_ppl=lists._roles_ppl||{}; o._dept_ppl=lists._dept_ppl||{}; return JSON.stringify(o); }
   function rebuildLists(){
     Object.keys(SEED).forEach(k=>{
       const custom=lists["_custom_"+k]||[], hidden=lists["_hide_"+k]||[];
@@ -253,6 +253,7 @@
     });
     lists._core_ppl=Array.isArray(o._core_ppl)?o._core_ppl:[];
     lists._roles_ppl=o._roles_ppl && typeof o._roles_ppl==="object" ? o._roles_ppl : {};
+    lists._dept_ppl=o._dept_ppl && typeof o._dept_ppl==="object" ? o._dept_ppl : {};
     listsSynced=js; try{ localStorage.setItem(LSL, js); }catch(e){}
     rebuildLists(); renderAll();
   }
