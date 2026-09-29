@@ -1905,6 +1905,13 @@ function calIndex(){
 }
 function renderCal(){
   document.querySelectorAll("#calMode button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.m===calMd)));
+  // monthly counts on the mode buttons (always for the month shown, whatever the mode)
+  const pre=calY+"-"+String(calM+1).padStart(2,"0");
+  const nEv=events.filter(e=>(e.when||"").startsWith(pre)).length;
+  const nTk=tasks.filter(t=>(tkOpen(t) && (t.due||"").startsWith(pre)) || (!tkOpen(t) && String(t.doneAt||"").startsWith(pre))).length;
+  const segN={all:nEv+nTk, ev:nEv, tk:nTk};
+  document.querySelectorAll("#calMode button").forEach(b=>{ const base={all:"הכל",ev:"אירועים",tk:"משימות"}[b.dataset.m];
+    b.textContent=""; b.append(base+" "); b.appendChild(mk("span","seg-n",nf(segN[b.dataset.m]))); b.title=segN[b.dataset.m]+" ב"+HEB_MONTHS[calM]; });
   $("#calTitle").textContent=HEB_MONTHS[calM]+" "+calY;
   const I=calIndex(), today=ymd(new Date()), g=$("#calGrid"); g.textContent="";
   "אבגדהוש".split("").forEach(c=>g.appendChild(mk("div","cal-dow",c)));
