@@ -1562,7 +1562,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.63", APP_DATE="29/09/2026";
+const APP_VER="1.64", APP_DATE="29/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -1804,6 +1804,7 @@ function renderTasks(){
       if(pr!=="רגילה") tag(pr,"",ph);
       if(t.type) tag(t.type,"",hueOf(t.type));
       if(t.status==="בטיפול") tag("בטיפול","w");
+      if(t.start && t.start>today) tag("מתחילה "+dmy(t.start).slice(0,5));
       if(t.due) tag((t.due<today?"באיחור · ":t.due===today?"היום · ":"יעד ")+dmy(t.due).slice(0,5), t.due<today?"late":t.due===today?"today":"");
     } else {
       tag("הושלמה "+(t.doneAt?fmtWhen(t.doneAt).slice(0,10):""),"ok");
@@ -1844,6 +1845,8 @@ function openTaskForm(id){
   $("#tkFormTitle").textContent = t ? "עריכת משימה" : "משימה חדשה";
   $("#tkTitle").value=t?t.title||"":""; $("#tkDesc").value=t?t.desc||"":"";
   $("#tkDue").value=t?t.due||"":"";
+  $("#tkStart").value=t ? (t.start || String(t.created||"").slice(0,10) || ymd(new Date())) : ymd(new Date());
+  $("#tkDue").min=$("#tkStart").value;
   $("#tkForm").hidden=false; $("#tkNewBtn").hidden=true;
   $("#tkForm").scrollIntoView({block:"start",behavior:"smooth"});
 }
@@ -1860,7 +1863,8 @@ function openTaskForm(id){
   };
 });
 $("#tkPrio").onchange=$("#tkType").onchange=paintFormColors;
-["#tkType","#tkPrio","#tkPpl","#tkDue","#tkLoc","#tkEq","#tkTitle"].forEach(id=>{
+$("#tkStart").addEventListener("change",()=>{ $("#tkDue").min=$("#tkStart").value; });
+["#tkType","#tkPrio","#tkPpl","#tkStart","#tkDue","#tkLoc","#tkEq","#tkTitle"].forEach(id=>{
   const clr=()=>{ if($(id).value) $(id).closest(".tk-f").classList.remove("bad"); };
   $(id).addEventListener("change",clr); $(id).addEventListener("input",clr); });
 function closeTaskForm(){ $("#tkForm").hidden=true; $("#tkNewBtn").hidden=false; tkEdit=null; }
@@ -1869,15 +1873,16 @@ $("#tkNewBtn").onclick=()=>openTaskForm(null);
 $("#tkCancel").onclick=closeTaskForm;
 $("#tkSave").onclick=()=>{
   // all fields are required: type, priority, assignee, due date, location, equipment, and what to do
-  const need=[["#tkType","סוג"],["#tkPrio","עדיפות"],["#tkPpl","אחראי"],["#tkDue","תאריך יעד"],["#tkLoc","מיקום"],["#tkEq","ציוד"],["#tkTitle","מה צריך לעשות"]];
+  const need=[["#tkType","סוג"],["#tkPrio","עדיפות"],["#tkStart","תאריך התחלה"],["#tkPpl","אחראי"],["#tkDue","תאריך יעד"],["#tkLoc","מיקום"],["#tkEq","ציוד"],["#tkTitle","מה צריך לעשות"]];
   const miss=need.filter(([id])=>{ const v=($(id).value||"").trim(); const bad=!v || v==="__other";
     $(id).closest(".tk-f").classList.toggle("bad",bad); return bad; });
   if(miss.length){ toast("חסר: "+miss.map(m=>m[1]).join(", "));
     const f=$(miss[0][0]); (f.classList.contains("ss-hidden") ? f.nextElementSibling : f).focus(); return; }
+  if($("#tkStart").value > $("#tkDue").value){ $("#tkDue").closest(".tk-f").classList.add("bad"); toast("תאריך היעד לפני תאריך ההתחלה"); $("#tkDue").focus(); return; }
   const title=$("#tkTitle").value.trim();
   const now=new Date().toISOString(), prio=$("#tkPrio").value||"רגילה";
   const data={title, desc:$("#tkDesc").value.trim(), type:$("#tkType").value||"", prio, urgent:prio==="דחופה",
-    ppl:one($("#tkPpl").value), loc:one($("#tkLoc").value), eq:one($("#tkEq").value), due:$("#tkDue").value||"", upd:now};
+    ppl:one($("#tkPpl").value), loc:one($("#tkLoc").value), eq:one($("#tkEq").value), due:$("#tkDue").value||"", start:$("#tkStart").value||"", upd:now};
   const was=tkEdit;
   if(was){ const t=tasks.find(x=>x.id===was); if(t) Object.assign(t,data); }
   else { const t=Object.assign({id:newId(), status:"פתוחה", created:now, log:[]}, data);
@@ -1924,7 +1929,11 @@ function calIndex(){
   const ev={}, due={}, done={}, today=ymd(new Date()), L=calLeg, on=x=>!L || L===x;
   if(calMd!=="tk" && on("ev")) events.forEach(e=>{ const d=(e.when||"").slice(0,10); if(d) (ev[d]=ev[d]||[]).push(e); });
   if(calMd!=="ev") tasks.forEach(t=>{
-    if(tkOpen(t) && t.due && on(t.due<today?"late":"tk")) (due[t.due]=due[t.due]||[]).push(t);
+    if(tkOpen(t) && t.due && on(t.due<today?"late":"tk")){
+      // an open task sits on every day from its start date to its due date (older tasks without a start: the due day only)
+      const s0=t.start && t.start<=t.due ? t.start : t.due; let d=new Date(s0+"T12:00"), n=0;
+      while(n<200){ const k=ymd(d); const pos = s0===t.due ? "single" : k===s0 ? "start" : k===t.due ? "end" : "mid";
+        (due[k]=due[k]||[]).push({t,pos}); if(k>=t.due) break; d.setDate(d.getDate()+1); n++; } }
     if(!tkOpen(t) && t.doneAt && on("done")){ const d=String(t.doneAt).slice(0,10); (done[d]=done[d]||[]).push(t); } });
   return {ev,due,done};
 }
@@ -1935,7 +1944,8 @@ function renderCal(){
   // monthly counts on the mode buttons (always for the month shown, whatever the mode)
   const pre=calY+"-"+String(calM+1).padStart(2,"0");
   const nEv=events.filter(e=>(e.when||"").startsWith(pre)).length;
-  const nTk=tasks.filter(t=>(tkOpen(t) && (t.due||"").startsWith(pre)) || (!tkOpen(t) && String(t.doneAt||"").startsWith(pre))).length;
+  const mS=pre+"-01", mE=pre+"-31";
+  const nTk=tasks.filter(t=>(tkOpen(t) && t.due && (t.start&&t.start<=t.due?t.start:t.due)<=mE && t.due>=mS) || (!tkOpen(t) && String(t.doneAt||"").startsWith(pre))).length;
   const segN={all:nEv+nTk, ev:nEv, tk:nTk};
   document.querySelectorAll("#calMode button").forEach(b=>{ const base={all:"הכל",ev:"אירועים",tk:"משימות"}[b.dataset.m];
     b.textContent=""; b.append(base+" "); b.appendChild(mk("span","seg-n",nf(segN[b.dataset.m]))); b.title=segN[b.dataset.m]+" ב"+HEB_MONTHS[calM]; });
@@ -1947,12 +1957,13 @@ function renderCal(){
     const d=new Date(start); d.setDate(start.getDate()+i); const k=ymd(d), inM=d.getMonth()===calM;
     if(i>=35 && !inM && d.getDate()>7) break;       // no empty 6th week
     const evs=I.ev[k]||[], dues=I.due[k]||[], dones=I.done[k]||[];
-    const faults=evs.filter(e=>(e.type||[]).includes("תקלה")).length, late=k<today ? dues.length : 0;
+    const faults=evs.filter(e=>(e.type||[]).includes("תקלה")).length, late=dues.filter(x=>x.t.due<today).length;
     const c=mk("button","cal-d"+(inM?"":" out")+(k===today?" today":"")+(k===calSel?" sel":"")+(k<today?" past":"")); c.type="button";
     c.appendChild(mk("span","cal-n",String(d.getDate())));
     // titles on the day itself: tasks first (overdue / due / done), then events by time; "+N" for the rest
     const items=[];
-    dues.forEach(t=>items.push({cls:late?"i-late":"i-tk", t:(late?"⚠ ":"")+(t.title||"משימה"), hue:null}));
+    dues.forEach(({t,pos})=>{ const lt=t.due<today, mark = pos==="start" ? "▶ " : (pos==="end"||pos==="single") ? (lt?"⚠ ":"🏁 ") : "";
+      items.push({cls:(lt?"i-late":"i-tk")+(pos==="mid"?" i-mid":""), t:mark+(t.title||"משימה"), hue:null}); });
     dones.forEach(t=>items.push({cls:"i-done", t:"✓ "+(t.title||"משימה")}));
     evs.slice().sort((x,y)=>String(x.when).localeCompare(String(y.when))).forEach(e=>{
       const ty=(e.type||[])[0]||""; items.push({cls:"i-ev", t:e.title||String(e.desc||"").slice(0,40)||ty||"אירוע", hue:hueOf(ty)}); });
@@ -1963,7 +1974,7 @@ function renderCal(){
       m.appendChild(s); });
     if(items.length>max) m.appendChild(mk("span","ci i-more","+"+nf(items.length-max+1)+" עוד"));
     c.appendChild(m);
-    const tip=[evs.length?evs.length+" אירועים"+(faults?" ("+faults+" תקלות)":""):"", dues.length?dues.length+(late?" משימות באיחור":" משימות ליעד"):"", dones.length?dones.length+" משימות הושלמו":""].filter(Boolean).join(" · ");
+    const tip=[evs.length?evs.length+" אירועים"+(faults?" ("+faults+" תקלות)":""):"", dues.length?dues.length+" משימות"+(late?" ("+late+" באיחור)":""):"", dones.length?dones.length+" משימות הושלמו":""].filter(Boolean).join(" · ");
     c.title=dmy(k)+(tip?" — "+tip:""); c.setAttribute("aria-label",c.title);
     c.onclick=()=>{ calSel=k; renderCal(); $("#calDay").scrollIntoView({block:"nearest",behavior:"smooth"}); };
     g.appendChild(c);
@@ -1978,9 +1989,11 @@ function renderCalDay(I, today){
   box.appendChild(head);
   if(!evs.length && !dues.length && !dones.length){ box.appendChild(mk("p","hint",k>today?"אין משימות ליעד ביום הזה.":"לא נרשם כלום ביום הזה.")); return; }
   const sec=(title,rows)=>{ if(!rows.length) return; box.appendChild(mk("div","cal-h",title)); rows.forEach(r=>box.appendChild(r)); };
-  sec(dues.length?(k<today?"⚠ משימות באיחור (יעד ביום הזה)":"משימות ליעד")+" ("+dues.length+")":"", dues.map(t=>{
+  sec(dues.length?"משימות ביום הזה ("+dues.length+")":"", dues.map(({t,pos})=>{
     const r=mk("button","cal-row r-task"); r.type="button"; r.style.borderInlineStartColor="var(--c-"+PRIO_HUE[prioOf(t)]+")";
-    r.append(mk("b",null,t.title||""), mk("span","cal-meta",[prioOf(t)!=="רגילה"?prioOf(t):"", (t.ppl||[])[0]||"", t.status==="בטיפול"?"בטיפול":""].filter(Boolean).join(" · ")));
+    const when = pos==="start" ? "▶ מתחילה היום" : pos==="end"||pos==="single" ? (t.due<today?"⚠ היעד עבר":"🏁 יעד") : "בביצוע";
+    const range = t.start && t.start!==t.due ? dmy(t.start).slice(0,5)+"–"+dmy(t.due).slice(0,5) : "";
+    r.append(mk("b",null,t.title||""), mk("span","cal-meta",[when, range, prioOf(t)!=="רגילה"?prioOf(t):"", (t.ppl||[])[0]||"", t.status==="בטיפול"?"בטיפול":""].filter(Boolean).join(" · ")));
     r.onclick=()=>goTasks({}); return r; }));
   sec(dones.length?"משימות שהושלמו ("+dones.length+")":"", dones.map(t=>{
     const r=mk("button","cal-row r-done"); r.type="button"; r.append(mk("b",null,"✓ "+(t.title||"")), mk("span","cal-meta",(t.ppl||[])[0]||""));

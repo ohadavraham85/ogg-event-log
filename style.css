@@ -997,3 +997,4 @@ small.dept{font-size:12px;font-weight:700;color:var(--c-maint);background:var(--
   background:var(--water);color:#fff;padding:10px 14px;border-radius:14px;box-shadow:0 10px 28px rgba(0,0,0,.3);font-weight:800;font-size:14.5px}
 .upd-bar[hidden]{display:none}
 .upd-bar .btn{background:#fff;color:var(--water);border-color:#fff;padding:7px 14px;font-size:14px;flex:none}
+.ci.i-mid{opacity:.6}
