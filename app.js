@@ -22,6 +22,7 @@ const HUE = {"תקלה":"fault","גלישות חרום":"flood","הפסקות ח
   "ביקור":"visit","סיור בטיחות חודשי":"visit","תהליך":"visit"};
 function hueOf(t){ return HUE[t] || "gen"; }
 const isCore=v=>!!(lists && (lists._core_ppl||[]).includes(v));
+const roleOf=v=>(lists && lists._roles_ppl && lists._roles_ppl[v]) || "";
 const coreFirst=(arr,k)=>k!=="ppl" ? arr : arr.filter(isCore).concat(arr.filter(v=>!isCore(v)));
 
 /* ================= state ================= */
@@ -42,11 +43,12 @@ function load(){
     lists["_custom_"+k] = custom; lists["_hide_"+k] = hidden;
   });
   lists._core_ppl = Array.isArray(saved._core_ppl) ? saved._core_ppl : [];   // ⭐ core staff: always first, own colour
+  lists._roles_ppl = saved._roles_ppl && typeof saved._roles_ppl==="object" ? saved._roles_ppl : {};   // person → role
 }
 function persist(){
   try{
     localStorage.setItem(LS, JSON.stringify(events));
-    const out={}; Object.keys(SEED).forEach(k=>{ out[k]=lists["_custom_"+k]; out["_hide_"+k]=lists["_hide_"+k]; }); out._core_ppl=lists._core_ppl||[];
+    const out={}; Object.keys(SEED).forEach(k=>{ out[k]=lists["_custom_"+k]; out["_hide_"+k]=lists["_hide_"+k]; }); out._core_ppl=lists._core_ppl||[]; out._roles_ppl=lists._roles_ppl||{};
     localStorage.setItem(LSL, JSON.stringify(out));
   }catch(e){ toast("הדפדפן חסם שמירה מקומית"); }
   // a linked file that is waiting for the browser's permission: ask now (we are inside a click)
@@ -120,6 +122,7 @@ function drawOpts(){
     b.type="button"; b.className="opt"+(k==="ppl"&&isCore(v)?" core":""); b.setAttribute("aria-pressed", on?"true":"false");
     const bx=document.createElement("span"); bx.className="bx"; bx.textContent="✓";
     const tx=document.createElement("span"); tx.textContent=v;
+    if(k==="ppl" && roleOf(v)){ const r=document.createElement("small"); r.className="role"; r.textContent=roleOf(v); tx.append(" ",r); }
     b.append(bx,tx);
     if(custom.includes(v) && !cnt[v]){
       const d=document.createElement("button"); d.className="del"; d.textContent="✕"; d.title="הסר מהרשימה";
@@ -209,12 +212,14 @@ function dupPairs(k){
 function snapValues(){          // for "בטל": the value arrays of every event/task + the list settings
   const keys=MGR_KEYS.map(x=>x[0]);
   return { ev:events.map(e=>[e,keys.map(k=>Array.isArray(e[k])?e[k].slice():e[k])]), tk:tasks.map(t=>[t,keys.map(k=>Array.isArray(t[k])?t[k].slice():t[k])]),
-    ls:keys.map(k=>[k,(lists["_custom_"+k]||[]).slice(),(lists["_hide_"+k]||[]).slice()]), keys };
+    ls:keys.map(k=>[k,(lists["_custom_"+k]||[]).slice(),(lists["_hide_"+k]||[]).slice()]), keys,
+    core:(lists._core_ppl||[]).slice(), roles:Object.assign({},lists._roles_ppl||{}) };
 }
 function restoreValues(s){
   s.ev.forEach(([e,v])=>s.keys.forEach((k,i)=>{ if(v[i]===undefined) delete e[k]; else e[k]=v[i]; }));
   s.tk.forEach(([t,v])=>s.keys.forEach((k,i)=>{ if(v[i]===undefined) delete t[k]; else t[k]=v[i]; }));
   s.ls.forEach(([k,c,h])=>{ lists["_custom_"+k]=c; lists["_hide_"+k]=h; });
+  lists._core_ppl=s.core; lists._roles_ppl=s.roles;
   persist(); saveTasks(); load(); renderAll(); renderMgr();
 }
 function remapCore(k, from, toArr){          // returns how many events changed; never adds or removes events
@@ -223,6 +228,8 @@ function remapCore(k, from, toArr){          // returns how many events changed;
   tasks.forEach(t=>{ if((t[k]||[]).includes(from)) t[k]=swap(t[k]); });
   lists["_custom_"+k]=lists["_custom_"+k].filter(v=>v!==from); lists["_hide_"+k]=(lists["_hide_"+k]||[]).filter(v=>v!==from);
   lists[k]=lists[k].filter(v=>v!==from);
+  if(k==="ppl" && lists._roles_ppl && lists._roles_ppl[from]){ const r=lists._roles_ppl[from]; delete lists._roles_ppl[from];
+    if(toArr.length===1 && !lists._roles_ppl[toArr[0]]) lists._roles_ppl[toArr[0]]=r; }
   if(k==="ppl" && (lists._core_ppl||[]).includes(from)){ lists._core_ppl=lists._core_ppl.filter(v=>v!==from); toArr.forEach(v=>{ if(!lists._core_ppl.includes(v)) lists._core_ppl.push(v); }); }
   toArr.forEach(v=>{ if(!lists[k].includes(v)) lists[k].push(v); if(!lists["_custom_"+k].includes(v)) lists["_custom_"+k].push(v); });
   return n;
@@ -317,9 +324,21 @@ function renderMgr(){
           s.onclick=()=>{ const L=lists._core_ppl=lists._core_ppl||[]; const i=L.indexOf(v); i>=0?L.splice(i,1):L.push(v);
             persist(); renderMgr(); renderTasks(); toast(i>=0 ? v+" הוסר מהצוות הקבוע" : "⭐ "+v+" — צוות קבוע"); };
           rw.appendChild(s); }
-        rw.append(mk("span","mgr-st "+(isRet?"off":"on"), isRet?"לא פעיל":"פעיל"), mk("b",null,v),
+        const nameB=mk("b",null,v);
+        if(k==="ppl" && roleOf(v)) nameB.append(" ", mk("small","role",roleOf(v)));
+        rw.append(mk("span","mgr-st "+(isRet?"off":"on"), isRet?"לא פעיל":"פעיל"), nameB,
           mk("span","mgr-c", cnt[v] ? nf(cnt[v])+" אירועים" : "לא בשימוש"));
         const bt=(txt,cls,fn)=>{ const x=mk("button","btn mini"+(cls?" "+cls:""),txt); x.type="button"; x.onclick=fn; rw.appendChild(x); };
+        if(k==="ppl" && !isRet) bt(roleOf(v)?"✎ תפקיד":"+ תפקיד","role-btn",()=>{
+          if(rw.querySelector(".role-ed")) return;
+          const ed=mk("div","role-ed"), inp=mk("input","txt"), ok=mk("button","btn mini ok","שמור"), no=mk("button","btn mini ghost","ביטול");
+          inp.value=roleOf(v); inp.placeholder="תפקיד (למשל: חשמלאי, מפעיל, מנהל משמרת)"; inp.setAttribute("list","dlRoles"); ok.type=no.type="button";
+          const dl=$("#dlRoles"); dl.textContent=""; [...new Set(Object.values(lists._roles_ppl||{}))].sort((x,y)=>x.localeCompare(y,"he")).forEach(r=>{ const o=document.createElement("option"); o.value=r; dl.appendChild(o); });
+          const save=()=>{ const r=inp.value.trim(); lists._roles_ppl=lists._roles_ppl||{}; if(r) lists._roles_ppl[v]=r; else delete lists._roles_ppl[v];
+            persist(); renderMgr(); renderTasks(); toast(r ? v+" — "+r : "התפקיד של "+v+" הוסר"); };
+          ok.onclick=save; inp.onkeydown=e=>{ if(e.key==="Enter"){ e.preventDefault(); save(); } if(e.key==="Escape") ed.remove(); };
+          no.onclick=()=>ed.remove();
+          ed.append(inp,ok,no); rw.appendChild(ed); inp.focus(); });
         bt("פצל…","",()=>{
           if(rw.querySelector(".mgr-split")) return;
           const box=mk("div","mgr-split"), picks=[];
@@ -1170,7 +1189,7 @@ paintThemeBtn();
 /* ================= file / export ================= */
 function payload(){
   const out={app:"ogg-event-log",version:2,saved:new Date().toISOString(),events,lists:{},tasks};
-  Object.keys(SEED).forEach(k=>{ out.lists[k]=lists["_custom_"+k]; out.lists["_hide_"+k]=lists["_hide_"+k]; }); out.lists._core_ppl=lists._core_ppl||[];
+  Object.keys(SEED).forEach(k=>{ out.lists[k]=lists["_custom_"+k]; out.lists["_hide_"+k]=lists["_hide_"+k]; }); out.lists._core_ppl=lists._core_ppl||[]; out.lists._roles_ppl=lists._roles_ppl||{};
   return out;
 }
 async function writeFile(){
@@ -1500,6 +1519,7 @@ $("#impFile").onchange=ev=>{
       const idx=new Map(events.map((e,i)=>[e.id,i])); let n=0,u=0;
       inc.forEach(e=>{ if(!e||!e.id) return;
         if(idx.has(e.id)){ events[idx.get(e.id)]=e; u++; } else { events.push(e); n++; } });
+      if(d.lists && d.lists._roles_ppl && typeof d.lists._roles_ppl==="object") Object.entries(d.lists._roles_ppl).forEach(([p,r])=>{ if(!lists._roles_ppl[p]) lists._roles_ppl[p]=r; });
       if(d.lists && Array.isArray(d.lists._core_ppl)) d.lists._core_ppl.forEach(v=>{ if(!lists._core_ppl.includes(v)) lists._core_ppl.push(v); });
       if(d.lists) Object.keys(SEED).forEach(k=>{
         (d.lists[k]||[]).forEach(v=>{ if(!lists["_custom_"+k].includes(v)){ lists["_custom_"+k].push(v);
@@ -1526,7 +1546,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.55", APP_DATE="29/09/2026";
+const APP_VER="1.56", APP_DATE="29/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -1749,7 +1769,7 @@ function renderTasks(){
       if(t.eventId && events.some(e=>e.id===t.eventId)) tag("נרשמה ביומן");
     }
     if(tags.childElementCount) c.appendChild(tags);
-    const meta=[(t.ppl||[]).length?"👤 "+t.ppl.join(", "):"", (t.loc||[]).length?"📍 "+t.loc.join(", "):"", (t.eq||[]).length?"⚙ "+t.eq.join(", "):""].filter(Boolean).join("   ");
+    const meta=[(t.ppl||[]).length?"👤 "+t.ppl.map(n=>roleOf(n)?n+" ("+roleOf(n)+")":n).join(", "):"", (t.loc||[]).length?"📍 "+t.loc.join(", "):"", (t.eq||[]).length?"⚙ "+t.eq.join(", "):""].filter(Boolean).join("   ");
     if(meta) c.appendChild(mk("div","tk-m",meta));
     if(t.desc) c.appendChild(mk("div","tk-d",t.desc));
     if(!tkOpen(t) && t.act) c.appendChild(mk("div","tk-d","בוצע: "+t.act));
@@ -1882,9 +1902,10 @@ function openSS(sel,btn){
     list.textContent=""; first=null; const f=q.value.trim().toLowerCase();
     opts.forEach(o=>{
       const special = o.v==="" || o.v==="__other";
-      if(f && !special && !o.t.toLowerCase().includes(f)) return;
+      if(f && !special && !(o.t+" "+roleOf(o.v)).toLowerCase().includes(f)) return;   // search by role too
       if(f && o.v==="") return;
       const b=mk("button","ss-opt"+(o.v===sel.value?" on":"")+(special?" sp":"")+(o.core?" core":""),o.t); b.type="button"; b.onclick=()=>pick(o.v);
+      if(!special && roleOf(o.v)) b.appendChild(mk("small","role"," "+roleOf(o.v)));
       if(!first && !special) first=o.v; list.appendChild(b);
     });
     if(!list.querySelector(".ss-opt:not(.sp)")) list.insertBefore(mk("div","ss-none","אין התאמה"), list.firstChild);

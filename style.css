@@ -916,3 +916,10 @@ body.d-drag, body.d-drag *{cursor:grabbing!important;user-select:none!important}
 .opt.core::after{content:"★";margin-inline-start:6px;color:var(--c-power)}
 .ss-opt.core::before{content:"★ ";color:var(--c-power)}
 .ss-opt.core + .ss-opt:not(.core):not(.sp){border-top:1px dashed var(--edge);margin-top:3px;padding-top:12px}
+/* roles */
+small.role{font-size:12px;font-weight:700;color:var(--ink-3);background:var(--panel-2);border:1px solid var(--edge-2);border-radius:99px;padding:0 7px;white-space:nowrap}
+.listrow.core small.role{background:var(--panel);color:var(--c-power);border-color:color-mix(in srgb,var(--c-power) 35%,transparent)}
+.ss-opt small.role{margin-inline-start:6px}
+.role-ed{flex:1 1 100%;display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.role-ed .txt{flex:1 1 180px;min-width:0}
+.mgr-list .btn.role-btn{border-color:var(--c-power);color:var(--c-power)}
