@@ -984,3 +984,5 @@ small.dept{font-size:12px;font-weight:700;color:var(--c-maint);background:var(--
 @media (min-width:700px){ .cal-d{min-height:112px} .ci{font-size:12.5px;line-height:18px} }
 @media (max-width:420px){ .cal-d{min-height:70px;padding:3px 2px} .ci{font-size:10px;line-height:14px;padding:0 2px;border-inline-start-width:2px} }
 .cal-d{overflow:hidden;width:100%;box-sizing:border-box}.cal-m{width:100%;overflow:hidden}.cal-grid{width:100%}
+#viewCal .dsh-head .cal-legend{margin:0;flex:1 1 100%;gap:3px 12px}
+@media (min-width:700px){ #viewCal .dsh-head .cal-legend{flex:1 1 auto;justify-content:flex-start} }
