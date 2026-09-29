@@ -1142,10 +1142,13 @@ function show(w){
   const prev=curView; curView=w;
   if(prev==="List" && w!=="List" && UNSEEN.size){ UNSEEN.clear(); saveUnseen(); }   // seen once you leave the list
   if($("#newCnt")) paintNewCount();
+  // the calendar opens from the events or the tasks list, and that tab stays lit; settings is the gear in the header
+  const lit = w==="Cal" ? (calMd==="tk" ? "Tasks" : "List") : w;
   ["New","List","Dash","Data","Tasks","Cal"].forEach(v=>{
     $("#view"+v).hidden=(v!==w);
-    $("#tab"+v).setAttribute("aria-selected",String(v===w));
+    $("#tab"+v).setAttribute("aria-selected",String(v===lit));
   });
+  $("#setBtn").setAttribute("aria-pressed",String(w==="Data"));
   $("#savebar").style.display = w==="New"?"block":"none";
   document.querySelector(".wrap").style.paddingBottom = w==="New"?"130px":"40px";
 }
@@ -1153,7 +1156,7 @@ $("#tabNew").onclick=()=>show("New");
 $("#fabNew").onclick=()=>{ show("New"); window.scrollTo({top:0}); };   // "+" in the events list replaces the "רישום אירוע" tab
 $("#tabList").onclick=()=>{ renderFilters(); renderList(); show("List"); };
 $("#tabDash").onclick=()=>{ renderDash(); show("Dash"); };
-$("#tabData").onclick=()=>{ renderStats(); renderMgr(); paintSettings(); show("Data"); };
+$("#tabData").onclick=$("#setBtn").onclick=()=>{ renderStats(); renderMgr(); paintSettings(); show("Data"); window.scrollTo({top:0}); };
 /* settings: one topic at a time (lists / team / files / general); the last one is remembered */
 let sgCur="lists"; try{ sgCur=localStorage.getItem("ogg-settings-topic")||"lists"; }catch(e){}
 /* who manages: on this device (no team log) — you; in the team log — only members with the admin role.
@@ -1569,7 +1572,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.82", APP_DATE="30/09/2026";
+const APP_VER="1.83", APP_DATE="30/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2134,7 +2137,7 @@ $("#tdOk").onclick=()=>{
 $("#tabTasks").onclick=()=>{ renderTasks(); show("Tasks"); };
 /* ================= calendar: events that happened + tasks (due / completed), month view ================= */
 let calY, calM, calSel=null, calMd="all", calLeg="";   // calLeg: legend colour picked → only that kind
-try{ calMd=localStorage.getItem("ogg-cal-mode")||"all"; }catch(e){}
+calMd="ev";                                             // set by the list the calendar is opened from
 (()=>{ const d=new Date(); calY=d.getFullYear(); calM=d.getMonth(); })();
 const HEB_MONTHS=["ינואר","פברואר","מרץ","אפריל","מאי","יוני","יולי","אוגוסט","ספטמבר","אוקטובר","נובמבר","דצמבר"];
 function calIndex(){
@@ -2153,6 +2156,7 @@ function renderCal(){
   document.querySelectorAll("#calMode button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.m===calMd)));
   document.querySelectorAll("#calLeg button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.l===calLeg)));
   $("#calLeg").classList.toggle("picked",!!calLeg);
+  document.querySelectorAll("#calLeg button").forEach(b=>b.hidden = calMd==="ev" ? b.dataset.l!=="ev" : calMd==="tk" ? b.dataset.l==="ev" : false);
   // monthly counts on the mode buttons (always for the month shown, whatever the mode)
   const pre=calY+"-"+String(calM+1).padStart(2,"0");
   const nEv=events.filter(e=>(e.when||"").startsWith(pre)).length;
@@ -2227,6 +2231,14 @@ document.querySelectorAll("#calLeg button").forEach(b=>b.onclick=()=>{
   renderCal(); });
 document.querySelectorAll("#calMode button").forEach(b=>b.onclick=()=>{ calMd=b.dataset.m; calLeg=""; try{ localStorage.setItem("ogg-cal-mode",calMd); }catch(e){} renderCal(); });
 $("#tabCal").onclick=()=>{ renderCal(); show("Cal"); };
+// calendar inside each list: events → events only, tasks → tasks only; "חזרה" goes back to that list
+function openCal(md){ calMd=md; calLeg=""; calSel=null;
+  $("#calH").textContent = md==="tk" ? "לוח שנה — משימות" : "לוח שנה — אירועים";
+  $("#calBack").textContent = md==="tk" ? "→ חזרה למשימות" : "→ חזרה לאירועים";
+  renderCal(); show("Cal"); window.scrollTo({top:0}); }
+$("#evCalBtn").onclick=()=>openCal("ev");
+$("#tkCalBtn").onclick=()=>openCal("tk");
+$("#calBack").onclick=()=>{ if(calMd==="tk") $("#tabTasks").click(); else $("#tabList").click(); window.scrollTo({top:0}); };
 matchMedia("(min-width:700px)").addEventListener("change",()=>{ if(!$("#viewCal").hidden) renderCal(); });
 /* searchable dropdown: long lists (people, locations, equipment) get a search box.
    The real <select> stays (hidden) — the code keeps reading/writing it; this is only the face. */

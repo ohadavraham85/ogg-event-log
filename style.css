@@ -1102,3 +1102,10 @@ small.dept{font-size:12px;font-weight:700;color:var(--c-maint);background:var(--
   .bar-row > :not(.mark){flex-shrink:0}
 }
 @media (max-width:340px){ .mark{font-size:17px} .mark .sub{font-size:13px} }
+/* calendar opened from the events / tasks list; settings = gear in the header */
+#calLeg button[hidden],#calMode[hidden]{display:none}
+.cal-open{display:inline-flex;align-items:center;gap:5px;border-color:var(--water);color:var(--water)}
+.cal-open .ti{width:15px;height:15px;flex:none}
+#calBack{border-color:var(--water);color:var(--water)}
+#setBtn[aria-pressed="true"]{background:var(--water);border-color:var(--water);color:#fff}
+#tabCal[hidden],#tabData[hidden]{display:none}
