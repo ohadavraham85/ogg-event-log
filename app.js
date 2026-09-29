@@ -1585,7 +1585,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.85", APP_DATE="30/09/2026";
+const APP_VER="1.86", APP_DATE="30/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -1687,6 +1687,14 @@ function saveTasks(){
 }
 const newId=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const tkOpen=t=>t.status!=="הושלמה";
+/* order of the open tasks: newest first (default), by due date, or by priority — picked above the list, kept on the device */
+let tkSort="new"; try{ tkSort=localStorage.getItem("ogg-tk-sort")||"new"; }catch(e){}
+function tkCmp(){
+  const due=t=>t.due||"9999-99-99", cr=t=>String(t.created||"");
+  if(tkSort==="due") return (a,b)=>due(a).localeCompare(due(b)) || PRIOS.indexOf(prioOf(a))-PRIOS.indexOf(prioOf(b));
+  if(tkSort==="prio") return (a,b)=>tkSortKey(a).localeCompare(tkSortKey(b));
+  return (a,b)=>cr(b).localeCompare(cr(a));
+}
 function tkSortKey(t){ return PRIOS.indexOf(prioOf(t))+(t.due||"9999-99-99")+(t.created||""); }
 /* "המשימות שלי": tasks assigned to me by name, or to my department (from "תפקיד ומחלקה").
    Team log: me = the signed-in member's team name. This device only: the person picked in "אני:" (saved here). */
@@ -1841,6 +1849,8 @@ function renderTkFilters(){
   $("#tfClear").textContent = "✕ נקה סינון"+(tkF.late ? " (באיחור)" : "");
   const dl=$("#dlPpl"); dl.textContent=""; (lists.ppl||[]).forEach(v=>{ const x=document.createElement("option"); x.value=v; dl.appendChild(x); });
 }
+$("#tkSort").value=tkSort;
+$("#tkSort").onchange=()=>{ tkSort=$("#tkSort").value; try{ localStorage.setItem("ogg-tk-sort",tkSort); }catch(e){} renderTasks(); };
 $("#tfClear").onclick=()=>{ Object.keys(tkF).forEach(k=>tkF[k]= k==="late" ? false : ""); renderTasks(); };
 ["ppl","loc","type","prio","dept"].forEach(k=>{ const el=$("#tf"+k[0].toUpperCase()+k.slice(1)); el.onchange=()=>{ tkF[k]=el.value; renderTasks(); }; });
 /* update log: every task keeps a running log — time, who reported, what happened.
@@ -1957,7 +1967,7 @@ function renderTasks(){
              && (!tkF.type || t.type===tkF.type) && (!tkF.prio || prioOf(t)===tkF.prio)
              && (!tkF.late || (t.due && t.due<today)) && (!tkF.dept || (t.depts||[]).includes(tkF.dept));
   const rows = (tkView!=="done"
-    ? tasks.filter(t=>tkOpen(t) && (tkView!=="mine" || isMine(t))).sort((a,b)=>tkSortKey(a).localeCompare(tkSortKey(b)))
+    ? tasks.filter(t=>tkOpen(t) && (tkView!=="mine" || isMine(t))).sort(tkCmp())
     : tasks.filter(t=>!tkOpen(t)).sort((a,b)=>String(b.doneAt||"").localeCompare(String(a.doneAt||"")))).filter(pass);
   if(!rows.length){ box.appendChild(mk("div","tk-empty", Object.values(tkF).some(Boolean) ? "אין משימות שמתאימות לסינון." :
     tkView==="mine" ? (myName() ? "אין משימות פתוחות שלך או של המחלקה שלך." : (window.cloudMe ? "המנהל עדיין לא הגדיר לך שם בצוות." : "בחר למעלה \"אני:\" כדי לראות את המשימות שלך.")) : tkView==="open" ? "אין משימות פתוחות." : "עדיין לא הושלמו משימות.")); return; }
@@ -2195,7 +2205,7 @@ calMd="ev";                                             // set by the list the c
 (()=>{ const d=new Date(); calY=d.getFullYear(); calM=d.getMonth(); })();
 const HEB_MONTHS=["ינואר","פברואר","מרץ","אפריל","מאי","יוני","יולי","אוגוסט","ספטמבר","אוקטובר","נובמבר","דצמבר"];
 function calIndex(){
-  const ev={}, due={}, done={}, today=ymd(new Date()), L=calLeg, on=x=>!L || L===x;
+  const ev={}, due={}, done={}, rep={}, today=ymd(new Date()), L=calLeg, on=x=>!L || L===x;
   if(calMd!=="tk" && on("ev")) events.forEach(e=>{ const d=(e.when||"").slice(0,10); if(d) (ev[d]=ev[d]||[]).push(e); });
   if(calMd!=="ev") tasks.forEach(t=>{
     if(tkOpen(t) && t.due && on(t.due<today?"late":"tk")){
@@ -2203,8 +2213,11 @@ function calIndex(){
       const s0=t.start && t.start<=t.due ? t.start : t.due; let d=new Date(s0+"T12:00"), n=0;
       while(n<200){ const k=ymd(d); const pos = s0===t.due ? "single" : k===s0 ? "start" : k===t.due ? "end" : "mid";
         (due[k]=due[k]||[]).push({t,pos}); if(k>=t.due) break; d.setDate(d.getDate()+1); n++; } }
-    if(!tkOpen(t) && t.doneAt && on("done")){ const d=String(t.doneAt).slice(0,10); (done[d]=done[d]||[]).push(t); } });
-  return {ev,due,done};
+    if(!tkOpen(t) && t.doneAt && on("done")){ const d=String(t.doneAt).slice(0,10); (done[d]=done[d]||[]).push(t); }
+    // recurring: the coming repeats (they are opened one at a time, when the current one is finished)
+    if(tkOpen(t) && t.rep && t.due && on("rep")){ const end=ymd(new Date(calY,calM+1,7));
+      for(let k=1;k<500;k++){ const d=addRep(t.due,t.rep,k); if(d>end) break; (rep[d]=rep[d]||[]).push(t); } } });
+  return {ev,due,done,rep};
 }
 function renderCal(){
   document.querySelectorAll("#calMode button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.m===calMd)));
@@ -2235,6 +2248,7 @@ function renderCal(){
     dues.forEach(({t,pos})=>{ const lt=t.due<today, mark = pos==="start" ? "▶ " : (pos==="end"||pos==="single") ? (lt?"⚠ ":"🏁 ") : "";
       items.push({cls:(lt?"i-late":"i-tk")+(pos==="mid"?" i-mid":""), t:mark+(t.title||"משימה"), hue:null}); });
     dones.forEach(t=>items.push({cls:"i-done", t:"✓ "+(t.title||"משימה")}));
+    (I.rep[k]||[]).forEach(t=>items.push({cls:"i-rep", t:"🔁 "+(t.title||"משימה")}));
     evs.slice().sort((x,y)=>String(x.when).localeCompare(String(y.when))).forEach(e=>{
       const ty=(e.type||[])[0]||""; items.push({cls:"i-ev", t:e.title||String(e.desc||"").slice(0,40)||ty||"אירוע", hue:hueOf(ty)}); });
     const max=matchMedia("(min-width:700px)").matches ? 4 : 2, m=mk("span","cal-m");
@@ -2254,10 +2268,10 @@ function renderCal(){
 function renderCalDay(I, today){
   const box=$("#calDay"); box.textContent="";
   const k=calSel || today, evs=(I.ev[k]||[]).slice().sort((a,b)=>String(a.when).localeCompare(String(b.when)));
-  const dues=I.due[k]||[], dones=I.done[k]||[];
+  const dues=I.due[k]||[], dones=I.done[k]||[], reps=I.rep[k]||[];
   const dn=new Date(k+"T12:00"), head=mk("h3",null,["יום ראשון","יום שני","יום שלישי","יום רביעי","יום חמישי","יום שישי","שבת"][dn.getDay()]+" · "+dmy(k)+(k===today?" · היום":""));
   box.appendChild(head);
-  if(!evs.length && !dues.length && !dones.length){ box.appendChild(mk("p","hint",k>today?"אין משימות ליעד ביום הזה.":"לא נרשם כלום ביום הזה.")); return; }
+  if(!evs.length && !dues.length && !dones.length && !reps.length){ box.appendChild(mk("p","hint",k>today?"אין משימות ליעד ביום הזה.":"לא נרשם כלום ביום הזה.")); return; }
   const sec=(title,rows)=>{ if(!rows.length) return; box.appendChild(mk("div","cal-h",title)); rows.forEach(r=>box.appendChild(r)); };
   sec(dues.length?"משימות ביום הזה ("+dues.length+")":"", dues.map(({t,pos})=>{
     const r=mk("button","cal-row r-task"); r.type="button"; r.style.borderInlineStartColor="var(--c-"+PRIO_HUE[prioOf(t)]+")";
@@ -2265,6 +2279,10 @@ function renderCalDay(I, today){
     const range = t.start && t.start!==t.due ? dmy(t.start).slice(0,5)+"–"+dmy(t.due).slice(0,5) : "";
     r.append(mk("b",null,t.title||""), mk("span","cal-meta",[when, range, prioOf(t)!=="רגילה"?prioOf(t):"", (t.ppl||[])[0]||"", t.status==="בטיפול"?"בטיפול":""].filter(Boolean).join(" · ")));
     r.onclick=()=>goTasks({}); return r; }));
+  sec(reps.length?"משימות מחזוריות — צפויות ביום הזה ("+reps.length+")":"", reps.map(t=>{
+    const r=mk("button","cal-row r-rep"); r.type="button";
+    r.append(mk("b",null,"🔁 "+(t.title||"")), mk("span","cal-meta",[repLabel(t.rep),"תיפתח כשהנוכחית (יעד "+dmy(t.due).slice(0,5)+") תושלם",(t.ppl||[])[0]||""].filter(Boolean).join(" · ")));
+    r.onclick=()=>goTask(t.id); return r; }));
   sec(dones.length?"משימות שהושלמו ("+dones.length+")":"", dones.map(t=>{
     const r=mk("button","cal-row r-done"); r.type="button"; r.append(mk("b",null,"✓ "+(t.title||"")), mk("span","cal-meta",(t.ppl||[])[0]||""));
     r.onclick=()=>goTasks({view:"done"}); return r; }));
