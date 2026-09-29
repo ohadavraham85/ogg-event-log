@@ -201,24 +201,32 @@ function dupPairs(k){
   }
   return out.sort((p,q)=>(cnt[q.to]||0)-(cnt[p.to]||0));
 }
+/* merge: one value becomes another; split: one value ("שלומי איציק") becomes several ("שלומי אביטל", "איציק גואל").
+   Only the value inside events/tasks changes — no event is added or removed. */
 async function mergeValue(k, from, to){
-  if(!from || !to || from===to) return;
+  const toArr=(Array.isArray(to)?to:[to]).map(v=>String(v).trim()).filter(v=>v && v!==from);
+  if(!from || !toArr.length) return;
+  const split=toArr.length>1;
   const cnt=useCount(k), nT=tasks.filter(t=>(t[k]||[]).includes(from)).length;
-  const ok=await confirmDel("למזג?", "“"+from+"” ("+nf(cnt[from]||0)+" אירועים"+(nT?", "+nT+" משימות":"")+")\nיהפוך ל: “"+to+"”",
-    false, {ok1:"המשך למיזוג", ok2:"כן, מזג", warn:"⚠ אישור שני: השם יוחלף בכל האירועים והמשימות"+(CLOUD_ON?" — לכל הצוות":"")+". אפשר לבטל מיד אחרי."});
+  const ok=await confirmDel(split?"לפצל?":"למזג?", "“"+from+"” ("+nf(cnt[from]||0)+" אירועים"+(nT?", "+nT+" משימות":"")+")\n"+(split?"יהפוך ל-"+toArr.length+": ":"יהפוך ל: ")+toArr.map(v=>"“"+v+"”").join(" + "),
+    false, {ok1:split?"המשך לפיצול":"המשך למיזוג", ok2:split?"כן, פצל":"כן, מזג",
+      warn:"⚠ אישור שני: הערך יוחלף בכל האירועים והמשימות"+(CLOUD_ON?" — לכל הצוות":"")+". מספר האירועים לא משתנה. אפשר לבטל מיד אחרי."});
   if(!ok) return;
   const undoE=[], undoT=[];
-  const swap=arr=>[...new Set(arr.map(v=>v===from?to:v))];
+  const swap=arr=>[...new Set(arr.flatMap(v=>v===from?toArr:[v]))];
   events.forEach(e=>{ if((e[k]||[]).includes(from)){ undoE.push([e,e[k].slice()]); e[k]=swap(e[k]); } });
   tasks.forEach(t=>{ if((t[k]||[]).includes(from)){ undoT.push([t,t[k].slice()]); t[k]=swap(t[k]); } });
   const wasCustom=lists["_custom_"+k].includes(from), wasHidden=(lists["_hide_"+k]||[]).includes(from);
   lists["_custom_"+k]=lists["_custom_"+k].filter(v=>v!==from); lists["_hide_"+k]=(lists["_hide_"+k]||[]).filter(v=>v!==from);
-  lists[k]=lists[k].filter(v=>v!==from); if(!lists[k].includes(to)) lists[k].push(to);
+  lists[k]=lists[k].filter(v=>v!==from);
+  const addedCustom=[];
+  toArr.forEach(v=>{ if(!lists[k].includes(v)) lists[k].push(v); if(!useCount(k)[v] && !lists["_custom_"+k].includes(v)){ lists["_custom_"+k].push(v); addedCustom.push(v); } });
   persist(); saveTasks(); renderAll(); renderMgr();
-  toast("מוזג: "+from+" ← "+to+" ("+undoE.length+" אירועים)",{label:"בטל",fn:()=>{
+  toast((split?"פוצל: ":"מוזג: ")+from+" ← "+toArr.join(" + ")+" ("+undoE.length+" אירועים)",{label:"בטל",fn:()=>{
+    lists["_custom_"+k]=lists["_custom_"+k].filter(v=>!addedCustom.includes(v));
     undoE.forEach(([e,v])=>{ e[k]=v; }); undoT.forEach(([t,v])=>{ t[k]=v; });
     if(wasCustom) lists["_custom_"+k].push(from); if(wasHidden) lists["_hide_"+k].push(from); else if(!lists[k].includes(from)) lists[k].push(from);
-    persist(); saveTasks(); renderAll(); renderMgr(); toast("המיזוג בוטל"); }});
+    persist(); saveTasks(); load(); renderAll(); renderMgr(); toast(split?"הפיצול בוטל":"המיזוג בוטל"); }});
 }
 function renderMgr(){
   const box=$("#listMgr"); box.textContent="";
@@ -266,6 +274,21 @@ function renderMgr(){
         rw.append(mk("span","mgr-st "+(isRet?"off":"on"), isRet?"לא פעיל":"פעיל"), mk("b",null,v),
           mk("span","mgr-c", cnt[v] ? nf(cnt[v])+" אירועים" : "לא בשימוש"));
         const bt=(txt,cls,fn)=>{ const x=mk("button","btn mini"+(cls?" "+cls:""),txt); x.type="button"; x.onclick=fn; rw.appendChild(x); };
+        bt("פצל…","",()=>{
+          if(rw.querySelector(".mgr-split")) return;
+          const box=mk("div","mgr-split"), picks=[];
+          const chips=mk("div","split-chips"), sel=mk("select"), inp=mk("input","txt"), go=mk("button","btn mini ok","פצל"), no=mk("button","btn mini ghost","ביטול");
+          fillSelect(sel, active.filter(x=>x!==v), "", "הוסף מהרשימה…"); inp.placeholder="או הקלד שם חדש + Enter"; go.type=no.type="button";
+          const paintC=()=>{ chips.textContent=""; picks.forEach((x,i)=>{ const c=mk("button","split-chip",x+" ✕"); c.type="button"; c.onclick=()=>{ picks.splice(i,1); paintC(); }; chips.appendChild(c); });
+            if(!picks.length) chips.appendChild(mk("span","hint","בחר את האנשים שהערך הזה מייצג (2 או יותר)")); };
+          const addP=x=>{ x=String(x||"").trim(); if(x && x!==v && !picks.includes(x)){ picks.push(x); paintC(); } };
+          sel.onchange=()=>{ addP(sel.value); sel.value=""; };
+          inp.onkeydown=e=>{ if(e.key==="Enter"){ e.preventDefault(); addP(inp.value); inp.value=""; } };
+          go.onclick=()=>{ if(inp.value.trim()){ addP(inp.value); inp.value=""; } if(picks.length<2){ toast("בחר לפחות 2"); return; } mergeValue(k,v,picks.slice()); };
+          no.onclick=()=>box.remove();
+          const r2=mk("div","row"); r2.append(go,no);
+          box.append(mk("div","split-h","לפצל את “"+v+"” ל:"), chips, sel, inp, r2); paintC(); rw.appendChild(box);
+          enhanceSelect(sel); });
         bt("מזג…","",()=>{
           if(rw.querySelector("select")) return;
           const s=mk("select","mgr-into"); fillSelect(s, active.filter(x=>x!==v), "", "מזג לתוך…");
@@ -1444,7 +1467,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.52", APP_DATE="29/09/2026";
+const APP_VER="1.53", APP_DATE="29/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -1808,17 +1831,23 @@ function openSS(sel,btn){
   };
   q.oninput=paint;
   q.onkeydown=e=>{ if(e.key==="Enter"){ e.preventDefault(); if(first!==null) pick(first); } if(e.key==="Escape"){ closeSS(); btn.focus(); } };
-  paint(); document.body.appendChild(p); ssPanel=p;
-  const r=btn.getBoundingClientRect(), w=Math.max(r.width,Math.min(300,innerWidth-16));
-  const below=innerHeight-r.bottom, h=Math.min(380, Math.max(below, r.top)-12);
-  p.style.width=w+"px"; p.style.left=Math.max(8,Math.min(r.right-w,innerWidth-w-8))+"px";
-  if(below>=240 || below>=r.top){ p.style.top=(r.bottom+4)+"px"; } else { p.style.bottom=(innerHeight-r.top+4)+"px"; }
-  list.style.maxHeight=(h-56)+"px";
+  paint(); document.body.appendChild(p); ssPanel=p; p._btn=btn;
+  const place=()=>{
+    const r=btn.getBoundingClientRect(), w=Math.max(r.width,Math.min(300,innerWidth-16));
+    const below=innerHeight-r.bottom, h=Math.min(380, Math.max(below, r.top)-12);
+    p.style.width=w+"px"; p.style.left=Math.max(8,Math.min(r.right-w,innerWidth-w-8))+"px";
+    if(below>=240 || below>=r.top){ p.style.top=(r.bottom+4)+"px"; p.style.bottom=""; } else { p.style.bottom=(innerHeight-r.top+4)+"px"; p.style.top=""; }
+    list.style.maxHeight=Math.max(120,h-56)+"px";
+  };
+  place(); p._place=place;
   const on=list.querySelector(".ss-opt.on"); if(on) on.scrollIntoView({block:"nearest"});
   q.focus({preventScroll:true});
   addEventListener("pointerdown",ssOutside,true);
 }
-addEventListener("scroll",e=>{ if(ssPanel && !ssPanel.contains(e.target)) closeSS(); },true);
+addEventListener("scroll",e=>{            // follow the button while the page scrolls; close only when it leaves the screen
+  if(!ssPanel || ssPanel.contains(e.target)) return;
+  const r=ssPanel._btn.getBoundingClientRect(); if(r.bottom<0 || r.top>innerHeight) closeSS(); else ssPanel._place();
+},true);
 addEventListener("resize",closeSS);
 ["#tkPpl","#tkLoc","#tkEq","#tfPpl","#tfLoc"].forEach(id=>enhanceSelect($(id)));
 
