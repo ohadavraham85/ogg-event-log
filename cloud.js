@@ -185,8 +185,10 @@
       // assigned to me by name, or to my department (a change that newly includes me)
       const mineT=x=>window.taskIsMine ? window.taskIsMine(x) : (x.ppl||[]).includes(mine);
       if(!firstEver && mine && d._by && d._by!==me && t.status!=="הושלמה" && mineT(t) && !(was && mineT(was))) assigned.push(t);
-      // messages list: anything someone else did to a task of mine (or that stopped being mine)
-      if(!firstEver && mine && d._by && d._by!==me && (mineT(t) || (was && mineT(was))))
+      // messages list: anything someone else did to a task of mine (or that stopped being mine),
+      // or to a task I'm involved in — I opened it or wrote an update on it
+      const touched=x=>!!x && (x.log||[]).some(l=>l && l.mail===me), inv=x=>!!x && (mineT(x) || touched(x));
+      if(!firstEver && d._by && d._by!==me && (inv(t) || inv(was)))
         news.push(...taskNews(was, t, whoOf(d._by), mineT(t), !!was && mineT(was), d._upd && d._upd.toMillis ? d._upd.toMillis() : Date.now()));
       // update log: keep entries this device has that the incoming copy lacks (two people updating at once)
       if(was && Array.isArray(was.log) && was.log.length){
@@ -215,14 +217,15 @@
   // what changed in one task, as messages for its assignee: new assignment, update-log entries, edited details
   function taskNews(was, t, who, mineNow, mineWas, upd){
     const out=[], base={tid:t.id, title:t.title||"", by:who}, dm=v=>v ? v.slice(8,10)+"/"+v.slice(5,7) : "—";
-    if(!mineNow){ out.push({...base, id:t.id+":off:"+upd, kind:"off", text:"המשימה כבר לא משויכת אליך"}); return out; }
-    if(!mineWas){
+    if(mineWas && !mineNow){ out.push({...base, id:t.id+":off:"+upd, kind:"off", text:"המשימה כבר לא משויכת אליך"}); return out; }
+    if(mineNow && !mineWas){
       if(t.status!=="הושלמה") out.push({...base, id:t.id+":as:"+upd, kind:"assign",
         text:"הוקצתה לך משימה"+(t.prio && t.prio!=="רגילה" ? " · "+t.prio : "")+(t.due ? " · יעד "+dm(t.due) : "")});
       return out;
     }
+    if(!was) return out;
     const had=new Set((was.log||[]).map(l=>l && l.id));
-    (t.log||[]).filter(l=>l && !had.has(l.id)).forEach(l=>out.push({...base, id:t.id+":"+l.id, kind:l.sys ? "status" : "update",
+    (t.log||[]).filter(l=>l && !had.has(l.id) && l.mail!==me).forEach(l=>out.push({...base, id:t.id+":"+l.id, kind:l.sys ? "status" : "update",
       text:l.text||"", by:l.by||who, at:l.at}));
     const ch=[], same=(a,b)=>JSON.stringify(a||"")===JSON.stringify(b||"");
     if(!same(t.title,was.title)) ch.push("כותרת");
