@@ -1444,7 +1444,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.51", APP_DATE="29/09/2026";
+const APP_VER="1.52", APP_DATE="29/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -1689,11 +1689,12 @@ function renderTasks(){
 function openTaskForm(id){
   const t=id ? tasks.find(x=>x.id===id) : null; tkEdit=t ? t.id : null;
   const types=lists.type||[], defType=types.includes("אחזקה") ? "אחזקה" : (types[0]||"");
-  fillSelect($("#tkType"), byUse("type"), t ? (t.type||"") : defType, "— ללא —");
+  fillSelect($("#tkType"), byUse("type"), t ? (t.type||"") : defType, "— בחר סוג —");
   fillSelect($("#tkPrio"), PRIOS, t ? prioOf(t) : "רגילה");
-  fillSelect($("#tkPpl"), pplValues(), t ? (t.ppl||[])[0]||"" : (tkView==="mine" ? myName() : ""), "— ללא אחראי —", true);
-  fillSelect($("#tkLoc"), byUse("loc"), t ? (t.loc||[])[0]||"" : "", "— ללא —", true);
-  fillSelect($("#tkEq"), byUse("eq"), t ? (t.eq||[])[0]||"" : "", "— ללא —", true);
+  fillSelect($("#tkPpl"), pplValues(), t ? (t.ppl||[])[0]||"" : (tkView==="mine" ? myName() : ""), "— בחר אחראי —", true);
+  fillSelect($("#tkLoc"), byUse("loc"), t ? (t.loc||[])[0]||"" : "", "— בחר מיקום —", true);
+  fillSelect($("#tkEq"), byUse("eq"), t ? (t.eq||[])[0]||"" : "", "— בחר ציוד —", true);
+  document.querySelectorAll("#tkForm .tk-f.bad").forEach(x=>x.classList.remove("bad"));
   paintFormColors();
   $("#tkFormTitle").textContent = t ? "עריכת משימה" : "משימה חדשה";
   $("#tkTitle").value=t?t.title||"":""; $("#tkDesc").value=t?t.desc||"":"";
@@ -1714,12 +1715,21 @@ function openTaskForm(id){
   };
 });
 $("#tkPrio").onchange=$("#tkType").onchange=paintFormColors;
+["#tkType","#tkPrio","#tkPpl","#tkDue","#tkLoc","#tkEq","#tkTitle"].forEach(id=>{
+  const clr=()=>{ if($(id).value) $(id).closest(".tk-f").classList.remove("bad"); };
+  $(id).addEventListener("change",clr); $(id).addEventListener("input",clr); });
 function closeTaskForm(){ $("#tkForm").hidden=true; $("#tkNewBtn").hidden=false; tkEdit=null; }
 const one=v=>v && v!=="__other" ? [v] : [];
 $("#tkNewBtn").onclick=()=>openTaskForm(null);
 $("#tkCancel").onclick=closeTaskForm;
 $("#tkSave").onclick=()=>{
-  const title=$("#tkTitle").value.trim(); if(!title){ toast("כתוב מה צריך לעשות"); $("#tkTitle").focus(); return; }
+  // all fields are required: type, priority, assignee, due date, location, equipment, and what to do
+  const need=[["#tkType","סוג"],["#tkPrio","עדיפות"],["#tkPpl","אחראי"],["#tkDue","תאריך יעד"],["#tkLoc","מיקום"],["#tkEq","ציוד"],["#tkTitle","מה צריך לעשות"]];
+  const miss=need.filter(([id])=>{ const v=($(id).value||"").trim(); const bad=!v || v==="__other";
+    $(id).closest(".tk-f").classList.toggle("bad",bad); return bad; });
+  if(miss.length){ toast("חסר: "+miss.map(m=>m[1]).join(", "));
+    const f=$(miss[0][0]); (f.classList.contains("ss-hidden") ? f.nextElementSibling : f).focus(); return; }
+  const title=$("#tkTitle").value.trim();
   const now=new Date().toISOString(), prio=$("#tkPrio").value||"רגילה";
   const data={title, desc:$("#tkDesc").value.trim(), type:$("#tkType").value||"", prio, urgent:prio==="דחופה",
     ppl:one($("#tkPpl").value), loc:one($("#tkLoc").value), eq:one($("#tkEq").value), due:$("#tkDue").value||"", upd:now};

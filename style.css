@@ -890,3 +890,6 @@ body.d-drag, body.d-drag *{cursor:grabbing!important;user-select:none!important}
 .ss-opt.on{background:var(--water-soft);color:var(--water);font-weight:800}
 .ss-opt.sp{color:var(--ink-2)}
 .ss-none{color:var(--ink-3);padding:8px 10px;font-size:14px}
+.req{color:var(--c-fault);font-style:normal;font-weight:900}
+.tk-f.bad > span{color:var(--c-fault);font-weight:800}
+.tk-f.bad input,.tk-f.bad select,.tk-f.bad textarea,.tk-f.bad .ss-btn{border-color:var(--c-fault)!important;box-shadow:0 0 0 2px var(--c-fault-bg)}
