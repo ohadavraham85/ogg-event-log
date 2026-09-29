@@ -898,3 +898,11 @@ body.d-drag, body.d-drag *{cursor:grabbing!important;user-select:none!important}
 .split-chips{display:flex;flex-wrap:wrap;gap:6px}
 .split-chip{border:1px solid var(--water);background:var(--panel);color:var(--water);border-radius:99px;padding:4px 10px;font:inherit;font-size:13.5px;font-weight:800;cursor:pointer}
 .mgr-split .txt{width:100%;box-sizing:border-box}
+#dlgFix{max-width:560px;max-height:calc(100dvh - 24px);overflow:auto}
+.fix-list{display:flex;flex-direction:column;gap:2px;margin-bottom:12px;max-height:60vh;overflow:auto}
+.fix-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;padding:8px 4px;border-bottom:1px solid var(--edge-2);cursor:pointer}
+.fix-row input{width:20px;height:20px;accent-color:var(--water);flex:none}
+.fix-row.none{opacity:.5}
+.fix-t{flex:1 1 200px;min-width:0;overflow-wrap:anywhere;font-size:14.5px}
+.fix-t em{font-style:normal;color:var(--ink-3);font-size:12.5px}
+.fix-open{margin-top:12px}

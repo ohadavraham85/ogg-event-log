@@ -203,6 +203,26 @@ function dupPairs(k){
 }
 /* merge: one value becomes another; split: one value ("שלומי איציק") becomes several ("שלומי אביטל", "איציק גואל").
    Only the value inside events/tasks changes — no event is added or removed. */
+function snapValues(){          // for "בטל": the value arrays of every event/task + the list settings
+  const keys=MGR_KEYS.map(x=>x[0]);
+  return { ev:events.map(e=>[e,keys.map(k=>Array.isArray(e[k])?e[k].slice():e[k])]), tk:tasks.map(t=>[t,keys.map(k=>Array.isArray(t[k])?t[k].slice():t[k])]),
+    ls:keys.map(k=>[k,(lists["_custom_"+k]||[]).slice(),(lists["_hide_"+k]||[]).slice()]), keys };
+}
+function restoreValues(s){
+  s.ev.forEach(([e,v])=>s.keys.forEach((k,i)=>{ if(v[i]===undefined) delete e[k]; else e[k]=v[i]; }));
+  s.tk.forEach(([t,v])=>s.keys.forEach((k,i)=>{ if(v[i]===undefined) delete t[k]; else t[k]=v[i]; }));
+  s.ls.forEach(([k,c,h])=>{ lists["_custom_"+k]=c; lists["_hide_"+k]=h; });
+  persist(); saveTasks(); load(); renderAll(); renderMgr();
+}
+function remapCore(k, from, toArr){          // returns how many events changed; never adds or removes events
+  let n=0; const swap=arr=>[...new Set(arr.flatMap(v=>v===from?toArr:[v]))];
+  events.forEach(e=>{ if((e[k]||[]).includes(from)){ e[k]=swap(e[k]); n++; } });
+  tasks.forEach(t=>{ if((t[k]||[]).includes(from)) t[k]=swap(t[k]); });
+  lists["_custom_"+k]=lists["_custom_"+k].filter(v=>v!==from); lists["_hide_"+k]=(lists["_hide_"+k]||[]).filter(v=>v!==from);
+  lists[k]=lists[k].filter(v=>v!==from);
+  toArr.forEach(v=>{ if(!lists[k].includes(v)) lists[k].push(v); if(!lists["_custom_"+k].includes(v)) lists["_custom_"+k].push(v); });
+  return n;
+}
 async function mergeValue(k, from, to){
   const toArr=(Array.isArray(to)?to:[to]).map(v=>String(v).trim()).filter(v=>v && v!==from);
   if(!from || !toArr.length) return;
@@ -212,21 +232,37 @@ async function mergeValue(k, from, to){
     false, {ok1:split?"המשך לפיצול":"המשך למיזוג", ok2:split?"כן, פצל":"כן, מזג",
       warn:"⚠ אישור שני: הערך יוחלף בכל האירועים והמשימות"+(CLOUD_ON?" — לכל הצוות":"")+". מספר האירועים לא משתנה. אפשר לבטל מיד אחרי."});
   if(!ok) return;
-  const undoE=[], undoT=[];
-  const swap=arr=>[...new Set(arr.flatMap(v=>v===from?toArr:[v]))];
-  events.forEach(e=>{ if((e[k]||[]).includes(from)){ undoE.push([e,e[k].slice()]); e[k]=swap(e[k]); } });
-  tasks.forEach(t=>{ if((t[k]||[]).includes(from)){ undoT.push([t,t[k].slice()]); t[k]=swap(t[k]); } });
-  const wasCustom=lists["_custom_"+k].includes(from), wasHidden=(lists["_hide_"+k]||[]).includes(from);
-  lists["_custom_"+k]=lists["_custom_"+k].filter(v=>v!==from); lists["_hide_"+k]=(lists["_hide_"+k]||[]).filter(v=>v!==from);
-  lists[k]=lists[k].filter(v=>v!==from);
-  const addedCustom=[];
-  toArr.forEach(v=>{ if(!lists[k].includes(v)) lists[k].push(v); if(!useCount(k)[v] && !lists["_custom_"+k].includes(v)){ lists["_custom_"+k].push(v); addedCustom.push(v); } });
+  const snap=snapValues(), n=remapCore(k,from,toArr);
   persist(); saveTasks(); renderAll(); renderMgr();
-  toast((split?"פוצל: ":"מוזג: ")+from+" ← "+toArr.join(" + ")+" ("+undoE.length+" אירועים)",{label:"בטל",fn:()=>{
-    lists["_custom_"+k]=lists["_custom_"+k].filter(v=>!addedCustom.includes(v));
-    undoE.forEach(([e,v])=>{ e[k]=v; }); undoT.forEach(([t,v])=>{ t[k]=v; });
-    if(wasCustom) lists["_custom_"+k].push(from); if(wasHidden) lists["_hide_"+k].push(from); else if(!lists[k].includes(from)) lists[k].push(from);
-    persist(); saveTasks(); load(); renderAll(); renderMgr(); toast(split?"הפיצול בוטל":"המיזוג בוטל"); }});
+  toast((split?"פוצל: ":"מוזג: ")+from+" ← "+toArr.join(" + ")+" ("+n+" אירועים)",{label:"בטל",fn:()=>{ restoreValues(snap); toast(split?"הפיצול בוטל":"המיזוג בוטל"); }});
+}
+/* corrections file: {"app":"ogg-fixes","fixes":[{"list":"ppl","from":"…","to":["…","…"]}, …]} — a list of merges/splits
+   prepared outside the app (names never go into the code). Shown as a checklist with event counts; only checked rows apply. */
+function openFixes(fixes){
+  const box=$("#fixList"); box.textContent="";
+  const labels=Object.fromEntries(MGR_KEYS);
+  const rows=fixes.map(f=>{
+    const k=f.list||"ppl", to=(Array.isArray(f.to)?f.to:[f.to]).map(x=>String(x).trim()).filter(Boolean);
+    const n=useCount(k)[f.from]||0, nT=tasks.filter(t=>(t[k]||[]).includes(f.from)).length;
+    const r=mk("label","fix-row"+(n||nT?"":" none")), cb=mk("input"); cb.type="checkbox"; cb.checked=!!(n||nT); cb.disabled=!(n||nT);
+    const t=mk("span","fix-t"); t.append(mk("b",null,f.from), mk("em",null," ("+(n?nf(n)+" אירועים":"לא נמצא")+(nT?", "+nT+" משימות":"")+") ← "), mk("b",null,to.join(" + ")));
+    r.append(cb, mk("span","dup-why",(to.length>1?"פיצול":"מיזוג")+" · "+(labels[k]||k)), t); box.appendChild(r);
+    return {k,from:f.from,to,cb};
+  });
+  $("#fixSum").textContent=rows.filter(r=>!r.cb.disabled).length+" תיקונים רלוונטיים מתוך "+rows.length+". בטל סימון של מה שלא נכון.";
+  $("#fixOk").onclick=async()=>{
+    const sel_=rows.filter(r=>r.cb.checked && !r.cb.disabled); if(!sel_.length){ toast("לא נבחר אף תיקון"); return; }
+    $("#dlgFix").close();
+    const ok=await confirmDel("להחיל "+sel_.length+" תיקונים?", sel_.map(r=>"• "+r.from+" ← "+r.to.join(" + ")).join("\n"), false,
+      {ok1:"המשך", ok2:"כן, החל", warn:"⚠ אישור שני: השמות יוחלפו בכל האירועים והמשימות"+(CLOUD_ON?" — לכל הצוות":"")+". מספר האירועים לא משתנה. אפשר לבטל מיד אחרי."});
+    if(!ok) return;
+    const before=events.length, snap=snapValues(); let n=0;
+    sel_.forEach(r=>{ n+=remapCore(r.k,r.from,r.to); });
+    persist(); saveTasks(); renderAll(); renderMgr();
+    toast(sel_.length+" תיקונים הוחלו ("+n+" עדכונים באירועים, "+events.length+"/"+before+" אירועים)",{label:"בטל",fn:()=>{ restoreValues(snap); toast("התיקונים בוטלו"); }});
+  };
+  $("#fixNo").onclick=()=>$("#dlgFix").close();
+  $("#dlgFix").showModal();
 }
 function renderMgr(){
   const box=$("#listMgr"); box.textContent="";
@@ -1432,6 +1468,14 @@ function exportCsv(rows, filtered){
 }
 $("#expCsv").onclick=()=>exportCsv(events,false);
 $("#impBtn").onclick=()=>$("#impFile").click();
+$("#fixBtn").onclick=()=>$("#fixFile").click();
+$("#fixFile").onchange=ev=>{
+  const f=ev.target.files[0]; if(!f) return; const r=new FileReader();
+  r.onload=()=>{ try{ const d=JSON.parse(r.result); const fx=Array.isArray(d)?d:d.fixes;
+      if(!Array.isArray(fx) || !fx.every(x=>x && x.from && x.to)) throw 0; openFixes(fx); }
+    catch(e){ toast("זה לא קובץ תיקונים"); } };
+  r.readAsText(f); ev.target.value="";
+};
 $("#impFile").onchange=ev=>{
   const f=ev.target.files[0]; if(!f) return;
   const r=new FileReader();
@@ -1467,7 +1511,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.53", APP_DATE="29/09/2026";
+const APP_VER="1.54", APP_DATE="29/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
