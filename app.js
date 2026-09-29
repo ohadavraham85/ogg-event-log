@@ -1562,7 +1562,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.58", APP_DATE="29/09/2026";
+const APP_VER="1.59", APP_DATE="29/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -1916,10 +1916,18 @@ function renderCal(){
     const faults=evs.filter(e=>(e.type||[]).includes("תקלה")).length, late=k<today ? dues.length : 0;
     const c=mk("button","cal-d"+(inM?"":" out")+(k===today?" today":"")+(k===calSel?" sel":"")+(k<today?" past":"")); c.type="button";
     c.appendChild(mk("span","cal-n",String(d.getDate())));
-    const m=mk("span","cal-m");
-    if(evs.length){ const x=mk("span","cm c-ev",nf(evs.length)); if(faults) x.appendChild(mk("i","f")); m.appendChild(x); }
-    if(dues.length) m.appendChild(mk("span","cm "+(late?"c-late":"c-tk"),(late?"⚠":"")+nf(dues.length)));
-    if(dones.length) m.appendChild(mk("span","cm c-done","✓"+nf(dones.length)));
+    // titles on the day itself: tasks first (overdue / due / done), then events by time; "+N" for the rest
+    const items=[];
+    dues.forEach(t=>items.push({cls:late?"i-late":"i-tk", t:(late?"⚠ ":"")+(t.title||"משימה"), hue:null}));
+    dones.forEach(t=>items.push({cls:"i-done", t:"✓ "+(t.title||"משימה")}));
+    evs.slice().sort((x,y)=>String(x.when).localeCompare(String(y.when))).forEach(e=>{
+      const ty=(e.type||[])[0]||""; items.push({cls:"i-ev", t:e.title||String(e.desc||"").slice(0,40)||ty||"אירוע", hue:hueOf(ty)}); });
+    const max=matchMedia("(min-width:700px)").matches ? 4 : 2, m=mk("span","cal-m");
+    items.slice(0, items.length>max ? max-1 : max).forEach(it=>{
+      const s=mk("span","ci "+it.cls, it.t);
+      if(it.hue){ s.style.borderInlineStartColor="var(--c-"+it.hue+")"; s.style.background="var(--c-"+it.hue+"-bg)"; s.style.color="var(--c-"+it.hue+")"; }
+      m.appendChild(s); });
+    if(items.length>max) m.appendChild(mk("span","ci i-more","+"+nf(items.length-max+1)+" עוד"));
     c.appendChild(m);
     const tip=[evs.length?evs.length+" אירועים"+(faults?" ("+faults+" תקלות)":""):"", dues.length?dues.length+(late?" משימות באיחור":" משימות ליעד"):"", dones.length?dones.length+" משימות הושלמו":""].filter(Boolean).join(" · ");
     c.title=dmy(k)+(tip?" — "+tip:""); c.setAttribute("aria-label",c.title);
@@ -1956,6 +1964,7 @@ $("#calNext").onclick=()=>{ calM++; if(calM>11){ calM=0; calY++; } renderCal(); 
 $("#calToday").onclick=()=>{ const d=new Date(); calY=d.getFullYear(); calM=d.getMonth(); calSel=ymd(d); renderCal(); };
 document.querySelectorAll("#calMode button").forEach(b=>b.onclick=()=>{ calMd=b.dataset.m; try{ localStorage.setItem("ogg-cal-mode",calMd); }catch(e){} renderCal(); });
 $("#tabCal").onclick=()=>{ renderCal(); show("Cal"); };
+matchMedia("(min-width:700px)").addEventListener("change",()=>{ if(!$("#viewCal").hidden) renderCal(); });
 /* searchable dropdown: long lists (people, locations, equipment) get a search box.
    The real <select> stays (hidden) — the code keeps reading/writing it; this is only the face. */
 function enhanceSelect(sel){
