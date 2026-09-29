@@ -720,7 +720,7 @@ function renderStats(){
   });
   $("#cnt").textContent = events.length? "("+events.length+")":"";
 }
-function renderAll(){ paintRows(); renderFilters(); renderList(); renderStats(); renderMgr(); if(!$("#viewDash").hidden) renderDash(); updateBadge(); paintNewCount(); }
+function renderAll(){ paintRows(); renderFilters(); renderList(); renderStats(); renderMgr(); if(!$("#viewDash").hidden) renderDash(); if(!$("#viewCal").hidden) renderCal(); updateBadge(); paintNewCount(); }
 $("#q").oninput=renderList; $("#fType").onchange=renderList; $("#fLoc").onchange=renderList;
 
 /* ================= dashboard ================= */
@@ -1141,7 +1141,7 @@ function show(w){
   const prev=curView; curView=w;
   if(prev==="List" && w!=="List" && UNSEEN.size){ UNSEEN.clear(); saveUnseen(); }   // seen once you leave the list
   if($("#newCnt")) paintNewCount();
-  ["New","List","Dash","Data","Tasks"].forEach(v=>{
+  ["New","List","Dash","Data","Tasks","Cal"].forEach(v=>{
     $("#view"+v).hidden=(v!==w);
     $("#tab"+v).setAttribute("aria-selected",String(v===w));
   });
@@ -1562,11 +1562,11 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.57", APP_DATE="29/09/2026";
+const APP_VER="1.58", APP_DATE="29/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
-  const cur=["Dash","New","List","Data","Tasks"].find(v=>!$("#view"+v).hidden)||"Dash";
+  const cur=["Dash","New","List","Data","Tasks","Cal"].find(v=>!$("#view"+v).hidden)||"Dash";
   try{ sessionStorage.setItem("ogg-refresh",cur); }catch(e){}
   try{ const r=navigator.serviceWorker && await navigator.serviceWorker.getRegistration(); if(r) await r.update(); }catch(e){}
   location.reload();
@@ -1591,14 +1591,14 @@ $("#refreshBtn").onclick=()=>{ $("#refreshBtn").classList.add("spin"); refreshAp
 /* ================= splash ================= */
 let REFRESH_VIEW=null;
 try{ REFRESH_VIEW=sessionStorage.getItem("ogg-refresh"); sessionStorage.removeItem("ogg-refresh"); }catch(e){}
-if(!["Dash","New","List","Data","Tasks"].includes(REFRESH_VIEW)) REFRESH_VIEW=null;
+if(!["Dash","New","List","Data","Tasks","Cal"].includes(REFRESH_VIEW)) REFRESH_VIEW=null;
 // app-icon shortcuts open a screen directly (?view=New|Dash|List|Data|open)
 let DEEP_OPEN=false;
 (function(){
   const u=new URL(location.href), v=u.searchParams.get("view");
   if(!v) return;
   if(v==="open"){ DEEP_OPEN=true; if(!REFRESH_VIEW) REFRESH_VIEW="List"; }
-  else if(["Dash","New","List","Data","Tasks"].includes(v) && !REFRESH_VIEW) REFRESH_VIEW=v;
+  else if(["Dash","New","List","Data","Tasks","Cal"].includes(v) && !REFRESH_VIEW) REFRESH_VIEW=v;
   u.searchParams.delete("view"); history.replaceState(null,"",u.pathname+u.search);
 })();
 (function(){
@@ -1756,6 +1756,7 @@ function renderLog(t, c){
 function renderTasks(){
   paintTaskCount(); renderTkFilters();
   if(!$("#viewDash").hidden && typeof renderDash==="function") setTimeout(renderDash,0);   // keep the tasks card current
+  if(!$("#viewCal").hidden && typeof renderCal==="function") setTimeout(renderCal,0);
   const box=$("#tkList"); if(!box) return; box.textContent="";
   const today=ymd(new Date());
   const pass=t=>(!tkF.ppl || (t.ppl||[]).includes(tkF.ppl)) && (!tkF.loc || (t.loc||[]).includes(tkF.loc))
@@ -1889,6 +1890,72 @@ $("#tdOk").onclick=()=>{
   toast("המשימה הושלמה ונרשמה ביומן",{label:"הצג",fn:()=>{ $("#sortBy").value="edit"; goList({ppl:""}); }});
 };
 $("#tabTasks").onclick=()=>{ renderTasks(); show("Tasks"); };
+/* ================= calendar: events that happened + tasks (due / completed), month view ================= */
+let calY, calM, calSel=null, calMd="all";
+try{ calMd=localStorage.getItem("ogg-cal-mode")||"all"; }catch(e){}
+(()=>{ const d=new Date(); calY=d.getFullYear(); calM=d.getMonth(); })();
+const HEB_MONTHS=["ינואר","פברואר","מרץ","אפריל","מאי","יוני","יולי","אוגוסט","ספטמבר","אוקטובר","נובמבר","דצמבר"];
+function calIndex(){
+  const ev={}, due={}, done={};
+  if(calMd!=="tk") events.forEach(e=>{ const d=(e.when||"").slice(0,10); if(d) (ev[d]=ev[d]||[]).push(e); });
+  if(calMd!=="ev") tasks.forEach(t=>{
+    if(tkOpen(t) && t.due) (due[t.due]=due[t.due]||[]).push(t);
+    if(!tkOpen(t) && t.doneAt){ const d=String(t.doneAt).slice(0,10); (done[d]=done[d]||[]).push(t); } });
+  return {ev,due,done};
+}
+function renderCal(){
+  document.querySelectorAll("#calMode button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.m===calMd)));
+  $("#calTitle").textContent=HEB_MONTHS[calM]+" "+calY;
+  const I=calIndex(), today=ymd(new Date()), g=$("#calGrid"); g.textContent="";
+  "אבגדהוש".split("").forEach(c=>g.appendChild(mk("div","cal-dow",c)));
+  const first=new Date(calY,calM,1), start=new Date(first); start.setDate(1-first.getDay());
+  for(let i=0;i<42;i++){
+    const d=new Date(start); d.setDate(start.getDate()+i); const k=ymd(d), inM=d.getMonth()===calM;
+    if(i>=35 && !inM && d.getDate()>7) break;       // no empty 6th week
+    const evs=I.ev[k]||[], dues=I.due[k]||[], dones=I.done[k]||[];
+    const faults=evs.filter(e=>(e.type||[]).includes("תקלה")).length, late=k<today ? dues.length : 0;
+    const c=mk("button","cal-d"+(inM?"":" out")+(k===today?" today":"")+(k===calSel?" sel":"")+(k<today?" past":"")); c.type="button";
+    c.appendChild(mk("span","cal-n",String(d.getDate())));
+    const m=mk("span","cal-m");
+    if(evs.length){ const x=mk("span","cm c-ev",nf(evs.length)); if(faults) x.appendChild(mk("i","f")); m.appendChild(x); }
+    if(dues.length) m.appendChild(mk("span","cm "+(late?"c-late":"c-tk"),(late?"⚠":"")+nf(dues.length)));
+    if(dones.length) m.appendChild(mk("span","cm c-done","✓"+nf(dones.length)));
+    c.appendChild(m);
+    const tip=[evs.length?evs.length+" אירועים"+(faults?" ("+faults+" תקלות)":""):"", dues.length?dues.length+(late?" משימות באיחור":" משימות ליעד"):"", dones.length?dones.length+" משימות הושלמו":""].filter(Boolean).join(" · ");
+    c.title=dmy(k)+(tip?" — "+tip:""); c.setAttribute("aria-label",c.title);
+    c.onclick=()=>{ calSel=k; renderCal(); $("#calDay").scrollIntoView({block:"nearest",behavior:"smooth"}); };
+    g.appendChild(c);
+  }
+  renderCalDay(I, today);
+}
+function renderCalDay(I, today){
+  const box=$("#calDay"); box.textContent="";
+  const k=calSel || today, evs=(I.ev[k]||[]).slice().sort((a,b)=>String(a.when).localeCompare(String(b.when)));
+  const dues=I.due[k]||[], dones=I.done[k]||[];
+  const dn=new Date(k+"T12:00"), head=mk("h3",null,["יום ראשון","יום שני","יום שלישי","יום רביעי","יום חמישי","יום שישי","שבת"][dn.getDay()]+" · "+dmy(k)+(k===today?" · היום":""));
+  box.appendChild(head);
+  if(!evs.length && !dues.length && !dones.length){ box.appendChild(mk("p","hint",k>today?"אין משימות ליעד ביום הזה.":"לא נרשם כלום ביום הזה.")); return; }
+  const sec=(title,rows)=>{ if(!rows.length) return; box.appendChild(mk("div","cal-h",title)); rows.forEach(r=>box.appendChild(r)); };
+  sec(dues.length?(k<today?"⚠ משימות באיחור (יעד ביום הזה)":"משימות ליעד")+" ("+dues.length+")":"", dues.map(t=>{
+    const r=mk("button","cal-row r-task"); r.type="button"; r.style.borderInlineStartColor="var(--c-"+PRIO_HUE[prioOf(t)]+")";
+    r.append(mk("b",null,t.title||""), mk("span","cal-meta",[prioOf(t)!=="רגילה"?prioOf(t):"", (t.ppl||[])[0]||"", t.status==="בטיפול"?"בטיפול":""].filter(Boolean).join(" · ")));
+    r.onclick=()=>goTasks({}); return r; }));
+  sec(dones.length?"משימות שהושלמו ("+dones.length+")":"", dones.map(t=>{
+    const r=mk("button","cal-row r-done"); r.type="button"; r.append(mk("b",null,"✓ "+(t.title||"")), mk("span","cal-meta",(t.ppl||[])[0]||""));
+    r.onclick=()=>goTasks({view:"done"}); return r; }));
+  sec(evs.length?"אירועים ("+evs.length+")":"", evs.slice(0,60).map(e=>{
+    const t=(e.type||[])[0]||"", r=mk("button","cal-row r-ev"); r.type="button"; r.style.borderInlineStartColor="var(--c-"+hueOf(t)+")";
+    const b=mk("span","cal-time",(e.when||"").slice(11,16));
+    r.append(b, mk("b",null,e.title||String(e.desc||"").slice(0,70)||t), mk("span","cal-meta",[t,(e.loc||[])[0]||"",isOpen(e)?"פתוח":""].filter(Boolean).join(" · ")));
+    r.onclick=()=>goList({from:k,to:k,ppl:""}); return r; }));
+  if(evs.length>60) box.appendChild(mk("p","hint","ועוד "+(evs.length-60)+" — פתח ברשימה"));
+  if(evs.length){ const go=mk("button","btn","הצג את אירועי היום ברשימה"); go.type="button"; go.onclick=()=>goList({from:k,to:k,ppl:""}); box.appendChild(go); }
+}
+$("#calPrev").onclick=()=>{ calM--; if(calM<0){ calM=11; calY--; } renderCal(); };
+$("#calNext").onclick=()=>{ calM++; if(calM>11){ calM=0; calY++; } renderCal(); };
+$("#calToday").onclick=()=>{ const d=new Date(); calY=d.getFullYear(); calM=d.getMonth(); calSel=ymd(d); renderCal(); };
+document.querySelectorAll("#calMode button").forEach(b=>b.onclick=()=>{ calMd=b.dataset.m; try{ localStorage.setItem("ogg-cal-mode",calMd); }catch(e){} renderCal(); });
+$("#tabCal").onclick=()=>{ renderCal(); show("Cal"); };
 /* searchable dropdown: long lists (people, locations, equipment) get a search box.
    The real <select> stays (hidden) — the code keeps reading/writing it; this is only the face. */
 function enhanceSelect(sel){
