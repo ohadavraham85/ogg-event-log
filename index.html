@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;900&family=Rubik:wght@500;600;700&family=Assistant:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=1.44">
+<link rel="stylesheet" href="style.css?v=1.45">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0E7C86">
 <meta name="color-scheme" content="light dark">
@@ -111,7 +111,7 @@
       <img class="logo" src="icons/logo-header.png" alt="מבט&quot;י — מפעלי ביוב וטיהור ירושלים" width="101" height="137">
       <div class="mark">יומן אירועים <span class="sub">מט"ש אוג</span></div>
       <div class="clock" id="clock" aria-live="off"><span class="c-day" id="cDay"></span><span class="c-date" id="cDate"></span><b class="c-time" id="cTime"></b></div>
-      <span class="ver" id="verChip" title="גרסה">v1.44</span>
+      <span class="ver" id="verChip" title="גרסה">v1.45</span>
       <button class="icon-btn" id="refreshBtn" aria-label="רענון" title="רענון — טעינה מחדש ובדיקת עדכון"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M20.5 3.5v5h-5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       <button class="icon-btn" id="themeBtn" aria-label="מצב תצוגה">☾</button>
     </div>
@@ -224,6 +224,12 @@
         <button type="button" data-r="all">הכל</button>
       </div>
       <select id="dPpl" class="dsel" aria-label="סינון לפי מעורב"></select>
+      <button type="button" class="btn dlay-btn" id="dLayBtn" aria-pressed="false">✎ סידור</button>
+    </div>
+    <div class="dlay-bar" id="dLayBar" hidden>
+      <span>גוררים כרטיס בידית ⠿ (או בחצים) כדי לשנות את הסדר. 👁 מסתיר כרטיס<span class="dlay-w">, ↔ רחב/צר</span>.</span>
+      <button type="button" class="btn ghost" id="dLayReset">איפוס</button>
+      <button type="button" class="btn primary" id="dLayDone">סיום</button>
     </div>
     <p class="dsh-scope" id="dScope"></p>
     <div class="kpis" id="dKpis"></div>
@@ -318,7 +324,7 @@
 
     <div class="card">
       <h3>גרסה</h3>
-      <p id="verLine">גרסה 1.44 · 28/09/2026</p>
+      <p id="verLine">גרסה 1.45 · 29/09/2026</p>
       <div class="row"><button class="btn" id="reloadApp">בדוק עדכון</button></div>
     </div>
 
@@ -404,9 +410,9 @@
     <button class="btn ghost" id="wkClose" hidden>סגור</button></div>
 </dialog>
 
-<script src="firebase-config.js?v=1.44"></script>
-<script src="app.js?v=1.44"></script>
-<script src="cloud.js?v=1.44"></script>
+<script src="firebase-config.js?v=1.45"></script>
+<script src="app.js?v=1.45"></script>
+<script src="cloud.js?v=1.45"></script>
 <script>
 if("serviceWorker" in navigator){
   window.addEventListener("load",()=>{ navigator.serviceWorker.register("sw.js").catch(()=>{}); });

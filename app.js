@@ -580,6 +580,63 @@ function hbars(items, max, cls){
   });
   return box;
 }
+/* dashboard layout (per device): order, hidden cards, wide/narrow. "✎ סידור" turns on arrange mode:
+   drag by the ⠿ handle (mouse or finger), or ▲ ▼; 👁 hides; ↔ wide/narrow. */
+const K_DLAY="ogg-dash-layout";
+let dLay={order:[],hidden:[],wide:{}}, dEdit=false;
+try{ const x=JSON.parse(localStorage.getItem(K_DLAY)||"null"); if(x&&typeof x==="object") dLay={order:x.order||[],hidden:x.hidden||[],wide:x.wide||{}}; }catch(e){}
+function saveDLay(){ try{ localStorage.setItem(K_DLAY, JSON.stringify(dLay)); }catch(e){} }
+function dKey(c){ const h=c.querySelector("h3"); const t=h?h.textContent.trim():"";
+  return /^אירועים לפי (יום|שבוע|חודש|שנה)$/.test(t) ? "trend" : t; }
+function captureOrder(){ dLay.order=[...$("#dCards").children].map(c=>c.dataset.key).filter(Boolean); saveDLay(); }
+function arrangeDash(){
+  const box=$("#dCards"), cards=[...box.children].filter(c=>c.classList.contains("dcard"));
+  cards.forEach(c=>{ c.dataset.key=dKey(c); });
+  const pos=k=>{ const i=dLay.order.indexOf(k); return i<0 ? 1000+cards.findIndex(c=>c.dataset.key===k) : i; };
+  cards.slice().sort((x,y)=>pos(x.dataset.key)-pos(y.dataset.key)).forEach(c=>box.appendChild(c));
+  [...box.children].filter(c=>!c.classList.contains("dcard")).forEach(c=>box.appendChild(c));   // "no events" note last
+  cards.forEach(c=>{
+    const k=c.dataset.key, hid=dLay.hidden.includes(k);
+    if(k in dLay.wide) c.classList.toggle("wide", !!dLay.wide[k]);
+    c.classList.toggle("d-hidden", hid); c.hidden = hid && !dEdit;
+    c.classList.toggle("d-edit", dEdit);
+    const old=c.querySelector(".dc-tools"); if(old) old.remove();
+    if(!dEdit) return;
+    const tb=mk("div","dc-tools"), b=(txt,title,fn,cls)=>{ const x=mk("button","dct"+(cls?" "+cls:""),txt); x.type="button"; x.title=title; x.setAttribute("aria-label",title); x.onclick=fn; tb.appendChild(x); return x; };
+    const h=b("⠿","גרור לשינוי מקום",()=>{},"handle");
+    b("▲","למעלה",()=>{ const p=c.previousElementSibling; if(p){ box.insertBefore(c,p); captureOrder(); } });
+    b("▼","למטה",()=>{ const n=c.nextElementSibling; if(n){ box.insertBefore(n,c); captureOrder(); } });
+    b("↔",c.classList.contains("wide")?"צר":"רחב",()=>{ dLay.wide[k]=!c.classList.contains("wide"); saveDLay(); arrangeDash(); },"wbtn");
+    b(hid?"👁 הצג":"👁 הסתר",hid?"הצג את הכרטיס":"הסתר את הכרטיס",()=>{
+      dLay.hidden = hid ? dLay.hidden.filter(x=>x!==k) : dLay.hidden.concat(k); saveDLay(); arrangeDash(); },"eye");
+    dragHandle(h,c);
+    c.insertBefore(tb,c.firstChild);
+  });
+  $("#dLayBar").hidden=!dEdit; $("#dLayBtn").setAttribute("aria-pressed",String(dEdit));
+  $("#dLayBtn").textContent = dEdit ? "✓ סיום סידור" : "✎ סידור";
+}
+function dragHandle(h,c){
+  h.style.touchAction="none";
+  h.onpointerdown=ev=>{
+    ev.preventDefault(); c.classList.add("dragging");   // listen on window: moving the card in the page drops pointer capture
+    const box=$("#dCards");
+    const move=e=>{
+      if(e.clientY<70) window.scrollBy(0,-14); else if(e.clientY>innerHeight-70) window.scrollBy(0,14);
+      c.style.pointerEvents="none"; const el=document.elementFromPoint(e.clientX,e.clientY); c.style.pointerEvents="";
+      const t=el && el.closest && el.closest("#dCards > .dcard"); if(!t || t===c) return;
+      const r=t.getBoundingClientRect();
+      const sameRow = e.clientY>r.top+r.height*0.25 && e.clientY<r.bottom-r.height*0.25 && !t.classList.contains("wide");
+      const before = sameRow ? e.clientX>r.left+r.width/2 : e.clientY<r.top+r.height/2;   // RTL: the right side comes first
+      box.insertBefore(c, before ? t : t.nextElementSibling);
+    };
+    const up=()=>{ c.classList.remove("dragging"); removeEventListener("pointermove",move); removeEventListener("pointerup",up); removeEventListener("pointercancel",up); captureOrder(); };
+    addEventListener("pointermove",move); addEventListener("pointerup",up); addEventListener("pointercancel",up);
+  };
+}
+$("#dLayBtn").onclick=()=>{ dEdit=!dEdit; arrangeDash(); };
+$("#dLayDone").onclick=()=>{ dEdit=false; arrangeDash(); toast("סידור הדשבורד נשמר"); };
+$("#dLayReset").onclick=()=>{ if(!confirm("להחזיר את הדשבורד לסידור הרגיל?")) return; dLay={order:[],hidden:[],wide:{}}; saveDLay(); renderDash(); };
+
 /* dashboard: tasks card — tiles, open tasks by priority (ordinal red ramp, validated light & dark),
    open tasks by assignee, and the ones that need attention now (overdue / urgent). Every piece opens the task list filtered. */
 function goTasks(o){
@@ -647,7 +704,8 @@ function dashTasks(cards, from){
       .concat(PRIOS.map(p=>["עדיפות "+p, open.filter(t=>prioOf(t)===p).length])), ["מדד","משימות"]);
   c.classList.add("wide"); cards.appendChild(c);
 }
-function renderDash(){
+function renderDash(){ renderDash0(); arrangeDash(); }
+function renderDash0(){
   document.querySelectorAll("#dRange button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.r===dRange)));
   const from = dRange==="all" ? "" : ymd(daysAgo(+dRange-1));
   const today = ymd(daysAgo(0));
@@ -1268,7 +1326,7 @@ $("#wipeAll").onclick=()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.44", APP_DATE="28/09/2026";
+const APP_VER="1.45", APP_DATE="29/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){

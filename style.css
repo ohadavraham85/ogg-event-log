@@ -770,3 +770,21 @@ html.sp-open,html.sp-open body{overflow:hidden}
 .dt-m{font-size:12.5px;color:var(--ink-2);font-weight:700}
 .dt-empty p{margin:6px 0 10px;color:var(--ink-2)}
 @media (max-width:560px){ .dt-tiles{grid-template-columns:1fr 1fr} .dt-tile{padding:9px 11px} .dt-tile b{font-size:24px} }
+/* dashboard arrange mode */
+.dlay-btn{padding:7px 12px;font-size:13.5px;flex:none}
+.dlay-btn[aria-pressed="true"]{background:var(--water);border-color:var(--water);color:#fff}
+.dlay-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:8px 0 12px;padding:10px 12px;border-radius:12px;
+  background:var(--water-soft);border:1px dashed var(--water);font-size:13.5px;color:var(--ink)}
+.dlay-bar[hidden]{display:none}
+.dlay-bar span{flex:1 1 220px}
+.dlay-bar .btn{padding:7px 14px;font-size:14px;flex:none}
+#dCards > .d-edit{outline:2px dashed color-mix(in srgb,var(--water) 55%,transparent);outline-offset:-2px;position:relative}
+#dCards > .d-edit.d-hidden{opacity:.45}
+#dCards > .dragging{opacity:.7;outline:2px solid var(--water);box-shadow:0 10px 26px rgba(0,0,0,.2);z-index:2}
+.dc-tools{display:flex;flex-wrap:wrap;gap:5px;justify-content:flex-end;margin:-4px 0 8px}
+.dct{border:1px solid var(--edge);background:var(--panel-2);color:var(--ink);border-radius:9px;min-width:36px;height:34px;
+  padding:0 9px;font:inherit;font-size:14px;font-weight:800;cursor:pointer}
+.dct:hover{border-color:var(--water)}
+.dct.handle{cursor:grab;font-size:18px;margin-inline-end:auto;background:var(--water-soft);color:var(--water);border-color:var(--water)}
+.dct.handle:active{cursor:grabbing}
+@media (max-width:1099px){ .dct.wbtn,.dlay-w{display:none} }
