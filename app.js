@@ -169,43 +169,60 @@ $("#scrim").onclick = closeSheet;
 document.addEventListener("keydown", e=>{ if(e.key==="Escape" && shKey) closeSheet(); });
 
 /* ================= list manager ================= */
+/* ===== list management ("רשימות וקובץ"): one place for people, locations, equipment and event types.
+   Active values appear in every dropdown (event form, tasks, filters for new work). "הוצא משימוש" retires a value:
+   it disappears from all dropdowns, but old events keep it and the history filters still find it. */
+const MGR_KEYS=[["ppl","אנשים"],["loc","מיקומים"],["eq","ציוד"],["type","סוגי אירוע"]];
+const mgrOpen=new Set(), mgrQ={};
+function retireValue(k,v){ if(!lists["_hide_"+k].includes(v)) lists["_hide_"+k].push(v);
+  const i=lists[k].indexOf(v); if(i>=0) lists[k].splice(i,1); const s=sel[k].indexOf(v); if(s>=0) sel[k].splice(s,1);
+  persist(); paintRows(); renderMgr(); renderTasks();
+  toast(v+" הוצא משימוש",{label:"בטל",fn:()=>restoreValue(k,v)}); }
+function restoreValue(k,v){ const h=lists["_hide_"+k].indexOf(v); if(h>=0) lists["_hide_"+k].splice(h,1);
+  if(!lists[k].includes(v)) lists[k].push(v); persist(); paintRows(); renderMgr(); renderTasks(); toast(v+" חזר לרשימות"); }
 function renderMgr(){
   const box=$("#listMgr"); box.textContent="";
-  Object.keys(SEED).forEach(k=>{
-    const h=document.createElement("div");
-    h.style.cssText="font-weight:700;font-size:13px;color:var(--ink-3);margin:14px 0 4px";
-    h.textContent = META[k].title + " (" + lists[k].length + ")";
-    box.appendChild(h);
-    const r=document.createElement("div"); r.className="row"; r.style.margin="0 0 8px";
-    const inp=document.createElement("input"); inp.className="txt"; inp.style.flex="1";
-    inp.placeholder="ערך חדש";
-    const add=document.createElement("button"); add.className="btn"; add.textContent="הוסף";
-    const go=()=>{ if(!inp.value.trim()) return; const k2=k;
-      if(!lists[k2].includes(inp.value.trim())){ lists["_custom_"+k2].push(inp.value.trim());
-        const hi=lists["_hide_"+k2].indexOf(inp.value.trim()); if(hi>=0) lists["_hide_"+k2].splice(hi,1);
-        lists[k2].push(inp.value.trim()); }
-      inp.value=""; persist(); renderMgr(); toast("נוסף לרשימה"); };
-    add.onclick=go; inp.onkeydown=e=>{ if(e.key==="Enter"){e.preventDefault();go();} };
-    r.append(inp,add); box.appendChild(r);
-
-    const cnt=useCount(k);
-    lists[k].forEach(v=>{
-      const row=document.createElement("div"); row.className="listrow";
-      const b=document.createElement("b"); b.textContent=v;
-      const s=document.createElement("span"); s.textContent = cnt[v] ? cnt[v]+" רישומים" : "";
-      row.append(b,s);
-      if(!cnt[v]){
-        const x=document.createElement("button"); x.className="btn";
-        x.style.cssText="padding:5px 11px;font-size:13px"; x.textContent="הסר";
-        x.onclick=async()=>{ if(!await confirmDel("להסיר מהרשימה?", META[k].title+": "+v)) return;
-          lists["_custom_"+k].includes(v) ? removeValue(k,v) : hideSeed(k,v); };
-        row.appendChild(x);
-      } else {
-        const l=document.createElement("span"); l.className="inuse"; l.textContent="בשימוש";
-        row.appendChild(l);
-      }
-      box.appendChild(row);
-    });
+  MGR_KEYS.forEach(([k,label])=>{
+    const cnt=useCount(k), active=lists[k].slice().sort((x,y)=>(cnt[y]||0)-(cnt[x]||0)||x.localeCompare(y,"he"));
+    const retired=(lists["_hide_"+k]||[]).filter(v=>cnt[v]||lists["_custom_"+k].includes(v)||SEED[k].includes(v)).sort((x,y)=>x.localeCompare(y,"he"));
+    const det=mk("details","mgr"); det.open=mgrOpen.has(k); det.ontoggle=()=>{ det.open?mgrOpen.add(k):mgrOpen.delete(k); };
+    const sum=mk("summary"); sum.append(mk("b",null,label), mk("span","mgr-n",active.length+" פעילים"+(retired.length?" · "+retired.length+" לא פעילים":"")));
+    det.appendChild(sum);
+    // add
+    const r=mk("div","row mgr-add"); const inp=mk("input","txt"); inp.placeholder="הוסף "+label.replace(/ים$|ות$/,"")+"…"; inp.placeholder="ערך חדש ב"+label;
+    const add=mk("button","btn","הוסף"); add.type="button";
+    const go=()=>{ const v=inp.value.trim(); if(!v) return;
+      if(lists["_hide_"+k].includes(v)){ restoreValue(k,v); inp.value=""; return; }
+      if(!lists[k].includes(v)){ if(!lists["_custom_"+k].includes(v)) lists["_custom_"+k].push(v); lists[k].push(v); }
+      inp.value=""; persist(); paintRows(); renderMgr(); renderTasks(); toast(v+" נוסף לרשימות"); };
+    add.onclick=go; inp.onkeydown=e=>{ if(e.key==="Enter"){ e.preventDefault(); go(); } };
+    r.append(inp,add); det.appendChild(r);
+    // search
+    const q=mk("input","txt mgr-q"); q.type="search"; q.placeholder="חיפוש…"; q.value=mgrQ[k]||"";
+    det.appendChild(q);
+    const list=mk("div","mgr-list"); det.appendChild(list);
+    const paint=()=>{
+      list.textContent=""; const f=(mgrQ[k]||"").trim();
+      const row=(v,isRet)=>{
+        const rw=mk("div","listrow"+(isRet?" retired":""));
+        rw.append(mk("b",null,v), mk("span","mgr-c", cnt[v] ? nf(cnt[v])+" אירועים" : "לא בשימוש"));
+        const bt=(txt,cls,fn)=>{ const x=mk("button","btn mini"+(cls?" "+cls:""),txt); x.type="button"; x.onclick=fn; rw.appendChild(x); };
+        if(isRet) bt("החזר","ok",()=>restoreValue(k,v));
+        else {
+          bt("הוצא משימוש","",()=>retireValue(k,v));
+          if(!cnt[v] && lists["_custom_"+k].includes(v))
+            bt("מחק","danger",async()=>{ if(await confirmDel("למחוק מהרשימות?", label+": "+v+"\nלא משמש אף אירוע.")) removeValue(k,v); });
+        }
+        list.appendChild(rw);
+      };
+      const act=active.filter(v=>!f||v.includes(f)), ret=retired.filter(v=>!f||v.includes(f));
+      act.forEach(v=>row(v,false));
+      if(!act.length) list.appendChild(mk("p","hint",f?"אין התאמה.":"הרשימה ריקה."));
+      if(ret.length){ list.appendChild(mk("div","mgr-h","לא פעילים — לא מופיעים ברשימות הבחירה, נשארים באירועים הישנים")); ret.forEach(v=>row(v,true)); }
+    };
+    q.oninput=()=>{ mgrQ[k]=q.value; paint(); };
+    paint();
+    box.appendChild(det);
   });
 }
 
@@ -424,13 +441,12 @@ function renderList(reset){
       acts.appendChild(lk);
       d.classList.add("locked");
     } else {
-    const ed=document.createElement("button"); ed.textContent="עריכה"; ed.onclick=()=>loadInto(e);
     const rm=document.createElement("button"); rm.textContent="מחיקה";
     rm.onclick=async()=>{
       const what=[fmtWhen(e.when),(e.type||[]).join(", "),e.title||String(e.desc||"").slice(0,80)].filter(Boolean).join(" · ");
       if(!await confirmDel("למחוק את האירוע?", what+(CLOUD_ON?"\nהאירוע יימחק לכל הצוות.":""))) return;
       events=events.filter(x=>x.id!==e.id); persist(); renderAll(); toast("האירוע נמחק"); };
-    acts.append(ed,rm);
+    acts.append(rm);
     }
     if(top) d.appendChild(top); d.append(b,det,acts); box.appendChild(d);
   });
@@ -1351,7 +1367,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.46", APP_DATE="29/09/2026";
+const APP_VER="1.47", APP_DATE="29/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -1437,6 +1453,10 @@ function paintTaskCount(){
   const m=tasks.filter(t=>tkOpen(t)&&isMine(t)).length, el=$("#tkMine");
   el.textContent = m ? String(m) : ""; el.title = m ? m+" משימות פתוחות שלך" : ""; el.hidden=!m;
   $("#tkSegMine").hidden=!myName();
+  const segN={open:n, done:tasks.length-n, mine:m};
+  document.querySelectorAll("#tkSeg button").forEach(b=>{
+    const base={open:"פתוחות",done:"הושלמו",mine:"שלי"}[b.dataset.v];
+    b.textContent=""; b.append(base+" "); b.appendChild(mk("span","seg-n",nf(segN[b.dataset.v]||0))); });
   if(tkView==="mine" && !myName()){ tkView="open"; paintTkSeg(); }
 }
 function showMyTasks(){
@@ -1451,7 +1471,7 @@ function byUse(k){
   const m=freqCache[k];
   return (lists[k]||[]).slice().sort((x,y)=>(m.get(y)||0)-(m.get(x)||0) || x.localeCompare(y,"he"));
 }
-function pplValues(){ return [...new Set((window.TEAM_NAMES||[]).concat(byUse("ppl")))]; }
+function pplValues(){ const off=lists._hide_ppl||[]; return [...new Set((window.TEAM_NAMES||[]).filter(n=>!off.includes(n)).concat(byUse("ppl")))]; }
 function fillSelect(el, values, cur, first, other){
   el.textContent="";
   if(first!==undefined){ const o=mk("option",null,first); o.value=""; el.appendChild(o); }
