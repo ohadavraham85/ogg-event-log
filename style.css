@@ -835,7 +835,7 @@ body.d-drag, body.d-drag *{cursor:grabbing!important;user-select:none!important}
 .mgr-n{margin-inline-start:auto;font-size:13px;color:var(--ink-2);font-weight:700}
 .mgr > :not(summary){margin-inline:14px}
 .mgr-add{margin-bottom:8px}
-.mgr-q{width:100%;box-sizing:border-box;margin-bottom:6px}
+.mgr-q{display:block;width:calc(100% - 28px);box-sizing:border-box;margin-bottom:6px}
 .mgr-list{max-height:420px;overflow:auto;margin-bottom:12px}
 .mgr-list .listrow{gap:8px;flex-wrap:wrap}
 .mgr-list .listrow b{flex:1 1 140px;min-width:0;overflow-wrap:anywhere;font-size:15px}
@@ -848,3 +848,10 @@ body.d-drag, body.d-drag *{cursor:grabbing!important;user-select:none!important}
   background:var(--panel-2);color:var(--ink-2);border:1px solid var(--edge-2);font-variant-numeric:tabular-nums;line-height:18px}
 .seg button[aria-pressed="true"] .seg-n{background:var(--water);color:#fff;border-color:var(--water)}
 .mgr-add{flex-wrap:nowrap}.mgr-add .txt{flex:1;min-width:0}.mgr-add .btn{flex:none;padding:9px 14px}
+.mgr-st{display:inline-flex;align-items:center;gap:5px;flex:none;font-size:12px;font-weight:800;padding:2px 9px;border-radius:99px;white-space:nowrap}
+.mgr-st::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor}
+.mgr-st.on{background:var(--c-visit-bg);color:var(--c-visit)}
+.mgr-st.off{background:var(--c-fault-bg);color:var(--c-fault)}
+.mgr-n{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.mgr-list .listrow{align-items:center}
+.mgr-list .listrow.retired{background:color-mix(in srgb,var(--c-fault-bg) 35%,transparent)}

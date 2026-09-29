@@ -186,7 +186,10 @@ function renderMgr(){
     const cnt=useCount(k), active=lists[k].slice().sort((x,y)=>(cnt[y]||0)-(cnt[x]||0)||x.localeCompare(y,"he"));
     const retired=(lists["_hide_"+k]||[]).filter(v=>cnt[v]||lists["_custom_"+k].includes(v)||SEED[k].includes(v)).sort((x,y)=>x.localeCompare(y,"he"));
     const det=mk("details","mgr"); det.open=mgrOpen.has(k); det.ontoggle=()=>{ det.open?mgrOpen.add(k):mgrOpen.delete(k); };
-    const sum=mk("summary"); sum.append(mk("b",null,label), mk("span","mgr-n",active.length+" פעילים"+(retired.length?" · "+retired.length+" לא פעילים":"")));
+    const sum=mk("summary"), cn=mk("span","mgr-n");
+    cn.append(mk("span","mgr-st on",nf(active.length)+" פעילים"));
+    if(retired.length) cn.append(mk("span","mgr-st off",nf(retired.length)+" לא פעילים"));
+    sum.append(mk("b",null,label), cn);
     det.appendChild(sum);
     // add
     const r=mk("div","row mgr-add"); const inp=mk("input","txt"); inp.placeholder="הוסף "+label.replace(/ים$|ות$/,"")+"…"; inp.placeholder="ערך חדש ב"+label;
@@ -205,7 +208,8 @@ function renderMgr(){
       list.textContent=""; const f=(mgrQ[k]||"").trim();
       const row=(v,isRet)=>{
         const rw=mk("div","listrow"+(isRet?" retired":""));
-        rw.append(mk("b",null,v), mk("span","mgr-c", cnt[v] ? nf(cnt[v])+" אירועים" : "לא בשימוש"));
+        rw.append(mk("span","mgr-st "+(isRet?"off":"on"), isRet?"לא פעיל":"פעיל"), mk("b",null,v),
+          mk("span","mgr-c", cnt[v] ? nf(cnt[v])+" אירועים" : "לא בשימוש"));
         const bt=(txt,cls,fn)=>{ const x=mk("button","btn mini"+(cls?" "+cls:""),txt); x.type="button"; x.onclick=fn; rw.appendChild(x); };
         if(isRet) bt("החזר","ok",()=>restoreValue(k,v));
         else {
@@ -1367,7 +1371,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.48", APP_DATE="29/09/2026";
+const APP_VER="1.49", APP_DATE="29/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
