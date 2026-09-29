@@ -107,6 +107,7 @@
     if(!role){ stopSync(); state="noaccess"; showSplash(); renderLogin(); setChip("off","אין הרשאה"); return; }
     put(K_ROLE,role); state="in"; renderLogin();
     startSync(); renderAccount();
+    if(typeof paintSettings==="function") paintSettings();       // members don't get the admin-only settings
     if(sp.hidden===false && location.search.includes("oobCode")) {}   // stay on the opening screen until "כניסה"
   }
 
@@ -459,7 +460,7 @@
   }
 
   // shared log: wiping "my records" / "everything" would delete for the whole team -> not offered here
-  ["#wipe","#wipeAll"].forEach(id=>{ const b=$(id); if(b){ const c=b.closest(".card"); if(c) c.hidden=true; } });
+  ["#wipe","#wipeAll"].forEach(id=>{ const b=$(id); if(b){ const c=b.closest(".card"); if(c){ c.hidden=true; c.dataset.off="1"; } } });
 
   /* ---------- the opening screen is the gate ---------- */
   $("#spEnter").onclick=()=>{ if(state==="in" && window.splashEnter) window.splashEnter(); };

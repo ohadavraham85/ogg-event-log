@@ -1154,12 +1154,17 @@ $("#tabDash").onclick=()=>{ renderDash(); show("Dash"); };
 $("#tabData").onclick=()=>{ renderStats(); renderMgr(); paintSettings(); show("Data"); };
 /* settings: one topic at a time (lists / team / files / general); the last one is remembered */
 let sgCur="lists"; try{ sgCur=localStorage.getItem("ogg-settings-topic")||"lists"; }catch(e){}
+/* who manages: on this device (no team log) — you; in the team log — only members with the admin role.
+   A regular member sees "צוות וחשבון" (own account) and "כללי"; lists management and files/backup are for admins. */
+function isManager(){ if(!CLOUD_ON) return true; try{ return localStorage.getItem("ogg-cloud-role")==="admin"; }catch(e){ return false; } }
 function paintSettings(){
-  const team=!!$("#cloudCard");
+  const team=!!$("#cloudCard"), mgr=isManager();
   $("#sgNav [data-sg=team]").hidden=!team;
-  if(sgCur==="team" && !team) sgCur="lists";
+  $("#sgNav [data-sg=lists]").hidden=!mgr; $("#sgNav [data-sg=files]").hidden=!mgr;
+  if(!mgr && (sgCur==="lists"||sgCur==="files")) sgCur = team ? "team" : "general";
+  if(sgCur==="team" && !team) sgCur = mgr ? "lists" : "general";
   document.querySelectorAll("#sgNav button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.sg===sgCur)));
-  document.querySelectorAll("#viewData > .card").forEach(c=>{ c.hidden = (c.dataset.sg||"general")!==sgCur; });
+  document.querySelectorAll("#viewData > .card").forEach(c=>{ c.hidden = (c.dataset.sg||"general")!==sgCur || c.dataset.off==="1"; });
 }
 document.querySelectorAll("#sgNav button").forEach(b=>b.onclick=()=>{ sgCur=b.dataset.sg; try{ localStorage.setItem("ogg-settings-topic",sgCur); }catch(e){} paintSettings(); window.scrollTo({top:0}); });
 window.paintSettings=paintSettings;
@@ -1562,7 +1567,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.68", APP_DATE="29/09/2026";
+const APP_VER="1.69", APP_DATE="29/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
