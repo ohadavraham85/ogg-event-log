@@ -1569,7 +1569,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.77", APP_DATE="30/09/2026";
+const APP_VER="1.78", APP_DATE="30/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -1843,10 +1843,47 @@ function tkLog(t, text, by, sys){
 }
 const logLine=l=>"• "+(l.by?l.by+": ":"")+l.text+" ("+fmtWhen(l.at).replace(/\/\d{4}/,"")+")";
 let tkOpenLogs=new Set();
+const tkDraft={}; let tkFocus=null;          // unsent text in a task's boxes, and which box had the focus
+/* checklist inside a task: tick items off, add items in place (Enter). Ticking writes a line in the
+   update log (so the team gets it as a message). Removing an item is for a manager, with confirmation;
+   it stays as a hidden tombstone so a device that still has it can't bring it back. */
+function renderCheck(t, c){
+  const items=(t.check||[]).filter(x=>x && !x.del), open=tkOpen(t);
+  if(!items.length && !open) return;
+  const box=mk("div","tk-check"), done=items.filter(x=>x.done).length;
+  box.appendChild(mk("div","tk-check-h", items.length ? "רשימת בדיקה ("+done+" מתוך "+items.length+" פריטים בוצעו)" : "רשימת בדיקה"));
+  if(items.length){ const bar=mk("div","tk-check-bar"), f=mk("span"); f.style.width=Math.round(done/items.length*100)+"%"; bar.appendChild(f); box.appendChild(bar); }
+  const save=()=>{ t.upd=new Date().toISOString(); saveTasks(); };
+  items.forEach(it=>{
+    const r=mk("div","ck"+(it.done?" done":""));
+    const b=mk("button","ck-box"); b.type="button"; b.setAttribute("role","checkbox"); b.setAttribute("aria-checked",String(!!it.done));
+    b.setAttribute("aria-label",it.text); b.disabled=!open;
+    b.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12.5l4 4 8-9" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    b.onclick=()=>{ it.done=!it.done; it.by=reporter()||""; it.at=nowLocal();
+      tkLog(t, (it.done?"✓ בוצע: ":"סימון בוטל: ")+it.text, "", true); save(); };
+    const x=mk("span","ck-t",it.text); x.onclick=()=>{ if(open) b.click(); };
+    r.append(b,x);
+    if(it.done && it.by) r.appendChild(mk("span","ck-by",it.by));
+    if(open && isManager()){ const d=mk("button","ck-del","✕"); d.type="button"; d.setAttribute("aria-label","הסר פריט");
+      d.onclick=async()=>{ if(!await confirmDel("להסיר פריט מרשימת הבדיקה?", it.text)) return; it.del=true; save(); }; r.appendChild(d); }
+    box.appendChild(r);
+  });
+  if(open){
+    const r=mk("div","ck ck-add"), o=mk("span","ck-box"), inp=mk("input");
+    inp.placeholder="הוסף פריט"; inp.dataset.draft="ck-"+t.id; inp.setAttribute("aria-label","הוסף פריט לרשימת הבדיקה"); inp.maxLength=300;
+    inp.value=tkDraft["ck-"+t.id]||""; inp.oninput=()=>{ tkDraft["ck-"+t.id]=inp.value; };
+    inp.onkeydown=e=>{ if(e.key!=="Enter" || e.isComposing) return; e.preventDefault();
+      const v=inp.value.trim(); if(!v) return;
+      if(!Array.isArray(t.check)) t.check=[];
+      t.check.push({id:newId(), text:v, done:false}); delete tkDraft["ck-"+t.id]; save(); };
+    r.append(o,inp); box.appendChild(r);
+    if(tkFocus==="ck-"+t.id) setTimeout(()=>inp.focus({preventScroll:true}),0);
+  }
+  c.appendChild(box);
+}
 /* update log as a conversation: bubbles (mine on one side, others on the other, system lines in the middle)
    and a message box always open under an open task — Enter sends, Shift+Enter is a new line.
    A draft survives the list being redrawn (a sync from the team), and so does the focus. */
-const tkDraft={}; let tkFocus=null;
 function renderLog(t, c){
   const log=(t.log||[]).slice().sort((x,y)=>String(x.at).localeCompare(String(y.at)));
   const open=tkOpen(t);
@@ -1861,7 +1898,7 @@ function renderLog(t, c){
   const chat=mk("div","tk-chat");
   show.forEach(l=>{
     const when=fmtWhen(l.at).replace(/\/\d{4}/,"");
-    if(l.sys){ const r=mk("div","tk-sys"); r.append(mk("span",null,(l.by?l.by+": ":"")+l.text), mk("span","tk-le-t"," · "+when)); chat.appendChild(r); return; }
+    if(l.sys){ const r=mk("div","tk-sys"); r.append(mk("span",null,(l.by?l.by+": ":"")+l.text+" · "), mk("span","tk-le-t",when)); chat.appendChild(r); return; }
     const mine = meMail ? l.mail===meMail : (!!l.by && l.by===meName);
     const r=mk("div","tk-msg"+(mine?" me":""));
     if(!mine && l.by) r.appendChild(mk("b","tk-msg-by",l.by));
@@ -1928,6 +1965,7 @@ function renderTasks(){
       if(pr!=="רגילה") tag(pr,"",ph);
       if(t.type) tag(t.type,"",hueOf(t.type));
       if(t.status==="בטיפול") tag("בטיפול","w");
+      { const ci=(t.check||[]).filter(x=>x && !x.del); if(ci.length) tag("☑ "+ci.filter(x=>x.done).length+"/"+ci.length, ci.every(x=>x.done)?"ok":""); }
       if(t.start && t.start>today) tag("מתחילה "+dmy(t.start).slice(0,5));
       if(t.due) tag((t.due<today?"באיחור · ":t.due===today?"היום · ":"יעד ")+dmy(t.due).slice(0,5), t.due<today?"late":t.due===today?"today":"");
     } else {
@@ -1940,6 +1978,7 @@ function renderTasks(){
     const meta=[(t.ppl||[]).length ? "👤 "+(t.ppl.length>1 ? "אחראי: "+pn(t.ppl[0])+" · משויכים: "+t.ppl.slice(1).join(", ") : pn(t.ppl[0])) : "", (t.loc||[]).length?"📍 "+t.loc.join(", "):"", (t.eq||[]).length?"⚙ "+t.eq.join(", "):""].filter(Boolean).join("   ");
     if(meta) c.appendChild(mk("div","tk-m",meta));
     if(t.desc) c.appendChild(mk("div","tk-d",t.desc));
+    renderCheck(t, c);
     if(!tkOpen(t) && t.act) c.appendChild(mk("div","tk-d","בוצע: "+t.act));
     renderLog(t, c);
     const acts=mk("div","tk-acts"), btn=(label,cls,fn)=>{ const b=mk("button","btn"+(cls?" "+cls:""),label); b.type="button"; b.onclick=fn; acts.appendChild(b); };

@@ -195,6 +195,13 @@
         const have=new Set((t.log||[]).map(l=>l.id)), extra=was.log.filter(l=>l && !have.has(l.id));
         if(extra.length){ t.log=(t.log||[]).concat(extra).sort((x,y)=>String(x.at).localeCompare(String(y.at))); mergedLog=true; }
       }
+      // checklist: keep items added here meanwhile; a removed item (del) stays removed on every device
+      if(was && Array.isArray(was.check) && was.check.length){
+        const inc=new Map((t.check||[]).map(x=>[x.id,x])); let merged=false;
+        was.check.forEach(x=>{ if(!x) return; const y=inc.get(x.id);
+          if(!y){ inc.set(x.id,x); merged=true; } else if(x.del && !y.del){ inc.set(x.id,Object.assign({},y,{del:true})); merged=true; } });
+        if(merged){ t.check=[...inc.values()]; mergedLog=true; }
+      }
       if(i>=0) tasks[i]=t; else { tasks.push(t); if(!firstEver && d._by && d._by!==me) fresh.push(t); }
       tSynced[tid]=js; changed=true;
     });
@@ -235,6 +242,8 @@
     if(!same(t.desc,was.desc)) ch.push("תיאור");
     if(!same(t.loc,was.loc)) ch.push("מיקום");
     if(!same(t.eq,was.eq)) ch.push("ציוד");
+    const items=x=>(x.check||[]).filter(c=>c && !c.del).map(c=>c.text);
+    if(!same(items(t),items(was))) ch.push("רשימת בדיקה");
     if(!same(t.ppl,was.ppl) || !same(t.depts,was.depts)) ch.push("שיוך: "+(t.ppl||[]).concat((t.depts||[]).map(x=>"🏢 "+x)).join(", "));
     if(ch.length) out.push({...base, id:t.id+":ed:"+upd, kind:"edit", text:"עודכנו פרטים: "+ch.join(" · ")});
     if(!out.length && t.status!==was.status) out.push({...base, id:t.id+":st:"+upd, kind:"status", text:"סטטוס: "+(t.status||"")});
