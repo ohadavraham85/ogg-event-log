@@ -122,6 +122,8 @@
     unsubEv=F.onSnapshot(q,{includeMetadataChanges:true}, applyEvents, err=>{ setChip("off","שגיאת סנכרון: "+(err.code||err.message)); });
     unsubLists=F.onSnapshot(F.doc(db,"meta","lists"), applyLists, ()=>{});
     watchMembers();                                        // everyone: names for "assigned to me"
+    selfName=""; loadSelfName();                           // "אני:" picked by this user (any device)
+    if(typeof paintHello==="function") paintHello();
     // tasks: one document each in "meta" (task-<id>) — the rules already allow team members there
     tSynced={}; tasks.forEach(t=>{ tSynced[t.id]=JSON.stringify(t); });
     tFresh=!(+get(K_SYNC_T)); tInit=false;
@@ -366,7 +368,21 @@
     }, ()=>{});
   }
   window.cloudMe=()=>me||"";
-  window.cloudMyName=()=>{ const m=members.find(x=>x.email===me); return m && m.name ? m.name : ""; };
+  /* who am I in the lists: the name the admin gave me in the team list, else the one I picked myself
+     ("אני:" in tasks — saved in meta/me-<mail>, so it follows me to every device) */
+  let selfName="";
+  const K_SELF=()=>"ogg-cloud-me-"+(me||"");
+  window.cloudMyName=()=>{ const m=members.find(x=>x.email===me); if(m && m.name) return m.name;
+    if(!selfName){ try{ selfName=localStorage.getItem(K_SELF())||""; }catch(e){} } return selfName; };
+  window.cloudNameFromAdmin=()=>{ const m=members.find(x=>x.email===me); return !!(m && m.name); };
+  window.cloudSetMyName=async name=>{
+    selfName=name||""; try{ localStorage.setItem(K_SELF(),selfName); }catch(e){}
+    try{ await F.setDoc(F.doc(db,"meta","me-"+me),{name:selfName,_upd:F.serverTimestamp(),_by:me}); }catch(e){ toast("השמירה בענן נכשלה — נשמר במכשיר"); }
+    if(typeof renderTasks==="function") renderTasks();
+  };
+  async function loadSelfName(){
+    try{ const s=await F.getDoc(F.doc(db,"meta","me-"+me)); if(s.exists() && s.data().name){ selfName=s.data().name; try{ localStorage.setItem(K_SELF(),selfName); }catch(e){} if(typeof renderTasks==="function") renderTasks(); } }catch(e){}
+  }
   function paintMyName(){
     const el=$("#cloudMyName"); if(!el) return;
     const n=window.cloudMyName();

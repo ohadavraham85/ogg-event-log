@@ -998,6 +998,11 @@ small.dept{font-size:12px;font-weight:700;color:var(--c-maint);background:var(--
 .upd-bar[hidden]{display:none}
 .upd-bar .btn{background:#fff;color:var(--water);border-color:#fff;padding:7px 14px;font-size:14px;flex:none}
 .ci.i-mid{opacity:.6}
+/* greeting in the clock box */
+.clock{flex-wrap:wrap;justify-content:center;row-gap:2px}
+.c-hello{font-weight:900;font-size:14px;color:var(--c-power);margin-inline-end:4px}
+.c-hello[hidden]{display:none}
+@media (max-width:560px){ .c-hello{flex-basis:100%;text-align:center;margin:0} }
 /* "המשימות שלי" + departments */
 .tk-me{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin:0 2px 10px}
 .tk-me .hint{margin:0}

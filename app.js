@@ -1562,7 +1562,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.65", APP_DATE="29/09/2026";
+const APP_VER="1.66", APP_DATE="29/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -1679,18 +1679,29 @@ const isMine=t=>{ const n=myName(), d=myDept();
 window.taskIsMine=isMine;
 function allDepts(){ return [...new Set(Object.values(lists._dept_ppl||{}).concat(tasks.flatMap(t=>t.depts||[])))].filter(Boolean).sort((a,b)=>a.localeCompare(b,"he")); }
 function paintMe(){
-  const box=$("#tkMe"); box.textContent="";
+  const box=$("#tkMe"); box.textContent=""; paintHello();
   const n=myName(), d=myDept();
-  if(window.cloudMe){                                  // team log: identity comes from the sign-in
-    box.appendChild(mk("span","hint", n ? "אני: "+n+(d?" · מחלקה: "+d:" · (אין מחלקה — הגדרות ← ניהול רשימות ← אנשים)") : "המנהל עדיין לא הגדיר לך שם בצוות — בלי שם אין \"המשימות שלי\"."));
+  const team=!!(window.cloudMe && window.cloudMe());
+  if(team && window.cloudNameFromAdmin && window.cloudNameFromAdmin()){   // the admin linked my login to a name
+    box.appendChild(mk("span","hint","אני: "+n+(d?" · מחלקה: "+d:" · (אין מחלקה — הגדרות ← ניהול רשימות ← אנשים ← תפקיד ומחלקה)")));
     return;
   }
+  // pick "who am I" from the people list — team log: saved in the cloud (all my devices); otherwise on this device
   const lab=mk("label","tk-me-sel"), sel=mk("select"); lab.append(mk("span",null,"אני:"), sel);
-  fillSelect(sel, pplValues(), n, "— בחר מי אתה —");
-  sel.onchange=()=>{ try{ localStorage.setItem(K_ME, sel.value); }catch(e){} if(!sel.value && tkView==="mine") tkView="open"; paintTkSeg(); renderTasks(); };
+  fillSelect(sel, pplValues(), n, "— בחר את השם שלך —");
+  sel.onchange=()=>{ const v=sel.value;
+    if(team && window.cloudSetMyName) window.cloudSetMyName(v); else { try{ localStorage.setItem(K_ME, v); }catch(e){} }
+    if(!v && tkView==="mine") tkView="open"; paintTkSeg(); renderTasks(); if(v) toast("שלום "+v); };
   box.appendChild(lab);
-  if(n) box.appendChild(mk("span","hint", d ? "מחלקה: "+d : "אין מחלקה — הגדרות ← ניהול רשימות ← אנשים"));
+  if(n) box.appendChild(mk("span","hint", d ? "מחלקה: "+d : "אין מחלקה — הגדרות ← ניהול רשימות ← אנשים ← תפקיד ומחלקה"));
   enhanceSelect(sel);
+}
+/* greeting in the header: "שלום <name>" (the name linked to me, else the start of my mail) */
+function paintHello(){
+  const el=$("#cHello"); if(!el) return;
+  const mail=window.cloudMe ? window.cloudMe() : "";
+  const n=myName() || (mail ? mail.split("@")[0] : "");
+  el.textContent = n ? "שלום "+n : ""; el.hidden=!n;
 }
 function paintTaskCount(){
   const n=tasks.filter(tkOpen).length;                     // "(open/total)": 4/5 = 4 open out of 5
