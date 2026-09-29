@@ -998,3 +998,16 @@ small.dept{font-size:12px;font-weight:700;color:var(--c-maint);background:var(--
 .upd-bar[hidden]{display:none}
 .upd-bar .btn{background:#fff;color:var(--water);border-color:#fff;padding:7px 14px;font-size:14px;flex:none}
 .ci.i-mid{opacity:.6}
+/* "המשימות שלי" + departments */
+.tk-me{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin:0 2px 10px}
+.tk-me .hint{margin:0}
+.tk-me-sel{display:flex;align-items:center;gap:8px;font-weight:800;font-size:14px;flex:1 1 220px;min-width:0}
+.tk-me-sel .ss-btn{flex:1;min-width:0;font-size:14.5px;padding:7px 10px}
+.tk-depts-f{grid-column:1/-1}
+.tk-depts{display:flex;flex-wrap:wrap;gap:6px}
+.dchip{border:1.5px solid var(--c-maint);background:var(--panel);color:var(--c-maint);border-radius:99px;padding:5px 12px;
+  font:inherit;font-size:14px;font-weight:800;cursor:pointer}
+.dchip.on{background:var(--c-maint);color:#fff}
+.tk-f.bad .dchip{border-color:var(--c-fault)}
+.tk-tag.dept{background:var(--c-maint-bg);color:var(--c-maint);border-color:transparent}
+#tkSeg{flex-wrap:wrap}

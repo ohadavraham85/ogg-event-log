@@ -178,8 +178,9 @@
       const t=clean(d), js=JSON.stringify(t);
       if(tSynced[tid]===js && i>=0) return;                // our own write coming back
       const mine=window.cloudMyName(), was=i>=0 ? tasks[i] : null;
-      if(!firstEver && mine && d._by && d._by!==me && t.status!=="הושלמה" && (t.ppl||[]).includes(mine)
-         && !(was && (was.ppl||[]).includes(mine))) assigned.push(t);
+      // assigned to me by name, or to my department (a change that newly includes me)
+      const mineT=x=>window.taskIsMine ? window.taskIsMine(x) : (x.ppl||[]).includes(mine);
+      if(!firstEver && mine && d._by && d._by!==me && t.status!=="הושלמה" && mineT(t) && !(was && mineT(was))) assigned.push(t);
       // update log: keep entries this device has that the incoming copy lacks (two people updating at once)
       if(was && Array.isArray(was.log) && was.log.length){
         const have=new Set((t.log||[]).map(l=>l.id)), extra=was.log.filter(l=>l && !have.has(l.id));
