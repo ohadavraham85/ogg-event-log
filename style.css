@@ -1006,12 +1006,13 @@ small.dept{font-size:12px;font-weight:700;color:var(--c-maint);background:var(--
 .upd-bar[hidden]{display:none}
 .upd-bar .btn{background:#fff;color:var(--water);border-color:#fff;padding:7px 14px;font-size:14px;flex:none}
 .ci.i-mid{opacity:.6}
-/* "+" new-event button floating over the events list (the tab is gone) */
+/* "＋ חדש" pill floating at the bottom right of the events and tasks lists */
 .tabs button[hidden]{display:none}
-.fab{position:fixed;z-index:60;inset-inline-end:max(18px,calc((100vw - var(--wrapw,760px)) / 2 + 18px));bottom:calc(22px + env(safe-area-inset-bottom,0px));
-  width:62px;height:62px;border-radius:50%;border:none;cursor:pointer;background:var(--water);color:#fff;
-  box-shadow:0 8px 22px color-mix(in srgb,var(--water) 45%,rgba(0,0,0,.25));display:grid;place-items:center}
-.fab span{font-size:34px;font-weight:700;line-height:1;margin-top:-2px}
+.fab{position:fixed;z-index:60;right:max(18px,calc((100vw - var(--wrapw,760px)) / 2 + 18px));bottom:calc(22px + env(safe-area-inset-bottom,0px));
+  height:54px;padding:0 22px 0 18px;border-radius:99px;border:none;cursor:pointer;background:var(--water);color:#fff;
+  box-shadow:0 8px 22px color-mix(in srgb,var(--water) 45%,rgba(0,0,0,.25));display:flex;align-items:center;gap:8px;
+  font:inherit;font-size:18px;font-weight:900}
+.fab span{font-size:28px;font-weight:700;line-height:1;margin-top:-2px}
 .fab:hover{filter:brightness(1.08)} .fab:active{transform:scale(.95)}
 #viewList[hidden] .fab{display:none}
 .fab[hidden],#viewTasks[hidden] .fab{display:none}
