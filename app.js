@@ -132,7 +132,7 @@ function drawOpts(){
     const tx=document.createElement("span"); tx.textContent=v;
     if(k==="ppl") tx.appendChild(personTags(v));
     b.append(bx,tx);
-    if(custom.includes(v) && !cnt[v]){
+    if(custom.includes(v) && !cnt[v] && isManager()){
       const d=document.createElement("button"); d.className="del"; d.textContent="✕"; d.title="הסר מהרשימה";
       d.onclick = async ev=>{ ev.stopPropagation(); if(await confirmDel("להסיר מהרשימה?", META[k].title+": "+v)) removeValue(k,v); };
       b.appendChild(d);
@@ -416,6 +416,7 @@ function fmtWhen(s){
    Bulk deletions also require typing "מחק". Returns a Promise<boolean>. */
 function confirmDel(title, what, bulk, o){
   o=o||{};
+  if(!isManager()){ toast("מחיקה מותרת למנהל בלבד"); return Promise.resolve(false); }   // team log: members never delete
   return new Promise(res=>{
     const d=$("#dlgDel"), ok=$("#delOk"), no=$("#delNo"); let step=1;
     $("#delTitle").textContent=title; $("#delWhat").textContent=what||"";
@@ -613,7 +614,7 @@ function renderList(reset){
       lk.append(li,lt);
       acts.appendChild(lk);
       d.classList.add("locked");
-    } else {
+    } else if(isManager()) {                // team log: only a manager deletes
     const rm=document.createElement("button"); rm.textContent="מחיקה";
     rm.onclick=async()=>{
       const what=[fmtWhen(e.when),(e.type||[]).join(", "),e.title||String(e.desc||"").slice(0,80)].filter(Boolean).join(" · ");
@@ -1568,7 +1569,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.74", APP_DATE="30/09/2026";
+const APP_VER="1.75", APP_DATE="30/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -1918,7 +1919,8 @@ function renderTasks(){
       if(t.eventId && events.some(e=>e.id===t.eventId)) tag("נרשמה ביומן");
     }
     if(tags.childElementCount) c.appendChild(tags);
-    const meta=[(t.ppl||[]).length?"👤 "+t.ppl.map(n=>{ const x=[deptOf(n),roleOf(n)].filter(Boolean).join(" · "); return x?n+" ("+x+")":n; }).join(", "):"", (t.loc||[]).length?"📍 "+t.loc.join(", "):"", (t.eq||[]).length?"⚙ "+t.eq.join(", "):""].filter(Boolean).join("   ");
+    const pn=n=>{ const x=[deptOf(n),roleOf(n)].filter(Boolean).join(" · "); return x?n+" ("+x+")":n; };
+    const meta=[(t.ppl||[]).length ? "👤 "+(t.ppl.length>1 ? "אחראי: "+pn(t.ppl[0])+" · משויכים: "+t.ppl.slice(1).join(", ") : pn(t.ppl[0])) : "", (t.loc||[]).length?"📍 "+t.loc.join(", "):"", (t.eq||[]).length?"⚙ "+t.eq.join(", "):""].filter(Boolean).join("   ");
     if(meta) c.appendChild(mk("div","tk-m",meta));
     if(t.desc) c.appendChild(mk("div","tk-d",t.desc));
     if(!tkOpen(t) && t.act) c.appendChild(mk("div","tk-d","בוצע: "+t.act));
@@ -1931,7 +1933,7 @@ function renderTasks(){
         tkLog(t, t.status==="בטיפול" ? "הועברה לטיפול" : "הוחזרה לפתוחה", "", true); t.upd=new Date().toISOString(); saveTasks(); });
       btn("ערוך","",()=>openTaskForm(t.id));
     }
-    btn("מחק","ghost",async()=>{
+    if(isManager()) btn("מחק","ghost",async()=>{
       if(!await confirmDel("למחוק את המשימה?", (t.title||"")+((t.log||[]).length?"\nכולל יומן העדכונים ("+t.log.length+")":"")+(t.eventId?"\nהאירוע שנרשם ביומן נשאר.":"")+(CLOUD_ON?"\nהמשימה תימחק לכל הצוות.":""))) return;
       tasks=tasks.filter(x=>x.id!==t.id); saveTasks(); toast("המשימה נמחקה");
     });
@@ -1943,7 +1945,8 @@ function openTaskForm(id){
   const types=lists.type||[], defType=types.includes("אחזקה") ? "אחזקה" : (types[0]||"");
   fillSelect($("#tkType"), byUse("type"), t ? (t.type||"") : defType, "— בחר סוג —");
   fillSelect($("#tkPrio"), PRIOS, t ? prioOf(t) : "רגילה");
-  fillSelect($("#tkPpl"), pplValues(), t ? (t.ppl||[])[0]||"" : (tkView==="mine" ? myName() : ""), "— בחר אחראי —", true);
+  fillSelect($("#tkPpl"), pplValues(), "", "— הוסף משתמש —", true);
+  paintPplChips(t ? (t.ppl||[]) : (tkView==="mine" && myName() ? [myName()] : []));
   fillSelect($("#tkLoc"), byUse("loc"), t ? (t.loc||[])[0]||"" : "", "— בחר מיקום —", true);
   fillSelect($("#tkEq"), byUse("eq"), t ? (t.eq||[])[0]||"" : "", "— בחר ציוד —", true);
   paintDeptChips(t ? (t.depts||[]) : (tkView==="mine" && myDept() && !myName() ? [myDept()] : []));
@@ -1974,6 +1977,26 @@ $("#tkStart").addEventListener("change",()=>{ $("#tkDue").min=$("#tkStart").valu
 ["#tkType","#tkPrio","#tkPpl","#tkStart","#tkDue","#tkLoc","#tkEq","#tkTitle"].forEach(id=>{
   const clr=()=>{ if($(id).value) $(id).closest(".tk-f").classList.remove("bad"); };
   $(id).addEventListener("change",clr); $(id).addEventListener("input",clr); });
+/* assigned users: pick one after another from the list; the first is the responsible one (tap another to make it responsible) */
+let tkPplSel=[];
+function paintPplChips(sel){
+  if(sel) tkPplSel=sel.slice();
+  const box=$("#tkPplChips"); box.textContent="";
+  tkPplSel.forEach((n,i)=>{
+    const c=mk("span","pchip"+(i?"":" lead")), nb=mk("button","pchip-n",(i?"":"★ ")+n+(i?"":" · אחראי"));
+    nb.type="button"; nb.title = i ? "הפוך לאחראי" : "אחראי";
+    nb.onclick=()=>{ if(!i) return; tkPplSel.splice(i,1); tkPplSel.unshift(n); paintPplChips(); };
+    const x=mk("button","pchip-x","✕"); x.type="button"; x.setAttribute("aria-label","הסר את "+n);
+    x.onclick=()=>{ tkPplSel.splice(i,1); paintPplChips(); };
+    c.append(nb,x); box.appendChild(c);
+  });
+  box.hidden=!tkPplSel.length;
+}
+$("#tkPpl").addEventListener("change",()=>{
+  const el=$("#tkPpl"), v=el.value; if(!v || v==="__other") return;
+  if(!tkPplSel.includes(v)) tkPplSel.push(v);
+  el.value=""; paintPplChips(); el.closest(".tk-f").classList.remove("bad"); $("#tkDepts").closest(".tk-f").classList.remove("bad");
+});
 /* departments: several can be picked (chips); departments come from "תפקיד ומחלקה" of the people */
 let tkDeptSel=[];
 function paintDeptChips(sel){
@@ -1995,7 +2018,7 @@ $("#tkSave").onclick=()=>{
   // assignment: a person, one or more departments, or both — at least one of them
   const need=[["#tkType","סוג"],["#tkPrio","עדיפות"],["#tkStart","תאריך התחלה"],["#tkPpl","אחראי או מחלקה"],["#tkDue","תאריך יעד"],["#tkLoc","מיקום"],["#tkEq","ציוד"],["#tkTitle","כותרת המשימה"]];
   const miss=need.filter(([id])=>{ const v=($(id).value||"").trim(); let bad=!v || v==="__other";
-    if(id==="#tkPpl" && tkDeptSel.length) bad=false;
+    if(id==="#tkPpl") bad=!tkPplSel.length && !tkDeptSel.length;
     $(id).closest(".tk-f").classList.toggle("bad",bad); if(id==="#tkPpl") $("#tkDepts").closest(".tk-f").classList.toggle("bad",bad); return bad; });
   if(miss.length){ toast("חסר: "+miss.map(m=>m[1]).join(", "));
     const f=$(miss[0][0]); (f.classList.contains("ss-hidden") ? f.nextElementSibling : f).focus(); return; }
@@ -2003,11 +2026,11 @@ $("#tkSave").onclick=()=>{
   const title=$("#tkTitle").value.trim();
   const now=new Date().toISOString(), prio=$("#tkPrio").value||"רגילה";
   const data={title, desc:$("#tkDesc").value.trim(), type:$("#tkType").value||"", prio, urgent:prio==="דחופה",
-    ppl:one($("#tkPpl").value), loc:one($("#tkLoc").value), eq:one($("#tkEq").value), due:$("#tkDue").value||"", start:$("#tkStart").value||"", depts:tkDeptSel.slice(), upd:now};
+    ppl:tkPplSel.slice(), loc:one($("#tkLoc").value), eq:one($("#tkEq").value), due:$("#tkDue").value||"", start:$("#tkStart").value||"", depts:tkDeptSel.slice(), upd:now};
   const was=tkEdit;
   if(was){ const t=tasks.find(x=>x.id===was); if(t) Object.assign(t,data); }
   else { const t=Object.assign({id:newId(), status:"פתוחה", created:now, log:[]}, data);
-    tkLog(t, "המשימה נפתחה"+(data.ppl.length?" · אחראי: "+data.ppl[0]:"")+(data.depts.length?" · מחלקות: "+data.depts.join(", "):""), "", true); tasks.push(t); }
+    tkLog(t, "המשימה נפתחה"+(data.ppl.length?" · אחראי: "+data.ppl[0]:"")+(data.ppl.length>1?" · משויכים: "+data.ppl.slice(1).join(", "):"")+(data.depts.length?" · מחלקות: "+data.depts.join(", "):""), "", true); tasks.push(t); }
   closeTaskForm(); if(tkView==="done"){ tkView="open"; paintTkSeg(); } saveTasks(); toast(was?"המשימה עודכנה":"המשימה נשמרה");
 };
 function paintTkSeg(){ document.querySelectorAll("#tkSeg button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===tkView))); }

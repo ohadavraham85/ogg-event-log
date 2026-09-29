@@ -17,14 +17,20 @@ service cloud.firestore {
     match /events/{id} {
       allow read: if isMember();
       // every write is stamped with the server time and the writer; no hard deletes (soft delete via _del)
+      // deleting (setting _del) is for admins only
       allow create, update: if isMember()
         && request.resource.data.id == id
         && request.resource.data._upd == request.time
-        && request.resource.data._by == myEmail();
+        && request.resource.data._by == myEmail()
+        && (request.resource.data.get('_del', false) != true || isAdmin());
       allow delete: if false;
     }
     match /meta/{doc} {
-      allow read, write: if isMember();
+      allow read: if isMember();
+      // tasks (task-<id>): only an admin may mark one deleted; no hard deletes of shared data
+      allow create, update: if isMember()
+        && (!doc.matches('task-.*') || request.resource.data.get('_del', false) != true || isAdmin());
+      allow delete: if isAdmin();
     }
   }
 }

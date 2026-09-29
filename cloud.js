@@ -108,6 +108,7 @@
     put(K_ROLE,role); state="in"; renderLogin();
     startSync(); renderAccount();
     if(typeof paintSettings==="function") paintSettings();       // members don't get the admin-only settings
+    if(typeof renderAll==="function"){ renderAll(); renderTasks(); }  // delete buttons only for a manager
     if(sp.hidden===false && location.search.includes("oobCode")) {}   // stay on the opening screen until "כניסה"
   }
 

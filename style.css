@@ -1056,3 +1056,13 @@ small.dept{font-size:12px;font-weight:700;color:var(--c-maint);background:var(--
 .inb-empty{color:var(--ink-2);font-size:14px;padding:6px 2px}
 .tk.flash{animation:tkflash 2.2s ease}
 @keyframes tkflash{0%,40%{box-shadow:0 0 0 3px var(--water)}100%{box-shadow:0 0 0 0 transparent}}
+/* task form: assigned users as chips, the first one (★) is responsible */
+.pchips{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.pchips[hidden]{display:none}
+.pchip{display:inline-flex;align-items:center;border:1.5px solid var(--water);border-radius:99px;background:var(--panel);overflow:hidden;max-width:100%}
+.pchip.lead{background:var(--water);border-color:var(--water)}
+.pchip button{font:inherit;font-size:14px;font-weight:800;border:none;background:none;cursor:pointer;color:var(--water);padding:5px 4px 5px 10px}
+.pchip .pchip-n{padding-inline:12px 4px;min-width:0;overflow-wrap:anywhere;text-align:start}
+.pchip .pchip-x{padding:5px 10px 5px 8px;opacity:.75}
+.pchip.lead button{color:#fff}
+.tk-ppl-f{grid-column:1/-1}
