@@ -1016,3 +1016,5 @@ small.dept{font-size:12px;font-weight:700;color:var(--c-maint);background:var(--
 .tk-f.bad .dchip{border-color:var(--c-fault)}
 .tk-tag.dept{background:var(--c-maint-bg);color:var(--c-maint);border-color:transparent}
 #tkSeg{flex-wrap:wrap}
+.ci-link{display:block;direction:ltr;text-align:left;font-size:13px;font-weight:700;color:var(--water);background:var(--panel);
+  border:1px dashed var(--water);border-radius:8px;padding:7px 10px;margin-bottom:8px;overflow-wrap:anywhere}

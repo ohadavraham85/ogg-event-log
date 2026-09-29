@@ -429,13 +429,16 @@
     const head=mk("div","ci-head"); head.appendChild(mk("b",null,"הזמנה ל-"+em));
     const x=mk("button","x","✕"); x.type="button"; x.setAttribute("aria-label","סגור"); x.onclick=()=>{ box.hidden=true; };
     head.appendChild(x); box.appendChild(head);
+    // the link alone (to paste in the address bar) — separate from the full message
+    const lk=mk("a","ci-link",T.url); lk.href=T.url; lk.target="_blank"; lk.rel="noopener"; lk.dir="ltr"; box.appendChild(lk);
     box.appendChild(mk("div","ci-text",T.text));
     const row=mk("div","row");
     const btn=(label,fn,cls)=>{ const b=mk("button","btn"+(cls?" "+cls:""),label); b.type="button"; b.onclick=fn; row.appendChild(b); };
     btn("וואטסאפ",()=>window.open("https://wa.me/?text="+encodeURIComponent(T.text),"_blank","noopener"),"primary");
     btn("מייל",()=>{ location.href="mailto:"+em+"?subject="+encodeURIComponent(T.subject)+"&body="+encodeURIComponent(T.text); });
     if(navigator.share) btn("שתף",async()=>{ try{ await navigator.share({title:T.subject,text:T.text}); }catch(e){} });
-    btn("העתק",async()=>{ try{ await navigator.clipboard.writeText(T.text); toast("ההזמנה הועתקה"); }catch(e){ toast("ההעתקה נכשלה"); } });
+    btn("העתק קישור",async()=>{ try{ await navigator.clipboard.writeText(T.url); toast("הקישור הועתק — להדבקה בשורת הכתובת"); }catch(e){ toast("ההעתקה נכשלה"); } });
+    btn("העתק הודעה",async()=>{ try{ await navigator.clipboard.writeText(T.text); toast("הודעת ההזמנה הועתקה — להדבקה בוואטסאפ/מייל"); }catch(e){ toast("ההעתקה נכשלה"); } });
     box.appendChild(row);
     box.scrollIntoView({block:"nearest",behavior:"smooth"});
   }
