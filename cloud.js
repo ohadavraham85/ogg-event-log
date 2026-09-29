@@ -236,7 +236,7 @@
         .catch(()=>{ try{ const n=new Notification(title,opt); n.onclick=()=>{ window.focus(); showNew(); n.close(); }; }catch(e){} });
     }
   }
-  function listsJSON(){ const o={}; Object.keys(SEED).forEach(k=>{ o[k]=lists["_custom_"+k]; o["_hide_"+k]=lists["_hide_"+k]; }); return JSON.stringify(o); }
+  function listsJSON(){ const o={}; Object.keys(SEED).forEach(k=>{ o[k]=lists["_custom_"+k]; o["_hide_"+k]=lists["_hide_"+k]; }); o._core_ppl=lists._core_ppl||[]; return JSON.stringify(o); }
   function rebuildLists(){
     Object.keys(SEED).forEach(k=>{
       const custom=lists["_custom_"+k]||[], hidden=lists["_hide_"+k]||[];
@@ -251,6 +251,7 @@
     Object.keys(SEED).forEach(k=>{
       lists["_custom_"+k]=Array.isArray(o[k])?o[k]:[]; lists["_hide_"+k]=Array.isArray(o["_hide_"+k])?o["_hide_"+k]:[];
     });
+    lists._core_ppl=Array.isArray(o._core_ppl)?o._core_ppl:[];
     listsSynced=js; try{ localStorage.setItem(LSL, js); }catch(e){}
     rebuildLists(); renderAll();
   }

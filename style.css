@@ -906,3 +906,13 @@ body.d-drag, body.d-drag *{cursor:grabbing!important;user-select:none!important}
 .fix-t{flex:1 1 200px;min-width:0;overflow-wrap:anywhere;font-size:14.5px}
 .fix-t em{font-style:normal;color:var(--ink-3);font-size:12.5px}
 .fix-open{margin-top:12px}
+/* ⭐ core staff: own colour (purple), always first */
+.star{border:none;background:none;font-size:20px;line-height:1;cursor:pointer;color:var(--ink-3);padding:2px 4px;flex:none}
+.star.on{color:var(--c-power)}
+.mgr-list .listrow.core{background:var(--c-power-bg);border-radius:8px;padding-inline:6px}
+.mgr-list .listrow.core b{color:var(--c-power)}
+.core-h{color:var(--c-power);border-top:none;margin-top:4px;padding-top:0}
+.opt.core, .ss-opt.core{color:var(--c-power);font-weight:800}
+.opt.core::after{content:"★";margin-inline-start:6px;color:var(--c-power)}
+.ss-opt.core::before{content:"★ ";color:var(--c-power)}
+.ss-opt.core + .ss-opt:not(.core):not(.sp){border-top:1px dashed var(--edge);margin-top:3px;padding-top:12px}

@@ -21,6 +21,8 @@ const HUE = {"תקלה":"fault","גלישות חרום":"flood","הפסקות ח
   "אחזקה":"maint","אחזקה חודשית":"maint","אחזקה שנתית":"maint","אחזקה מונעת":"maint",
   "ביקור":"visit","סיור בטיחות חודשי":"visit","תהליך":"visit"};
 function hueOf(t){ return HUE[t] || "gen"; }
+const isCore=v=>!!(lists && (lists._core_ppl||[]).includes(v));
+const coreFirst=(arr,k)=>k!=="ppl" ? arr : arr.filter(isCore).concat(arr.filter(v=>!isCore(v)));
 
 /* ================= state ================= */
 const CLOUD_ON=!!window.FIREBASE_CONFIG;   // team log (cloud.js) when firebase-config.js is filled in
@@ -39,11 +41,12 @@ function load(){
     lists[k] = [...new Set(SEED[k].concat(custom, used))].filter(v=>!hidden.includes(v));
     lists["_custom_"+k] = custom; lists["_hide_"+k] = hidden;
   });
+  lists._core_ppl = Array.isArray(saved._core_ppl) ? saved._core_ppl : [];   // ⭐ core staff: always first, own colour
 }
 function persist(){
   try{
     localStorage.setItem(LS, JSON.stringify(events));
-    const out={}; Object.keys(SEED).forEach(k=>{ out[k]=lists["_custom_"+k]; out["_hide_"+k]=lists["_hide_"+k]; });
+    const out={}; Object.keys(SEED).forEach(k=>{ out[k]=lists["_custom_"+k]; out["_hide_"+k]=lists["_hide_"+k]; }); out._core_ppl=lists._core_ppl||[];
     localStorage.setItem(LSL, JSON.stringify(out));
   }catch(e){ toast("הדפדפן חסם שמירה מקומית"); }
   // a linked file that is waiting for the browser's permission: ask now (we are inside a click)
@@ -104,7 +107,7 @@ function closeSheet(){
 function drawOpts(){
   const box=$("#shOpts"); box.textContent="";
   const q=$("#shQ").value.trim(), k=shKey, cnt=useCount(k), custom=lists["_custom_"+k];
-  const items = lists[k].slice().sort((a,b)=>(cnt[b]||0)-(cnt[a]||0));
+  const items = coreFirst(lists[k].slice().sort((a,b)=>(cnt[b]||0)-(cnt[a]||0)), k);
   const hits = items.filter(v=>!q || v.includes(q));
   if(!hits.length){
     const d=document.createElement("div"); d.className="empty"; d.style.margin="10px";
@@ -114,7 +117,7 @@ function drawOpts(){
   hits.forEach(v=>{
     const on = sel[k].includes(v);
     const b=document.createElement("button");
-    b.type="button"; b.className="opt"; b.setAttribute("aria-pressed", on?"true":"false");
+    b.type="button"; b.className="opt"+(k==="ppl"&&isCore(v)?" core":""); b.setAttribute("aria-pressed", on?"true":"false");
     const bx=document.createElement("span"); bx.className="bx"; bx.textContent="✓";
     const tx=document.createElement("span"); tx.textContent=v;
     b.append(bx,tx);
@@ -220,6 +223,7 @@ function remapCore(k, from, toArr){          // returns how many events changed;
   tasks.forEach(t=>{ if((t[k]||[]).includes(from)) t[k]=swap(t[k]); });
   lists["_custom_"+k]=lists["_custom_"+k].filter(v=>v!==from); lists["_hide_"+k]=(lists["_hide_"+k]||[]).filter(v=>v!==from);
   lists[k]=lists[k].filter(v=>v!==from);
+  if(k==="ppl" && (lists._core_ppl||[]).includes(from)){ lists._core_ppl=lists._core_ppl.filter(v=>v!==from); toArr.forEach(v=>{ if(!lists._core_ppl.includes(v)) lists._core_ppl.push(v); }); }
   toArr.forEach(v=>{ if(!lists[k].includes(v)) lists[k].push(v); if(!lists["_custom_"+k].includes(v)) lists["_custom_"+k].push(v); });
   return n;
 }
@@ -267,7 +271,7 @@ function openFixes(fixes){
 function renderMgr(){
   const box=$("#listMgr"); box.textContent="";
   MGR_KEYS.forEach(([k,label])=>{
-    const cnt=useCount(k), active=lists[k].slice().sort((x,y)=>(cnt[y]||0)-(cnt[x]||0)||x.localeCompare(y,"he"));
+    const cnt=useCount(k), active=coreFirst(lists[k].slice().sort((x,y)=>(cnt[y]||0)-(cnt[x]||0)||x.localeCompare(y,"he")), k);
     const retired=(lists["_hide_"+k]||[]).filter(v=>cnt[v]||lists["_custom_"+k].includes(v)||SEED[k].includes(v)).sort((x,y)=>x.localeCompare(y,"he"));
     const det=mk("details","mgr"); det.open=mgrOpen.has(k); det.ontoggle=()=>{ det.open?mgrOpen.add(k):mgrOpen.delete(k); };
     const sum=mk("summary"), cn=mk("span","mgr-n");
@@ -306,7 +310,13 @@ function renderMgr(){
     const paint=()=>{
       list.textContent=""; const f=(mgrQ[k]||"").trim();
       const row=(v,isRet)=>{
-        const rw=mk("div","listrow"+(isRet?" retired":""));
+        const core=k==="ppl" && !isRet && isCore(v);
+        const rw=mk("div","listrow"+(isRet?" retired":"")+(core?" core":""));
+        if(k==="ppl" && !isRet){ const s=mk("button","star"+(core?" on":""),core?"★":"☆"); s.type="button";
+          s.title=core?"הסר מצוות קבוע":"סמן כצוות קבוע"; s.setAttribute("aria-label",s.title);
+          s.onclick=()=>{ const L=lists._core_ppl=lists._core_ppl||[]; const i=L.indexOf(v); i>=0?L.splice(i,1):L.push(v);
+            persist(); renderMgr(); renderTasks(); toast(i>=0 ? v+" הוסר מהצוות הקבוע" : "⭐ "+v+" — צוות קבוע"); };
+          rw.appendChild(s); }
         rw.append(mk("span","mgr-st "+(isRet?"off":"on"), isRet?"לא פעיל":"פעיל"), mk("b",null,v),
           mk("span","mgr-c", cnt[v] ? nf(cnt[v])+" אירועים" : "לא בשימוש"));
         const bt=(txt,cls,fn)=>{ const x=mk("button","btn mini"+(cls?" "+cls:""),txt); x.type="button"; x.onclick=fn; rw.appendChild(x); };
@@ -339,7 +349,11 @@ function renderMgr(){
         list.appendChild(rw);
       };
       const act=active.filter(v=>!f||v.includes(f)), ret=retired.filter(v=>!f||v.includes(f));
-      act.forEach(v=>row(v,false));
+      if(k==="ppl"){ const nc=act.filter(isCore).length;
+        if(nc) list.appendChild(mk("div","mgr-h core-h","⭐ צוות קבוע ("+nc+") — תמיד ראשונים בכל הרשימות"));
+        act.forEach((v,i)=>{ if(nc && i===nc) list.appendChild(mk("div","mgr-h","שאר האנשים")); row(v,false); });
+        if(!nc && act.length) list.insertBefore(mk("p","hint","סמן ☆ ליד עובדי הצוות הקבוע — הם יופיעו ראשונים ובצבע משלהם."), list.firstChild);
+      } else act.forEach(v=>row(v,false));
       if(!act.length) list.appendChild(mk("p","hint",f?"אין התאמה.":"הרשימה ריקה."));
       if(ret.length){ list.appendChild(mk("div","mgr-h","לא פעילים — לא מופיעים ברשימות הבחירה, נשארים באירועים הישנים")); ret.forEach(v=>row(v,true)); }
     };
@@ -877,7 +891,7 @@ function renderDash0(){
   const today = ymd(daysAgo(0));
   // person filter: options = everyone who appears in events, most frequent first
   const pc={}; events.forEach(e=>(e.ppl||[]).forEach(v=>{ pc[v]=(pc[v]||0)+1; }));
-  const people=Object.keys(pc).sort((a,b)=>pc[b]-pc[a]);
+  const people=coreFirst(Object.keys(pc).sort((a,b)=>pc[b]-pc[a]), "ppl");
   if(dPpl && !pc[dPpl]) dPpl="";
   const ps=$("#dPpl"); ps.textContent="";
   [["","כל המעורבים"]].concat(people.map(v=>[v,v])).forEach(([v,l])=>{ const o=mk("option",null,l); o.value=v; ps.appendChild(o); });
@@ -1156,7 +1170,7 @@ paintThemeBtn();
 /* ================= file / export ================= */
 function payload(){
   const out={app:"ogg-event-log",version:2,saved:new Date().toISOString(),events,lists:{},tasks};
-  Object.keys(SEED).forEach(k=>{ out.lists[k]=lists["_custom_"+k]; out.lists["_hide_"+k]=lists["_hide_"+k]; });
+  Object.keys(SEED).forEach(k=>{ out.lists[k]=lists["_custom_"+k]; out.lists["_hide_"+k]=lists["_hide_"+k]; }); out.lists._core_ppl=lists._core_ppl||[];
   return out;
 }
 async function writeFile(){
@@ -1486,6 +1500,7 @@ $("#impFile").onchange=ev=>{
       const idx=new Map(events.map((e,i)=>[e.id,i])); let n=0,u=0;
       inc.forEach(e=>{ if(!e||!e.id) return;
         if(idx.has(e.id)){ events[idx.get(e.id)]=e; u++; } else { events.push(e); n++; } });
+      if(d.lists && Array.isArray(d.lists._core_ppl)) d.lists._core_ppl.forEach(v=>{ if(!lists._core_ppl.includes(v)) lists._core_ppl.push(v); });
       if(d.lists) Object.keys(SEED).forEach(k=>{
         (d.lists[k]||[]).forEach(v=>{ if(!lists["_custom_"+k].includes(v)){ lists["_custom_"+k].push(v);
           if(!lists[k].includes(v)) lists[k].push(v); } });
@@ -1511,7 +1526,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.54", APP_DATE="29/09/2026";
+const APP_VER="1.55", APP_DATE="29/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -1615,9 +1630,10 @@ function byUse(k){
   if(!freqCache || freqCache.n!==events.length){ freqCache={n:events.length};
     ["loc","eq","ppl","type"].forEach(f=>{ const m=new Map(); events.forEach(e=>(e[f]||[]).forEach(v=>m.set(v,(m.get(v)||0)+1))); freqCache[f]=m; }); }
   const m=freqCache[k];
-  return (lists[k]||[]).slice().sort((x,y)=>(m.get(y)||0)-(m.get(x)||0) || x.localeCompare(y,"he"));
+  return coreFirst((lists[k]||[]).slice().sort((x,y)=>(m.get(y)||0)-(m.get(x)||0) || x.localeCompare(y,"he")), k);
 }
-function pplValues(){ const off=lists._hide_ppl||[]; return [...new Set((window.TEAM_NAMES||[]).filter(n=>!off.includes(n)).concat(byUse("ppl")))]; }
+function pplValues(){ const off=lists._hide_ppl||[];
+  return coreFirst([...new Set((window.TEAM_NAMES||[]).filter(n=>!off.includes(n)).concat(byUse("ppl")))], "ppl"); }
 function fillSelect(el, values, cur, first, other){
   el.textContent="";
   if(first!==undefined){ const o=mk("option",null,first); o.value=""; el.appendChild(o); }
@@ -1859,7 +1875,7 @@ function openSS(sel,btn){
   closeSS();
   const p=mk("div","ss-panel"), q=mk("input","ss-q"), list=mk("div","ss-list");
   q.type="search"; q.placeholder="חיפוש…"; q.autocomplete="off"; p.append(q,list);
-  const opts=[...sel.options].map(o=>({v:o.value,t:o.textContent}));
+  const opts=[...sel.options].map(o=>({v:o.value,t:o.textContent,core:isCore(o.value)}));
   const pick=v=>{ sel.value=v; sel.dispatchEvent(new Event("change",{bubbles:true})); closeSS(); btn.focus(); };
   let first=null;
   const paint=()=>{
@@ -1868,7 +1884,7 @@ function openSS(sel,btn){
       const special = o.v==="" || o.v==="__other";
       if(f && !special && !o.t.toLowerCase().includes(f)) return;
       if(f && o.v==="") return;
-      const b=mk("button","ss-opt"+(o.v===sel.value?" on":"")+(special?" sp":""),o.t); b.type="button"; b.onclick=()=>pick(o.v);
+      const b=mk("button","ss-opt"+(o.v===sel.value?" on":"")+(special?" sp":"")+(o.core?" core":""),o.t); b.type="button"; b.onclick=()=>pick(o.v);
       if(!first && !special) first=o.v; list.appendChild(b);
     });
     if(!list.querySelector(".ss-opt:not(.sp)")) list.insertBefore(mk("div","ss-none","אין התאמה"), list.firstChild);
