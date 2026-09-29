@@ -872,3 +872,21 @@ body.d-drag, body.d-drag *{cursor:grabbing!important;user-select:none!important}
 .dup-row .btn.ok{border-color:var(--water);color:var(--water)}
 .mgr-into{flex:1 1 100%;font:inherit;font-size:14.5px;padding:7px;border:1.5px solid var(--water);border-radius:9px;background:var(--panel);color:var(--ink)}
 .dup-t{flex:1 1 150px}
+/* searchable dropdown */
+.ss-hidden{display:none!important}
+.ss-btn{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;min-width:0;box-sizing:border-box;
+  font:inherit;font-size:16px;padding:9px 11px;border:1px solid var(--edge);border-radius:10px;background:var(--panel);color:var(--ink);
+  cursor:pointer;text-align:start;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.ss-btn::after{content:"🔍";font-size:13px;opacity:.55;flex:none}
+.ss-btn.empty{color:var(--ink-2)}
+.tk-filters .ss-btn{font-size:14px;font-weight:700;padding:8px 9px;border-width:1.5px;color:var(--ink-2)}
+.tk-filters .ss-btn:not(.empty){border-color:var(--water);color:var(--water);background:var(--water-soft)}
+.ss-panel{position:fixed;z-index:200;background:var(--panel);border:1px solid var(--edge);border-radius:12px;
+  box-shadow:0 12px 32px rgba(0,0,0,.22);padding:8px;display:flex;flex-direction:column;gap:6px}
+.ss-q{font:inherit;font-size:16px;padding:9px 11px;border:1.5px solid var(--water);border-radius:9px;background:var(--panel-2);color:var(--ink);width:100%;box-sizing:border-box}
+.ss-list{overflow:auto;display:flex;flex-direction:column}
+.ss-opt{border:none;background:none;text-align:start;font:inherit;font-size:15px;padding:9px 10px;border-radius:8px;cursor:pointer;color:var(--ink);overflow-wrap:anywhere}
+.ss-opt:hover,.ss-opt:focus-visible{background:var(--panel-2)}
+.ss-opt.on{background:var(--water-soft);color:var(--water);font-weight:800}
+.ss-opt.sp{color:var(--ink-2)}
+.ss-none{color:var(--ink-3);padding:8px 10px;font-size:14px}

@@ -1444,7 +1444,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.50", APP_DATE="29/09/2026";
+const APP_VER="1.51", APP_DATE="29/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -1760,6 +1760,57 @@ $("#tdOk").onclick=()=>{
   toast("המשימה הושלמה ונרשמה ביומן",{label:"הצג",fn:()=>{ $("#sortBy").value="edit"; goList({ppl:""}); }});
 };
 $("#tabTasks").onclick=()=>{ renderTasks(); show("Tasks"); };
+/* searchable dropdown: long lists (people, locations, equipment) get a search box.
+   The real <select> stays (hidden) — the code keeps reading/writing it; this is only the face. */
+function enhanceSelect(sel){
+  if(sel.dataset.enh) return; sel.dataset.enh="1";
+  const btn=mk("button","ss-btn"); btn.type="button"; sel.after(btn); sel.classList.add("ss-hidden");
+  const sync=()=>{ const o=sel.options[sel.selectedIndex]; btn.textContent=o ? o.textContent : ""; btn.classList.toggle("empty",!sel.value);
+    btn.setAttribute("aria-label",(sel.getAttribute("aria-label")||"")+": "+btn.textContent); };
+  new MutationObserver(()=>Promise.resolve().then(sync)).observe(sel,{childList:true,subtree:true,attributes:true});
+  sel.addEventListener("change",sync);
+  const setVal=()=>{ const d=Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,"value");
+    Object.defineProperty(sel,"value",{configurable:true,get(){ return d.get.call(this); },set(v){ d.set.call(this,v); sync(); }}); };
+  setVal();
+  btn.onclick=()=>openSS(sel,btn);
+  sync();
+}
+let ssPanel=null;
+function closeSS(){ if(ssPanel){ ssPanel.remove(); ssPanel=null; removeEventListener("pointerdown",ssOutside,true); } }
+function ssOutside(e){ if(ssPanel && !ssPanel.contains(e.target) && !e.target.classList.contains("ss-btn")) closeSS(); }
+function openSS(sel,btn){
+  closeSS();
+  const p=mk("div","ss-panel"), q=mk("input","ss-q"), list=mk("div","ss-list");
+  q.type="search"; q.placeholder="חיפוש…"; q.autocomplete="off"; p.append(q,list);
+  const opts=[...sel.options].map(o=>({v:o.value,t:o.textContent}));
+  const pick=v=>{ sel.value=v; sel.dispatchEvent(new Event("change",{bubbles:true})); closeSS(); btn.focus(); };
+  let first=null;
+  const paint=()=>{
+    list.textContent=""; first=null; const f=q.value.trim().toLowerCase();
+    opts.forEach(o=>{
+      const special = o.v==="" || o.v==="__other";
+      if(f && !special && !o.t.toLowerCase().includes(f)) return;
+      if(f && o.v==="") return;
+      const b=mk("button","ss-opt"+(o.v===sel.value?" on":"")+(special?" sp":""),o.t); b.type="button"; b.onclick=()=>pick(o.v);
+      if(!first && !special) first=o.v; list.appendChild(b);
+    });
+    if(!list.querySelector(".ss-opt:not(.sp)")) list.insertBefore(mk("div","ss-none","אין התאמה"), list.firstChild);
+  };
+  q.oninput=paint;
+  q.onkeydown=e=>{ if(e.key==="Enter"){ e.preventDefault(); if(first!==null) pick(first); } if(e.key==="Escape"){ closeSS(); btn.focus(); } };
+  paint(); document.body.appendChild(p); ssPanel=p;
+  const r=btn.getBoundingClientRect(), w=Math.max(r.width,Math.min(300,innerWidth-16));
+  const below=innerHeight-r.bottom, h=Math.min(380, Math.max(below, r.top)-12);
+  p.style.width=w+"px"; p.style.left=Math.max(8,Math.min(r.right-w,innerWidth-w-8))+"px";
+  if(below>=240 || below>=r.top){ p.style.top=(r.bottom+4)+"px"; } else { p.style.bottom=(innerHeight-r.top+4)+"px"; }
+  list.style.maxHeight=(h-56)+"px";
+  const on=list.querySelector(".ss-opt.on"); if(on) on.scrollIntoView({block:"nearest"});
+  q.focus({preventScroll:true});
+  addEventListener("pointerdown",ssOutside,true);
+}
+addEventListener("scroll",e=>{ if(ssPanel && !ssPanel.contains(e.target)) closeSS(); },true);
+addEventListener("resize",closeSS);
+["#tkPpl","#tkLoc","#tkEq","#tfPpl","#tfLoc"].forEach(id=>enhanceSelect($(id)));
 
 /* ================= boot ================= */
 load(); loadTasks(); setNow(); renderAll(); renderTasks(); renderDash(); show(REFRESH_VIEW||"Dash");
