@@ -1568,7 +1568,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.70", APP_DATE="29/09/2026";
+const APP_VER="1.71", APP_DATE="30/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -1643,7 +1643,7 @@ let DEEP_OPEN=false;
   const enter=()=>{
     document.documentElement.classList.remove("sp-open");
     sp.classList.add("out");
-    setTimeout(()=>{ sp.hidden=true; weeklyCheck(); },200);
+    setTimeout(()=>{ sp.hidden=true; weeklyCheck(); inboxOpenUntil=Date.now()+20000; if(window.inboxCheck) window.inboxCheck(); },200);
     $("#tabDash").focus({preventScroll:true});
   };
   $("#spEnter").onclick=enter;
@@ -1724,6 +1724,70 @@ function showMyTasks(){
   const sp=$("#splash"); if(sp && !sp.hidden && window.splashEnter && !$("#spEnter").hidden) window.splashEnter();
   tkView = myName() ? "mine" : "open"; paintTkSeg(); renderTasks(); show("Tasks"); window.scrollTo({top:0});
 }
+/* ================= messages (team log) =================
+   A new assignment, an update-log entry or edited details that someone else made on a task of mine
+   (or my department's) becomes a message (built in cloud.js). Kept on this device for the signed-in user;
+   unread messages pop up as a list when the app is opened, and the bell in the header shows them any time. */
+const INBOX_MAX=80, INBOX_ICON={assign:"📌",update:"💬",status:"🔄",edit:"✏️",off:"↩"};
+const inboxKey=()=>"ogg-inbox-"+((window.cloudMe && window.cloudMe()) || "local");
+function inboxGet(){ try{ const a=JSON.parse(localStorage.getItem(inboxKey())||"[]"); return Array.isArray(a) ? a : []; }catch(e){ return []; } }
+function inboxPut(a){
+  a.sort((x,y)=>String(y.at).localeCompare(String(x.at)));
+  try{ localStorage.setItem(inboxKey(), JSON.stringify(a.slice(0,INBOX_MAX))); }catch(e){}
+  paintInbox();
+}
+function paintInbox(){
+  const b=$("#inboxBtn"); if(!b) return;
+  b.hidden=!CLOUD_ON; if(!CLOUD_ON) return;
+  const n=inboxGet().filter(x=>!x.read).length, s=$("#inboxN");
+  s.textContent = n>99 ? "99+" : String(n); s.hidden=!n;
+  b.setAttribute("aria-label", n ? n+" הודעות חדשות" : "הודעות"); b.title = n ? n+" הודעות חדשות" : "הודעות";
+}
+let inboxOpenUntil=Date.now()+20000;          // "the app was just opened": messages arriving now pop the list up
+function inboxAdd(items, toasted){
+  const a=inboxGet(), ids=new Set(a.map(x=>x.id)), now=nowLocal()+":"+String(new Date().getSeconds()).padStart(2,"0");
+  const add=items.filter(x=>x && !ids.has(x.id)).map(x=>Object.assign({at:now}, x, {read:false}));
+  if(!add.length) return;
+  inboxPut(add.concat(a));
+  if(Date.now()<inboxOpenUntil) inboxCheck();
+  else if(!toasted) toast(add.length===1 ? "הודעה חדשה: "+(add[0].title||"") : add.length+" הודעות חדשות", {label:"הצג", fn:openInbox});
+}
+function inboxCheck(){
+  if(!CLOUD_ON || !inboxGet().some(x=>!x.read)) return;
+  const sp=$("#splash"); if(sp && !sp.hidden) return;                 // after the opening screen
+  if(document.querySelector("dialog[open]")) return;                  // the weekly window etc. first (retried when it closes)
+  openInbox();
+}
+function openInbox(){
+  const d=$("#dlgInbox"), box=$("#inbList"), a=inboxGet(), n=a.filter(x=>!x.read).length;
+  $("#inbTitle").textContent = n ? "הודעות חדשות ("+n+")" : "הודעות";
+  box.textContent="";
+  if(!a.length) box.appendChild(mk("div","inb-empty","אין הודעות. כאן יופיעו הקצאות ועדכונים במשימות שלך."));
+  a.forEach(x=>{
+    const r=mk("button","inb"+(x.read?"":" new")); r.type="button";
+    r.appendChild(mk("span","inb-i",INBOX_ICON[x.kind]||"•"));
+    const body=mk("span","inb-b"); body.appendChild(mk("b","inb-t",x.title||"(ללא כותרת)")); body.appendChild(mk("span","inb-x",x.text||""));
+    body.appendChild(mk("span","inb-m",[x.by,fmtWhen(x.at)].filter(Boolean).join(" · "))); r.appendChild(body);
+    r.onclick=()=>{ d.close(); goTask(x.tid); };
+    box.appendChild(r);
+  });
+  if(!d.open) d.showModal();
+}
+function goTask(tid){
+  const t=tasks.find(x=>x.id===tid); if(!t){ toast("המשימה כבר לא קיימת"); return; }
+  Object.keys(tkF).forEach(k=>tkF[k]= k==="late" ? false : "");
+  tkView = !tkOpen(t) ? "done" : isMine(t) ? "mine" : "open"; tkOpenLogs.add(t.id);
+  paintTkSeg(); renderTasks(); show("Tasks");
+  const c=document.querySelector('#tkList .tk[data-id="'+tid+'"]');
+  if(c){ c.scrollIntoView({block:"center"}); c.classList.add("flash"); setTimeout(()=>c.classList.remove("flash"),2200); }
+}
+$("#inboxBtn").onclick=openInbox;
+$("#inbClose").onclick=()=>$("#dlgInbox").close();
+$("#dlgInbox").addEventListener("close",()=>{ const a=inboxGet(); if(a.some(x=>!x.read)){ a.forEach(x=>x.read=true); inboxPut(a); } });
+$("#dlgWeek").addEventListener("close",()=>setTimeout(inboxCheck,300));
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden){ inboxOpenUntil=Date.now()+20000; setTimeout(inboxCheck,1200); } });
+window.inboxAdd=inboxAdd; window.inboxCheck=inboxCheck; window.paintInbox=paintInbox;
+paintInbox();
 /* dropdown helpers: the values come from the log's lists (events + added values), most used in events first */
 let freqCache=null;
 function byUse(k){
@@ -1835,7 +1899,7 @@ function renderTasks(){
     tkView==="mine" ? (myName() ? "אין משימות פתוחות שלך או של המחלקה שלך." : (window.cloudMe ? "המנהל עדיין לא הגדיר לך שם בצוות." : "בחר למעלה \"אני:\" כדי לראות את המשימות שלך.")) : tkView==="open" ? "אין משימות פתוחות." : "עדיין לא הושלמו משימות.")); return; }
   rows.forEach(t=>{
     const pr=prioOf(t), ph=PRIO_HUE[pr];
-    const c=mk("div","tk"+(tkOpen(t)?"":" done")); c.style.borderInlineStartColor = tkOpen(t) ? "var(--c-"+ph+")" : "";
+    const c=mk("div","tk"+(tkOpen(t)?"":" done")); c.dataset.id=t.id; c.style.borderInlineStartColor = tkOpen(t) ? "var(--c-"+ph+")" : "";
     if(tkOpen(t) && pr==="דחופה") c.style.background="color-mix(in srgb,var(--c-fault-bg) 55%,var(--panel))";
     c.appendChild(mk("div","tk-t",t.title||"(ללא כותרת)"));
     const tags=mk("div","tk-tags"), tag=(txt,cls,hue)=>{ const x=mk("span","tk-tag"+(cls?" "+cls:""),txt);

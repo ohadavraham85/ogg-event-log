@@ -171,7 +171,7 @@
   }
   function applyTasks(snap){
     // the first server answer on a brand-new device is the initial download, not news
-    let maxU=+get(K_SYNC_T)||0, changed=false; const firstEver=tFresh && !tInit, fresh=[], assigned=[]; let mergedLog=false;
+    let maxU=+get(K_SYNC_T)||0, changed=false; const firstEver=tFresh && !tInit, fresh=[], assigned=[], news=[]; let mergedLog=false;
     snap.docChanges().forEach(c=>{
       const id=c.doc.id; if(c.type==="removed" || id.indexOf("task-")!==0) return;
       const d=c.doc.data({serverTimestamps:"estimate"}), tid=id.slice(5);
@@ -184,6 +184,9 @@
       // assigned to me by name, or to my department (a change that newly includes me)
       const mineT=x=>window.taskIsMine ? window.taskIsMine(x) : (x.ppl||[]).includes(mine);
       if(!firstEver && mine && d._by && d._by!==me && t.status!=="הושלמה" && mineT(t) && !(was && mineT(was))) assigned.push(t);
+      // messages list: anything someone else did to a task of mine (or that stopped being mine)
+      if(!firstEver && mine && d._by && d._by!==me && (mineT(t) || (was && mineT(was))))
+        news.push(...taskNews(was, t, whoOf(d._by), mineT(t), !!was && mineT(was), d._upd && d._upd.toMillis ? d._upd.toMillis() : Date.now()));
       // update log: keep entries this device has that the incoming copy lacks (two people updating at once)
       if(was && Array.isArray(was.log) && was.log.length){
         const have=new Set((t.log||[]).map(l=>l.id)), extra=was.log.filter(l=>l && !have.has(l.id));
@@ -205,6 +208,33 @@
       if(typeof addMineUnseen==="function") addMineUnseen(assigned.map(t=>t.id));
     } else if(fresh.length) toast(fresh.length===1 ? "משימה חדשה: "+(fresh[0].title||"") : fresh.length+" משימות חדשות",
       {label:"הצג", fn:()=>{ $("#tabTasks").click(); }});
+    if(news.length && typeof inboxAdd==="function") inboxAdd(news, !!assigned.length);
+  }
+  const whoOf=mail=>{ const m=members.find(x=>x.email===mail); return (m && m.name) || String(mail||"").split("@")[0]; };
+  // what changed in one task, as messages for its assignee: new assignment, update-log entries, edited details
+  function taskNews(was, t, who, mineNow, mineWas, upd){
+    const out=[], base={tid:t.id, title:t.title||"", by:who}, dm=v=>v ? v.slice(8,10)+"/"+v.slice(5,7) : "—";
+    if(!mineNow){ out.push({...base, id:t.id+":off:"+upd, kind:"off", text:"המשימה כבר לא משויכת אליך"}); return out; }
+    if(!mineWas){
+      if(t.status!=="הושלמה") out.push({...base, id:t.id+":as:"+upd, kind:"assign",
+        text:"הוקצתה לך משימה"+(t.prio && t.prio!=="רגילה" ? " · "+t.prio : "")+(t.due ? " · יעד "+dm(t.due) : "")});
+      return out;
+    }
+    const had=new Set((was.log||[]).map(l=>l && l.id));
+    (t.log||[]).filter(l=>l && !had.has(l.id)).forEach(l=>out.push({...base, id:t.id+":"+l.id, kind:l.sys ? "status" : "update",
+      text:l.text||"", by:l.by||who, at:l.at}));
+    const ch=[], same=(a,b)=>JSON.stringify(a||"")===JSON.stringify(b||"");
+    if(!same(t.title,was.title)) ch.push("כותרת");
+    if(!same(t.due,was.due)) ch.push("יעד "+dm(t.due));
+    if(!same(t.start,was.start)) ch.push("התחלה "+dm(t.start));
+    if(!same(t.prio,was.prio)) ch.push("עדיפות "+(t.prio||"רגילה"));
+    if(!same(t.desc,was.desc)) ch.push("תיאור");
+    if(!same(t.loc,was.loc)) ch.push("מיקום");
+    if(!same(t.eq,was.eq)) ch.push("ציוד");
+    if(!same(t.ppl,was.ppl) || !same(t.depts,was.depts)) ch.push("שיוך: "+(t.ppl||[]).concat((t.depts||[]).map(x=>"🏢 "+x)).join(", "));
+    if(ch.length) out.push({...base, id:t.id+":ed:"+upd, kind:"edit", text:"עודכנו פרטים: "+ch.join(" · ")});
+    if(!out.length && t.status!==was.status) out.push({...base, id:t.id+":st:"+upd, kind:"status", text:"סטטוס: "+(t.status||"")});
+    return out;
   }
   function cloudPushTasks(){
     if(!started || !me) return;
