@@ -1014,6 +1014,7 @@ small.dept{font-size:12px;font-weight:700;color:var(--c-maint);background:var(--
 .fab span{font-size:34px;font-weight:700;line-height:1;margin-top:-2px}
 .fab:hover{filter:brightness(1.08)} .fab:active{transform:scale(.95)}
 #viewList[hidden] .fab{display:none}
+.fab[hidden],#viewTasks[hidden] .fab{display:none}
 /* greeting in the clock box */
 .clock{flex-wrap:wrap;justify-content:center;row-gap:2px}
 .c-hello{font-weight:900;font-size:14px;color:var(--c-power);margin-inline-end:4px}
