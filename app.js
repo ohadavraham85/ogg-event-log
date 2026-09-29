@@ -1180,7 +1180,7 @@ function paintThemeBtn(){
   const d=isDark(), b=$("#themeBtn");
   b.textContent = d ? "☀" : "☾";
   b.title = b.ariaLabel = d ? "מעבר לרקע בהיר" : "מעבר לרקע כהה";
-  const m=document.querySelector('meta[name="theme-color"]'); if(m) m.content = d ? "#0E161C" : "#0E7C86";
+  const m=document.querySelector('meta[name="theme-color"]'); if(m) m.content = d ? "#0E161C" : (getComputedStyle(document.documentElement).getPropertyValue("--water").trim() || "#0E7C86");
   const t=document.documentElement.getAttribute("data-theme"), cs=document.querySelector('meta[name="color-scheme"]');
   if(cs) cs.content = t==="light" ? "only light" : t==="dark" ? "only dark" : "light dark";
 }
@@ -1192,6 +1192,19 @@ $("#themeBtn").onclick=()=>{
 };
 try{ const th=localStorage.getItem("ogg-theme"); if(th==="light"||th==="dark") document.documentElement.setAttribute("data-theme",th); }catch(e){}
 if(darkMQ.addEventListener) darkMQ.addEventListener("change",paintThemeBtn);
+/* colour scheme (accent): the same app in another colour; the choice stays on this device */
+const ACCENTS=[["teal","טורקיז","#0E7C86"],["blue","כחול מבט\"י","#1565A8"],["purple","סגול","#6A3FB8"],["wine","בורדו","#9C2A4E"],["amber","כתום","#B45309"],["slate","גרפיט","#3F4B59"]];
+function curAccent(){ return document.documentElement.getAttribute("data-accent") || "teal"; }
+function paintAccents(){
+  const box=$("#accList"); if(!box) return; box.textContent="";
+  ACCENTS.forEach(([k,name,col])=>{ const b=mk("button","acc"); b.type="button"; b.setAttribute("aria-pressed",String(k===curAccent()));
+    const i=mk("i"); i.style.background=col; b.append(i,name);
+    b.onclick=()=>{ if(k==="teal") document.documentElement.removeAttribute("data-accent"); else document.documentElement.setAttribute("data-accent",k);
+      try{ localStorage.setItem("ogg-accent",k); }catch(e){}
+      paintAccents(); paintThemeBtn(); if(!$("#viewDash").hidden && typeof renderDash==="function") renderDash(); };
+    box.appendChild(b); });
+}
+paintAccents();
 paintThemeBtn();
 
 /* ================= voice ================= */
@@ -1572,7 +1585,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.83", APP_DATE="30/09/2026";
+const APP_VER="1.84", APP_DATE="30/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){

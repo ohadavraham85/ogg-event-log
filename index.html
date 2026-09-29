@@ -7,13 +7,14 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;900&family=Rubik:wght@500;600;700&family=Assistant:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=1.83">
+<link rel="stylesheet" href="style.css?v=1.84">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0E7C86">
 <meta name="color-scheme" content="light dark">
 <script>
 /* apply the saved light/dark choice before the first paint. "only light" also stops the phone's
    browser from force-darkening the page (Chrome / Samsung Internet dark mode). */
+(function(){ try{ var a=localStorage.getItem("ogg-accent"); if(a && a!=="teal") document.documentElement.setAttribute("data-accent",a); }catch(e){} })();
 (function(){ try{ var t=localStorage.getItem("ogg-theme"); if(t!=="light"&&t!=="dark") return;
   document.documentElement.setAttribute("data-theme",t);
   document.querySelector('meta[name="color-scheme"]').content = t==="light" ? "only light" : "only dark"; }catch(e){} })();
@@ -111,7 +112,7 @@
       <img class="logo" src="icons/logo-header.png" alt="מבט&quot;י — מפעלי ביוב וטיהור ירושלים" width="101" height="137">
       <div class="mark">יומן אירועים ומשימות <span class="sub">מט"ש אוג</span></div>
       <div class="clock" id="clock" aria-live="off"><span class="c-hello" id="cHello" hidden></span><span class="c-day" id="cDay"></span><span class="c-date" id="cDate"></span><b class="c-time" id="cTime"></b></div>
-      <span class="ver" id="verChip" title="גרסה">v1.83</span>
+      <span class="ver" id="verChip" title="גרסה">v1.84</span>
       <button class="icon-btn inbox-btn" id="inboxBtn" aria-label="הודעות" title="הודעות" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm7-6V11a7 7 0 0 0-5.5-6.84V3.5a1.5 1.5 0 0 0-3 0v.66A7 7 0 0 0 5 11v5l-2 2v1h18v-1z" fill="currentColor"/></svg><span class="newcnt" id="inboxN" hidden></span></button>
       <button class="icon-btn" id="refreshBtn" aria-label="רענון" title="רענון — טעינה מחדש ובדיקת עדכון"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M20.5 3.5v5h-5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       <button class="icon-btn" id="themeBtn" aria-label="מצב תצוגה">☾</button>
@@ -311,6 +312,11 @@
       <button type="button" data-sg="general">⚙ כללי</button>
     </nav>
     <div class="card" data-sg="general">
+      <h3>ערכת צבעים</h3>
+      <p>צבע הכפתורים, הלשוניות וההדגשות. נשמר במכשיר הזה (בהיר/כהה — בכפתור שבכותרת).</p>
+      <div class="acc-list" id="accList" role="group" aria-label="ערכת צבעים"></div>
+    </div>
+    <div class="card" data-sg="general">
       <h3>מה יש ביומן</h3>
       <div class="stat" id="stats"></div>
     </div>
@@ -362,7 +368,7 @@
 
     <div class="card" data-sg="general">
       <h3>גרסה</h3>
-      <p id="verLine">גרסה 1.83 · 30/09/2026</p>
+      <p id="verLine">גרסה 1.84 · 30/09/2026</p>
       <div class="row"><button class="btn" id="reloadApp">בדוק עדכון</button></div>
     </div>
 
@@ -471,9 +477,9 @@
     <button class="btn ghost" id="wkClose" hidden>סגור</button></div>
 </dialog>
 
-<script src="firebase-config.js?v=1.83"></script>
-<script src="app.js?v=1.83"></script>
-<script src="cloud.js?v=1.83"></script>
+<script src="firebase-config.js?v=1.84"></script>
+<script src="app.js?v=1.84"></script>
+<script src="cloud.js?v=1.84"></script>
 <script>
 if("serviceWorker" in navigator){
   window.addEventListener("load",()=>{ navigator.serviceWorker.register("sw.js").catch(()=>{}); });
