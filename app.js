@@ -169,7 +169,7 @@ $("#scrim").onclick = closeSheet;
 document.addEventListener("keydown", e=>{ if(e.key==="Escape" && shKey) closeSheet(); });
 
 /* ================= list manager ================= */
-/* ===== list management ("רשימות וקובץ"): one place for people, locations, equipment and event types.
+/* ===== list management (settings → "ניהול רשימות"): one place for people, locations, equipment and event types.
    Active values appear in every dropdown (event form, tasks, filters for new work). "הוצא משימוש" retires a value:
    it disappears from all dropdowns, but old events keep it and the history filters still find it. */
 const MGR_KEYS=[["ppl","אנשים"],["loc","מיקומים"],["eq","ציוד"],["type","סוגי אירוע"]];
@@ -180,6 +180,46 @@ function retireValue(k,v){ if(!lists["_hide_"+k].includes(v)) lists["_hide_"+k].
   toast(v+" הוצא משימוש",{label:"בטל",fn:()=>restoreValue(k,v)}); }
 function restoreValue(k,v){ const h=lists["_hide_"+k].indexOf(v); if(h>=0) lists["_hide_"+k].splice(h,1);
   if(!lists[k].includes(v)) lists[k].push(v); persist(); paintRows(); renderMgr(); renderTasks(); toast(v+" חזר לרשימות"); }
+/* duplicates: likely the same person/place written differently — spelling (ו/י, spaces, punctuation),
+   or a first/last name alone next to the full name. Merging rewrites the value in every event and task. */
+const skel=v=>String(v).replace(/["'״׳.\-+]/g,"").replace(/\s+/g,"").replace(/(?!^)[וי]/g,"");
+function lev(x,y){ if(Math.abs(x.length-y.length)>1) return 9; const m=x.length,n=y.length; let p=[...Array(n+1).keys()];
+  for(let i=1;i<=m;i++){ const c=[i]; for(let j=1;j<=n;j++) c[j]=Math.min(p[j]+1,c[j-1]+1,p[j-1]+(x[i-1]===y[j-1]?0:1)); p=c; } return p[n]; }
+function dupPairs(k){
+  const cnt=useCount(k), vals=[...new Set(lists[k].concat(Object.keys(cnt)))].filter(v=>!(lists["_hide_"+k]||[]).includes(v)), out=[];
+  const toks=v=>String(v).trim().split(/\s+/);
+  for(let i=0;i<vals.length;i++) for(let j=i+1;j<vals.length;j++){
+    const x=vals[i], y=vals[j], sx=skel(x), sy=skel(y);
+    const code=v=>String(v).replace(/[^0-9A-Za-z]/g,"").toUpperCase();   // B103 vs B107, EB1 vs EB2: different things
+    if(code(x)===code(y) && (sx===sy || (sx.length>=4 && sy.length>=4 && lev(sx,sy)<=1))){
+      const [from,to]=(cnt[x]||0)<=(cnt[y]||0)?[x,y]:[y,x]; out.push({from,to,why:"כתיב"}); continue; }
+    // a single word next to a two-word full name that starts or ends with it (אוהד → אוהד אברהם, EB1 → חדר חשמל EB1)
+    const tx=toks(x), ty=toks(y), [s,l,sv,lv]=tx.length<ty.length?[tx,ty,x,y]:[ty,tx,y,x];
+    const two = k==="ppl" ? l.length===2 : l.length>=2;
+    if(s.length===1 && two && s[0].length>=2 && (skel(l[0])===skel(s[0]) || skel(l[l.length-1])===skel(s[0])) && code(s[0])===code(k==="ppl"?s[0]:l.join("")) )
+      out.push({from:sv,to:lv,why:"שם חלקי"});
+  }
+  return out.sort((p,q)=>(cnt[q.to]||0)-(cnt[p.to]||0));
+}
+async function mergeValue(k, from, to){
+  if(!from || !to || from===to) return;
+  const cnt=useCount(k), nT=tasks.filter(t=>(t[k]||[]).includes(from)).length;
+  const ok=await confirmDel("למזג?", "“"+from+"” ("+nf(cnt[from]||0)+" אירועים"+(nT?", "+nT+" משימות":"")+")\nיהפוך ל: “"+to+"”",
+    false, {ok1:"המשך למיזוג", ok2:"כן, מזג", warn:"⚠ אישור שני: השם יוחלף בכל האירועים והמשימות"+(CLOUD_ON?" — לכל הצוות":"")+". אפשר לבטל מיד אחרי."});
+  if(!ok) return;
+  const undoE=[], undoT=[];
+  const swap=arr=>[...new Set(arr.map(v=>v===from?to:v))];
+  events.forEach(e=>{ if((e[k]||[]).includes(from)){ undoE.push([e,e[k].slice()]); e[k]=swap(e[k]); } });
+  tasks.forEach(t=>{ if((t[k]||[]).includes(from)){ undoT.push([t,t[k].slice()]); t[k]=swap(t[k]); } });
+  const wasCustom=lists["_custom_"+k].includes(from), wasHidden=(lists["_hide_"+k]||[]).includes(from);
+  lists["_custom_"+k]=lists["_custom_"+k].filter(v=>v!==from); lists["_hide_"+k]=(lists["_hide_"+k]||[]).filter(v=>v!==from);
+  lists[k]=lists[k].filter(v=>v!==from); if(!lists[k].includes(to)) lists[k].push(to);
+  persist(); saveTasks(); renderAll(); renderMgr();
+  toast("מוזג: "+from+" ← "+to+" ("+undoE.length+" אירועים)",{label:"בטל",fn:()=>{
+    undoE.forEach(([e,v])=>{ e[k]=v; }); undoT.forEach(([t,v])=>{ t[k]=v; });
+    if(wasCustom) lists["_custom_"+k].push(from); if(wasHidden) lists["_hide_"+k].push(from); else if(!lists[k].includes(from)) lists[k].push(from);
+    persist(); saveTasks(); renderAll(); renderMgr(); toast("המיזוג בוטל"); }});
+}
 function renderMgr(){
   const box=$("#listMgr"); box.textContent="";
   MGR_KEYS.forEach(([k,label])=>{
@@ -200,6 +240,21 @@ function renderMgr(){
       inp.value=""; persist(); paintRows(); renderMgr(); renderTasks(); toast(v+" נוסף לרשימות"); };
     add.onclick=go; inp.onkeydown=e=>{ if(e.key==="Enter"){ e.preventDefault(); go(); } };
     r.append(inp,add); det.appendChild(r);
+    // likely duplicates
+    const pairs=dupPairs(k);
+    if(pairs.length){
+      const dd=mk("details","mgr-dup"); dd.open=mgrOpen.has(k+":dup"); dd.ontoggle=()=>{ dd.open?mgrOpen.add(k+":dup"):mgrOpen.delete(k+":dup"); };
+      dd.appendChild(mk("summary",null,"⚠ כפילויות אפשריות ("+pairs.length+") — בדוק ומזג"));
+      pairs.forEach(pr=>{
+        const r=mk("div","dup-row"), st={from:pr.from,to:pr.to};
+        const txt=mk("span","dup-t"), paintT=()=>{ txt.textContent=""; txt.append(mk("b",null,st.from), mk("em",null," ("+nf(cnt[st.from]||0)+") ← "), mk("b",null,st.to), mk("em",null," ("+nf(cnt[st.to]||0)+")")); };
+        paintT();
+        const sw=mk("button","btn mini","⇄"); sw.type="button"; sw.title="הפוך כיוון"; sw.onclick=()=>{ [st.from,st.to]=[st.to,st.from]; paintT(); };
+        const go=mk("button","btn mini ok","מזג"); go.type="button"; go.onclick=()=>mergeValue(k,st.from,st.to);
+        r.append(mk("span","dup-why",pr.why), txt, sw, go); dd.appendChild(r);
+      });
+      det.appendChild(dd);
+    }
     // search
     const q=mk("input","txt mgr-q"); q.type="search"; q.placeholder="חיפוש…"; q.value=mgrQ[k]||"";
     det.appendChild(q);
@@ -211,6 +266,11 @@ function renderMgr(){
         rw.append(mk("span","mgr-st "+(isRet?"off":"on"), isRet?"לא פעיל":"פעיל"), mk("b",null,v),
           mk("span","mgr-c", cnt[v] ? nf(cnt[v])+" אירועים" : "לא בשימוש"));
         const bt=(txt,cls,fn)=>{ const x=mk("button","btn mini"+(cls?" "+cls:""),txt); x.type="button"; x.onclick=fn; rw.appendChild(x); };
+        bt("מזג…","",()=>{
+          if(rw.querySelector("select")) return;
+          const s=mk("select","mgr-into"); fillSelect(s, active.filter(x=>x!==v), "", "מזג לתוך…");
+          s.onchange=()=>{ if(s.value) mergeValue(k,v,s.value); };
+          rw.appendChild(s); s.focus(); });
         if(isRet) bt("החזר","ok",()=>restoreValue(k,v));
         else {
           bt("הוצא משימוש","",()=>retireValue(k,v));
@@ -247,16 +307,18 @@ function fmtWhen(s){
 /* ================= delete: always two confirmations =================
    Step 1 shows exactly what will be deleted; step 2 is a separate, red "final" confirmation.
    Bulk deletions also require typing "מחק". Returns a Promise<boolean>. */
-function confirmDel(title, what, bulk){
+function confirmDel(title, what, bulk, o){
+  o=o||{};
   return new Promise(res=>{
     const d=$("#dlgDel"), ok=$("#delOk"), no=$("#delNo"); let step=1;
     $("#delTitle").textContent=title; $("#delWhat").textContent=what||"";
     $("#delWarn").hidden=true; $("#delTypeWrap").hidden=true; $("#delType").value="";
-    ok.textContent="המשך למחיקה"; ok.classList.remove("final");
+    $("#delWarn").textContent = o.warn || "⚠ אישור שני: המחיקה סופית ואי אפשר לבטל אותה.";
+    ok.textContent=o.ok1||"המשך למחיקה"; ok.classList.remove("final");
     const done=v=>{ ok.onclick=no.onclick=null; d.onclose=null; if(d.open) d.close(); res(v); };
     ok.onclick=()=>{
       if(step===1){ step=2; $("#delWarn").hidden=false; if(bulk){ $("#delTypeWrap").hidden=false; setTimeout(()=>$("#delType").focus(),50); }
-        ok.textContent="כן, מחק סופית"; ok.classList.add("final"); return; }
+        ok.textContent=o.ok2||"כן, מחק סופית"; ok.classList.add("final"); return; }
       if(bulk && $("#delType").value.trim()!=="מחק"){ toast("הקלד מחק כדי לאשר"); $("#delType").focus(); return; }
       done(true);
     };
@@ -982,7 +1044,18 @@ function show(w){
 $("#tabNew").onclick=()=>show("New");
 $("#tabList").onclick=()=>{ renderFilters(); renderList(); show("List"); };
 $("#tabDash").onclick=()=>{ renderDash(); show("Dash"); };
-$("#tabData").onclick=()=>{ renderStats(); renderMgr(); show("Data"); };
+$("#tabData").onclick=()=>{ renderStats(); renderMgr(); paintSettings(); show("Data"); };
+/* settings: one topic at a time (lists / team / files / general); the last one is remembered */
+let sgCur="lists"; try{ sgCur=localStorage.getItem("ogg-settings-topic")||"lists"; }catch(e){}
+function paintSettings(){
+  const team=!!$("#cloudCard");
+  $("#sgNav [data-sg=team]").hidden=!team;
+  if(sgCur==="team" && !team) sgCur="lists";
+  document.querySelectorAll("#sgNav button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.sg===sgCur)));
+  document.querySelectorAll("#viewData > .card").forEach(c=>{ c.hidden = (c.dataset.sg||"general")!==sgCur; });
+}
+document.querySelectorAll("#sgNav button").forEach(b=>b.onclick=()=>{ sgCur=b.dataset.sg; try{ localStorage.setItem("ogg-settings-topic",sgCur); }catch(e){} paintSettings(); window.scrollTo({top:0}); });
+window.paintSettings=paintSettings;
 /* theme: one tap switches between light and dark (whatever is showing now — the phone's setting or a saved choice) */
 const darkMQ=window.matchMedia ? matchMedia("(prefers-color-scheme: dark)") : {matches:false};
 function isDark(){ const t=document.documentElement.getAttribute("data-theme"); return t ? t==="dark" : darkMQ.matches; }
@@ -1284,7 +1357,7 @@ const backupFile=()=>new File([JSON.stringify(payload(),null,1)],"גיבוי-י�
 $("#wkBackup").onclick=()=>{
   const f=backupFile(); saveBlob(f);
   wkMail("גיבוי "+appTitle()+" — "+dmy(ymd(new Date())),
-    "גיבוי מלא של היומן ("+events.length+" אירועים).\nמצורף הקובץ: "+f.name+"\n\nלשחזור: באפליקציה ← רשימות וקובץ ← טען גיבוי.");
+    "גיבוי מלא של היומן ("+events.length+" אירועים).\nמצורף הקובץ: "+f.name+"\n\nלשחזור: באפליקציה ← הגדרות ← קבצים וגיבוי ← טען גיבוי.");
   toast("הגיבוי ירד — צרף אותו למייל שנפתח");
   wkState.s2=true; wkPaint();
 };
@@ -1371,7 +1444,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.49", APP_DATE="29/09/2026";
+const APP_VER="1.50", APP_DATE="29/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -1628,7 +1701,7 @@ function openTaskForm(id){
   $("#tkForm").hidden=false; $("#tkNewBtn").hidden=true;
   $("#tkForm").scrollIntoView({block:"start",behavior:"smooth"});
 }
-/* "+ אחר…": type a new value; it joins the app's lists (like adding it in "רשימות וקובץ") */
+/* "+ אחר…": type a new value; it joins the app's lists (like adding it in settings → lists) */
 [["#tkPpl","ppl","שם האחראי"],["#tkLoc","loc","מיקום חדש"],["#tkEq","eq","ציוד חדש"]].forEach(([id,k,label])=>{
   const el=$(id), prev={v:""};
   el.onfocus=()=>{ prev.v=el.value; };

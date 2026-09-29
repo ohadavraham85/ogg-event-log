@@ -287,7 +287,7 @@
   window.cloudPush=cloudPush;
 
   /* ---------- account, team management, upload of the local log ---------- */
-  const card=mk("div","card"); card.id="cloudCard";
+  const card=mk("div","card"); card.id="cloudCard"; card.dataset.sg="team";
   $("#viewData").insertBefore(card, $("#viewData").children[1]||null);
   function renderAccount(){
     card.textContent="";

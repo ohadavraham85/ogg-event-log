@@ -608,8 +608,7 @@ html.sp-open,html.sp-open body{overflow:hidden}
   #viewNew > .block:nth-of-type(4){grid-area:act}
 
   /* lists & file: cards in two columns */
-  #viewData{columns:2;column-gap:12px}
-  #viewData > .card{break-inside:avoid}
+  #viewData > .card{max-width:none}
 }
 
 /* ---- credits ---- */
@@ -855,3 +854,21 @@ body.d-drag, body.d-drag *{cursor:grabbing!important;user-select:none!important}
 .mgr-n{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
 .mgr-list .listrow{align-items:center}
 .mgr-list .listrow.retired{background:color-mix(in srgb,var(--c-fault-bg) 35%,transparent)}
+/* settings topics */
+.sg-nav{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin:6px 0 14px}
+.sg-nav button{border:2px solid var(--edge);background:var(--panel);color:var(--ink-2);border-radius:12px;padding:11px 10px;
+  font:inherit;font-size:15px;font-weight:800;cursor:pointer;text-align:center}
+.sg-nav button[hidden]{display:none}
+.sg-nav button[aria-pressed="true"]{background:var(--water);border-color:var(--water);color:#fff}
+@media (max-width:480px){ .sg-nav{grid-template-columns:1fr 1fr} .sg-nav button{font-size:14px;padding:10px 6px} }
+#viewData > .card[hidden]{display:none}
+.mgr-dup{border:1px solid var(--c-flood);background:var(--c-flood-bg);border-radius:10px;margin:0 14px 10px;padding:0 10px}
+.mgr-dup > summary{cursor:pointer;padding:9px 0;font-weight:800;color:var(--c-flood);font-size:14px}
+.dup-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;padding:7px 0;border-top:1px solid color-mix(in srgb,var(--c-flood) 25%,transparent)}
+.dup-t{flex:1 1 180px;min-width:0;overflow-wrap:anywhere;font-size:14.5px}
+.dup-t em{font-style:normal;color:var(--ink-3);font-size:12.5px}
+.dup-why{font-size:11.5px;font-weight:800;padding:1px 7px;border-radius:99px;background:var(--panel);color:var(--ink-2)}
+.dup-row .btn.mini{padding:5px 10px;font-size:13px}
+.dup-row .btn.ok{border-color:var(--water);color:var(--water)}
+.mgr-into{flex:1 1 100%;font:inherit;font-size:14.5px;padding:7px;border:1.5px solid var(--water);border-radius:9px;background:var(--panel);color:var(--ink)}
+.dup-t{flex:1 1 150px}

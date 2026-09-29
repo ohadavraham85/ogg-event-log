@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;900&family=Rubik:wght@500;600;700&family=Assistant:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=1.49">
+<link rel="stylesheet" href="style.css?v=1.50">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0E7C86">
 <meta name="color-scheme" content="light dark">
@@ -111,7 +111,7 @@
       <img class="logo" src="icons/logo-header.png" alt="מבט&quot;י — מפעלי ביוב וטיהור ירושלים" width="101" height="137">
       <div class="mark">יומן אירועים <span class="sub">מט"ש אוג</span></div>
       <div class="clock" id="clock" aria-live="off"><span class="c-day" id="cDay"></span><span class="c-date" id="cDate"></span><b class="c-time" id="cTime"></b></div>
-      <span class="ver" id="verChip" title="גרסה">v1.49</span>
+      <span class="ver" id="verChip" title="גרסה">v1.50</span>
       <button class="icon-btn" id="refreshBtn" aria-label="רענון" title="רענון — טעינה מחדש ובדיקת עדכון"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M20.5 3.5v5h-5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       <button class="icon-btn" id="themeBtn" aria-label="מצב תצוגה">☾</button>
     </div>
@@ -120,7 +120,7 @@
       <button role="tab" id="tabNew" aria-selected="false">רישום אירוע</button>
       <button role="tab" id="tabList" aria-selected="false">אירועים <span id="cnt"></span><span class="newcnt" id="newCnt" hidden></span></button>
       <button role="tab" id="tabTasks" aria-selected="false">משימות <span id="tkCnt"></span><span class="newcnt" id="tkMine" hidden></span></button>
-      <button role="tab" id="tabData" aria-selected="false">רשימות וקובץ</button>
+      <button role="tab" id="tabData" aria-selected="false"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.5 7.5 0 0 0-1.7-1L15 3.3h-4l-.4 2.6a7.5 7.5 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.5 7.5 0 0 0 1.7 1l.4 2.6h4l.4-2.6a7.5 7.5 0 0 0 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg>הגדרות</button>
     </nav>
   </header>
 
@@ -271,18 +271,25 @@
   </section>
 
   <section id="viewData" hidden>
-    <div class="card">
+    <div class="dsh-head"><h2>הגדרות</h2></div>
+    <nav class="sg-nav" id="sgNav" aria-label="נושאי הגדרות">
+      <button type="button" data-sg="lists">📋 ניהול רשימות</button>
+      <button type="button" data-sg="team" hidden>👥 צוות וחשבון</button>
+      <button type="button" data-sg="files">💾 קבצים וגיבוי</button>
+      <button type="button" data-sg="general">⚙ כללי</button>
+    </nav>
+    <div class="card" data-sg="general">
       <h3>מה יש ביומן</h3>
       <div class="stat" id="stats"></div>
     </div>
 
-    <div class="card">
+    <div class="card" data-sg="lists">
       <h3>ניהול רשימות</h3>
       <p>אנשים, מיקומים, ציוד וסוגי אירוע — מה שכאן פעיל מופיע בכל רשימות הבחירה (רישום אירוע, משימות). <b>הוצא משימוש</b> מסתיר ערך מכל הרשימות (עובד שעזב, ציוד שהוחלף) — האירועים הישנים לא משתנים, וההיסטוריה עדיין מוצאת אותו בסינון. ביומן המשותף — לכל הצוות.</p>
       <div id="listMgr"></div>
     </div>
 
-    <div class="card">
+    <div class="card" data-sg="files">
       <h3>הקובץ ב-OneDrive</h3>
       <p id="fileState">הרישומים נשמרים בדפדפן. חבר קובץ בתיקייה מסונכרנת כדי שיהיה גיבוי וגישה ממחשבים אחרים.</p>
       <div class="row">
@@ -292,7 +299,7 @@
       </div>
     </div>
 
-    <div class="card">
+    <div class="card" data-sg="files">
       <h3>גיבוי וייצוא</h3>
       <div class="row">
         <button class="btn" id="expJson">הורד גיבוי</button>
@@ -304,7 +311,7 @@
       <p class="hint" id="wkLast"></p>
     </div>
 
-    <div class="card">
+    <div class="card" data-sg="general">
       <h3>אייקון האפליקציה</h3>
       <p>לחיצה ארוכה על אייקון האפליקציה פותחת קיצורים: רישום אירוע, דשבורד, אירועים פתוחים.</p>
       <label class="sortwrap stack"><span>מספר על האייקון</span>
@@ -318,13 +325,13 @@
       <p class="hint" id="badgeNote"></p>
     </div>
 
-    <div class="card">
+    <div class="card" data-sg="general">
       <h3>גרסה</h3>
-      <p id="verLine">גרסה 1.49 · 29/09/2026</p>
+      <p id="verLine">גרסה 1.50 · 29/09/2026</p>
       <div class="row"><button class="btn" id="reloadApp">בדוק עדכון</button></div>
     </div>
 
-    <div class="card">
+    <div class="card" data-sg="general">
       <h3>ניקוי</h3>
       <p>אירועי הארכיון שנטענו מהיומנים הישנים נעולים לעריכה ולמחיקה (אפשר רק לסגור או לפתוח אותם מחדש). אפשר למחוק רק את מה שרשמת באפליקציה.</p>
       <div class="row">
@@ -414,9 +421,9 @@
     <button class="btn ghost" id="wkClose" hidden>סגור</button></div>
 </dialog>
 
-<script src="firebase-config.js?v=1.49"></script>
-<script src="app.js?v=1.49"></script>
-<script src="cloud.js?v=1.49"></script>
+<script src="firebase-config.js?v=1.50"></script>
+<script src="app.js?v=1.50"></script>
+<script src="cloud.js?v=1.50"></script>
 <script>
 if("serviceWorker" in navigator){
   window.addEventListener("load",()=>{ navigator.serviceWorker.register("sw.js").catch(()=>{}); });
