@@ -1562,7 +1562,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.59", APP_DATE="29/09/2026";
+const APP_VER="1.63", APP_DATE="29/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -1571,8 +1571,33 @@ async function refreshApp(){
   try{ const r=navigator.serviceWorker && await navigator.serviceWorker.getRegistration(); if(r) await r.update(); }catch(e){}
   location.reload();
 }
-$("#reloadApp").onclick=refreshApp;
-$("#refreshBtn").onclick=()=>{ $("#refreshBtn").classList.add("spin"); refreshApp(); };
+/* update check: version.txt on the site says what the latest version is. When it is newer than this copy,
+   a banner offers "עדכן עכשיו": clear the saved app files (not the data) and load fresh. */
+async function latestVersion(){
+  try{ const r=await fetch("version.txt?t="+Date.now(),{cache:"no-store"}); if(!r.ok) return null;
+    const v=(await r.text()).trim(); return /^\d+(\.\d+)+$/.test(v) ? v : null; }catch(e){ return null; }
+}
+const newer=(a,b)=>{ const x=a.split(".").map(Number), y=b.split(".").map(Number);
+  for(let i=0;i<Math.max(x.length,y.length);i++){ if((x[i]||0)!==(y[i]||0)) return (x[i]||0)>(y[i]||0); } return false; };
+async function hardUpdate(){
+  const cur=["Dash","New","List","Data","Tasks","Cal"].find(v=>!$("#view"+v).hidden)||"Dash";
+  try{ sessionStorage.setItem("ogg-refresh",cur); }catch(e){}
+  try{ const ks=await caches.keys(); await Promise.all(ks.map(k=>caches.delete(k))); }catch(e){}
+  try{ const rs=await navigator.serviceWorker.getRegistrations(); await Promise.all(rs.map(r=>r.unregister())); }catch(e){}
+  location.replace(location.pathname+"?app=ogg-log-2&u="+Date.now());
+}
+async function checkUpdate(){
+  const v=await latestVersion(); const bar=$("#updBar");
+  if(v && newer(v,APP_VER)){ $("#updTxt").textContent="גרסה חדשה "+v+" זמינה (יש לך "+APP_VER+")"; bar.hidden=false; }
+  else bar.hidden=true;
+  return v;
+}
+$("#updGo").onclick=hardUpdate;
+setTimeout(checkUpdate,2500); setInterval(checkUpdate,10*60e3);
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden) checkUpdate(); });
+$("#reloadApp").onclick=async()=>{ const v=await checkUpdate(); if(v && newer(v,APP_VER)) hardUpdate(); else { toast("יש לך את הגרסה העדכנית ("+APP_VER+")"); } };
+$("#refreshBtn").onclick=async()=>{ $("#refreshBtn").classList.add("spin");
+  const v=await latestVersion(); if(v && newer(v,APP_VER)) hardUpdate(); else refreshApp(); };
 
 /* ================= clock: day, date, time in the header ================= */
 (function(){
