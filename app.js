@@ -1585,7 +1585,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.84", APP_DATE="30/09/2026";
+const APP_VER="1.85", APP_DATE="30/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -1974,6 +1974,7 @@ function renderTasks(){
       if(pr!=="רגילה") tag(pr,"",ph);
       if(t.type) tag(t.type,"",hueOf(t.type));
       if(t.status==="בטיפול") tag("בטיפול","w");
+      if(t.rep) tag("🔁 "+repLabel(t.rep),"rep");
       { const ci=(t.check||[]).filter(x=>x && !x.del); if(ci.length) tag("☑ "+ci.filter(x=>x.done).length+"/"+ci.length, ci.every(x=>x.done)?"ok":""); }
       if(t.start && t.start>today) tag("מתחילה "+dmy(t.start).slice(0,5));
       if(t.due) tag((t.due<today?"באיחור · ":t.due===today?"היום · ":"יעד ")+dmy(t.due).slice(0,5), t.due<today?"late":t.due===today?"today":"");
@@ -2020,6 +2021,7 @@ function openTaskForm(id){
   $("#tkFormTitle").textContent = t ? "עריכת משימה" : "משימה חדשה";
   $("#tkTitle").value=t?t.title||"":""; $("#tkDesc").value=t?t.desc||"":"";
   $("#tkDue").value=t?t.due||"":"";
+  setRep(t && t.rep);
   $("#tkStart").value=t ? (t.start || String(t.created||"").slice(0,10) || ymd(new Date())) : ymd(new Date());
   $("#tkDue").min=$("#tkStart").value;
   $("#tkForm").hidden=false; $("#tkNewBtn").hidden=true;
@@ -2108,7 +2110,7 @@ $("#tkSave").onclick=()=>{
   const title=$("#tkTitle").value.trim();
   const now=new Date().toISOString(), prio=$("#tkPrio").value||"רגילה";
   const data={title, desc:$("#tkDesc").value.trim(), type:$("#tkType").value||"", prio, urgent:prio==="דחופה",
-    ppl:tkPplSel.slice(), loc:one($("#tkLoc").value), eq:one($("#tkEq").value), due:$("#tkDue").value||"", start:$("#tkStart").value||"", depts:tkDeptSel.slice(), upd:now};
+    ppl:tkPplSel.slice(), loc:one($("#tkLoc").value), eq:one($("#tkEq").value), due:$("#tkDue").value||"", start:$("#tkStart").value||"", depts:tkDeptSel.slice(), rep:readRep(), upd:now};
   const was=tkEdit;
   if(was){ const t=tasks.find(x=>x.id===was); if(t) Object.assign(t,data); }
   else { const pend=($("#tkCk input")||{}).value; if(pend && pend.trim() && !tkCkSel.includes(pend.trim())) tkCkSel.push(pend.trim());
@@ -2120,6 +2122,42 @@ $("#tkSave").onclick=()=>{
 function paintTkSeg(){ document.querySelectorAll("#tkSeg button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===tkView))); }
 document.querySelectorAll("#tkSeg button").forEach(b=>b.onclick=()=>{ tkView=b.dataset.v; paintTkSeg(); renderTasks(); });
 /* finish a task -> a closed event in the log */
+/* recurring tasks: rep = {n, u} — every n days / weeks / months / years.
+   Finishing one opens the next with the same details, dates moved on by the interval
+   (and on past today, so a task finished late doesn't come back already late); the checklist starts over. */
+const REP_U={d:["יום","ימים"],w:["שבוע","שבועות"],m:["חודש","חודשים"],y:["שנה","שנים"]};
+function repLabel(r){ if(!r || !REP_U[r.u]) return "";
+  if(+r.n===1) return {d:"יומית",w:"שבועית",m:"חודשית",y:"שנתית"}[r.u];
+  return "כל "+r.n+" "+REP_U[r.u][1]; }
+function readRep(){ const v=$("#tkRep").value; if(!v) return undefined;
+  if(v!=="c") return {n:1,u:v};
+  const n=Math.max(1,Math.min(366,parseInt($("#tkRepN").value,10)||1)); return {n, u:$("#tkRepU").value||"d"}; }
+function setRep(r){
+  const ok=r && REP_U[r.u];
+  $("#tkRep").value = !ok ? "" : +r.n===1 ? r.u : "c";
+  if(ok && +r.n!==1){ $("#tkRepN").value=r.n; $("#tkRepU").value=r.u; } else { $("#tkRepN").value=2; $("#tkRepU").value="d"; }
+  paintRep();
+}
+function paintRep(){ const v=$("#tkRep").value; $("#tkRepC").hidden = v!=="c"; $("#tkRepHint").hidden = !v; }
+$("#tkRep").addEventListener("change",paintRep);
+function addRep(s, r, k){                     // "YYYY-MM-DD" + k intervals (month ends stay in their month: 31/01 → 28/02)
+  if(!s) return s; const [Y,M,D]=s.split("-").map(Number), n=(+r.n||1)*(k||1);
+  if(r.u==="d" || r.u==="w"){ const d=new Date(Y,M-1,D,12); d.setDate(d.getDate()+n*(r.u==="w"?7:1)); return ymd(d); }
+  const mm=(M-1)+n*(r.u==="y"?12:1), y2=Y+Math.floor(mm/12), m2=((mm%12)+12)%12, last=new Date(y2,m2+1,0).getDate();
+  return ymd(new Date(y2,m2,Math.min(D,last),12));
+}
+function nextOccurrence(t){
+  const r=t.rep, base=t.due || ymd(new Date()), today=ymd(new Date());
+  let k=1; while(addRep(base,r,k)<today && k<2000) k++;
+  const now=new Date().toISOString();
+  const n={id:newId(), status:"פתוחה", created:now, upd:now, log:[], title:t.title, desc:t.desc||"", type:t.type||"", prio:t.prio||"רגילה", urgent:!!t.urgent,
+    ppl:(t.ppl||[]).slice(), loc:(t.loc||[]).slice(), eq:(t.eq||[]).slice(), depts:(t.depts||[]).slice(), rep:{n:+r.n||1,u:r.u},
+    due:addRep(base,r,k), start:t.start ? addRep(t.start,r,k) : "", prevId:t.id};
+  const items=(t.check||[]).filter(x=>x && !x.del);
+  if(items.length) n.check=items.map(x=>({id:newId(), text:x.text, done:false}));
+  tkLog(n, "משימה מחזורית ("+repLabel(r)+") — נפתחה אחרי שהקודמת הושלמה"+(t.due?" (יעד קודם "+dmy(t.due).slice(0,5)+")":""), "", true);
+  return n;
+}
 function openTaskDone(id){
   const t=tasks.find(x=>x.id===id); if(!t) return; tkDoneId=id;
   $("#tdName").textContent=t.title;
@@ -2143,9 +2181,12 @@ $("#tdOk").onclick=()=>{
   ["loc","eq","ppl"].forEach(k=>(ev[k]||[]).forEach(v=>{ if(!lists[k].includes(v)) lists[k].push(v); }));
   Object.assign(t,{status:"הושלמה", doneAt:when, act, eventType:type, eventId:ev.id, upd:new Date().toISOString()});
   tkLog(t, "הושלמה ונרשמה ביומן"+(act?": "+act:""), "", true);
+  const nx = t.rep && !t.nextId ? nextOccurrence(t) : null;    // recurring: open the next one
+  if(nx){ tasks.push(nx); t.nextId=nx.id; }
   $("#dlgTaskDone").close();
   persist(); renderAll(); saveTasks();
-  toast("המשימה הושלמה ונרשמה ביומן",{label:"הצג",fn:()=>{ $("#sortBy").value="edit"; goList({ppl:""}); }});
+  if(nx) toast("הושלמה ונרשמה ביומן · נפתחה המשימה הבאה ליעד "+dmy(nx.due).slice(0,5),{label:"הצג",fn:()=>goTask(nx.id)});
+  else toast("המשימה הושלמה ונרשמה ביומן",{label:"הצג",fn:()=>{ $("#sortBy").value="edit"; goList({ppl:""}); }});
 };
 $("#tabTasks").onclick=()=>{ renderTasks(); show("Tasks"); };
 /* ================= calendar: events that happened + tasks (due / completed), month view ================= */

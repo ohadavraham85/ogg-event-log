@@ -242,6 +242,7 @@
     if(!same(t.desc,was.desc)) ch.push("תיאור");
     if(!same(t.loc,was.loc)) ch.push("מיקום");
     if(!same(t.eq,was.eq)) ch.push("ציוד");
+    if(!same(t.rep,was.rep)) ch.push("מחזוריות");
     const items=x=>(x.check||[]).filter(c=>c && !c.del).map(c=>c.text);
     if(!same(items(t),items(was))) ch.push("רשימת בדיקה");
     if(!same(t.ppl,was.ppl) || !same(t.depts,was.depts)) ch.push("שיוך: "+(t.ppl||[]).concat((t.depts||[]).map(x=>"🏢 "+x)).join(", "));
