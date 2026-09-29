@@ -458,7 +458,7 @@
   /* invitation: a ready message with the app link (their mail pre-filled) and how to sign in —
      sent by WhatsApp, mail, the share sheet, or copied. Adding to the team is what grants access. */
   function inviteText(em){
-    const title=(document.querySelector(".bar .mark")||{}).textContent||"יומן אירועים";
+    const title=(document.querySelector(".bar .mark")||{}).textContent||"יומן אירועים ומשימות";
     const url=location.origin+location.pathname+"?invite="+encodeURIComponent(em);
     return { url, subject:"הזמנה ל"+title.trim().replace(/\s+/g," "),
       text:"הוזמנת ל"+title.trim().replace(/\s+/g," ")+" — היומן המשותף של הצוות.\n\n"+

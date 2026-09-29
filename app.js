@@ -1287,8 +1287,8 @@ const K_WEEK="ogg-weekly-done", K_WEEK_TO="ogg-weekly-to";
 let wkState=null;
 function weekStart(d){ const x=new Date(d); x.setHours(0,0,0,0); x.setDate(x.getDate()-x.getDay()); return x.getTime(); }
 function weekDone(){ try{ return +localStorage.getItem(K_WEEK)||0; }catch(e){ return 0; } }
-function appTitle(){                          // the header title, e.g. "יומן אירועים" + sub-title
-  const m=$(".bar .mark"); if(!m) return "יומן אירועים";
+function appTitle(){                          // the header title, e.g. "יומן אירועים ומשימות" + sub-title
+  const m=$(".bar .mark"); if(!m) return "יומן אירועים ומשימות";
   const sub=m.querySelector(".sub"), main=[...m.childNodes].filter(n=>n.nodeType===3).map(n=>n.textContent).join("").trim();
   return (main+" "+(sub?sub.textContent:"")).trim();
 }
@@ -1569,7 +1569,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.81", APP_DATE="30/09/2026";
+const APP_VER="1.82", APP_DATE="30/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
