@@ -1094,3 +1094,4 @@ small.dept{font-size:12px;font-weight:700;color:var(--c-maint);background:var(--
 .ck-add input::placeholder{color:var(--ink-3)}
 .tk-ck-form{margin-top:0;border-top:none;padding-top:0;border:1px solid var(--edge);border-radius:10px;padding:4px 10px;background:var(--panel)}
 #tkCkWrap[hidden]{display:none}
+@media (max-width:360px){ #cnt,#tkCnt{font-size:11.5px;letter-spacing:-.03em} }
