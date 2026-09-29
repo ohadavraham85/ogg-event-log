@@ -986,3 +986,8 @@ small.dept{font-size:12px;font-weight:700;color:var(--c-maint);background:var(--
 .cal-d{overflow:hidden;width:100%;box-sizing:border-box}.cal-m{width:100%;overflow:hidden}.cal-grid{width:100%}
 #viewCal .dsh-head .cal-legend{margin:0;flex:1 1 100%;gap:3px 12px}
 @media (min-width:700px){ #viewCal .dsh-head .cal-legend{flex:1 1 auto;justify-content:flex-start} }
+#calLeg button{display:inline-flex;align-items:center;border:1.5px solid transparent;background:none;font:inherit;font-size:12.5px;color:var(--ink-2);
+  padding:3px 8px;border-radius:99px;cursor:pointer}
+#calLeg button:hover{border-color:var(--edge)}
+#calLeg button[aria-pressed="true"]{border-color:var(--water);background:var(--water-soft);color:var(--ink);font-weight:800}
+#calLeg.picked button[aria-pressed="false"]{opacity:.45}

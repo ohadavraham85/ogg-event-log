@@ -1891,20 +1891,22 @@ $("#tdOk").onclick=()=>{
 };
 $("#tabTasks").onclick=()=>{ renderTasks(); show("Tasks"); };
 /* ================= calendar: events that happened + tasks (due / completed), month view ================= */
-let calY, calM, calSel=null, calMd="all";
+let calY, calM, calSel=null, calMd="all", calLeg="";   // calLeg: legend colour picked → only that kind
 try{ calMd=localStorage.getItem("ogg-cal-mode")||"all"; }catch(e){}
 (()=>{ const d=new Date(); calY=d.getFullYear(); calM=d.getMonth(); })();
 const HEB_MONTHS=["ינואר","פברואר","מרץ","אפריל","מאי","יוני","יולי","אוגוסט","ספטמבר","אוקטובר","נובמבר","דצמבר"];
 function calIndex(){
-  const ev={}, due={}, done={};
-  if(calMd!=="tk") events.forEach(e=>{ const d=(e.when||"").slice(0,10); if(d) (ev[d]=ev[d]||[]).push(e); });
+  const ev={}, due={}, done={}, today=ymd(new Date()), L=calLeg, on=x=>!L || L===x;
+  if(calMd!=="tk" && on("ev")) events.forEach(e=>{ const d=(e.when||"").slice(0,10); if(d) (ev[d]=ev[d]||[]).push(e); });
   if(calMd!=="ev") tasks.forEach(t=>{
-    if(tkOpen(t) && t.due) (due[t.due]=due[t.due]||[]).push(t);
-    if(!tkOpen(t) && t.doneAt){ const d=String(t.doneAt).slice(0,10); (done[d]=done[d]||[]).push(t); } });
+    if(tkOpen(t) && t.due && on(t.due<today?"late":"tk")) (due[t.due]=due[t.due]||[]).push(t);
+    if(!tkOpen(t) && t.doneAt && on("done")){ const d=String(t.doneAt).slice(0,10); (done[d]=done[d]||[]).push(t); } });
   return {ev,due,done};
 }
 function renderCal(){
   document.querySelectorAll("#calMode button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.m===calMd)));
+  document.querySelectorAll("#calLeg button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.l===calLeg)));
+  $("#calLeg").classList.toggle("picked",!!calLeg);
   // monthly counts on the mode buttons (always for the month shown, whatever the mode)
   const pre=calY+"-"+String(calM+1).padStart(2,"0");
   const nEv=events.filter(e=>(e.when||"").startsWith(pre)).length;
@@ -1969,7 +1971,11 @@ function renderCalDay(I, today){
 $("#calPrev").onclick=()=>{ calM--; if(calM<0){ calM=11; calY--; } renderCal(); };
 $("#calNext").onclick=()=>{ calM++; if(calM>11){ calM=0; calY++; } renderCal(); };
 $("#calToday").onclick=()=>{ const d=new Date(); calY=d.getFullYear(); calM=d.getMonth(); calSel=ymd(d); renderCal(); };
-document.querySelectorAll("#calMode button").forEach(b=>b.onclick=()=>{ calMd=b.dataset.m; try{ localStorage.setItem("ogg-cal-mode",calMd); }catch(e){} renderCal(); });
+document.querySelectorAll("#calLeg button").forEach(b=>b.onclick=()=>{
+  calLeg = calLeg===b.dataset.l ? "" : b.dataset.l;                 // tap again = everything
+  if(calLeg) calMd = calLeg==="ev" ? "ev" : "tk"; else calMd="all";
+  renderCal(); });
+document.querySelectorAll("#calMode button").forEach(b=>b.onclick=()=>{ calMd=b.dataset.m; calLeg=""; try{ localStorage.setItem("ogg-cal-mode",calMd); }catch(e){} renderCal(); });
 $("#tabCal").onclick=()=>{ renderCal(); show("Cal"); };
 matchMedia("(min-width:700px)").addEventListener("change",()=>{ if(!$("#viewCal").hidden) renderCal(); });
 /* searchable dropdown: long lists (people, locations, equipment) get a search box.
