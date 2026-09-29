@@ -770,6 +770,36 @@ html.sp-open,html.sp-open body{overflow:hidden}
 .dt-m{font-size:12.5px;color:var(--ink-2);font-weight:700}
 .dt-empty p{margin:6px 0 10px;color:var(--ink-2)}
 @media (max-width:560px){ .dt-tiles{grid-template-columns:1fr 1fr} .dt-tile{padding:9px 11px} .dt-tile b{font-size:24px} }
+/* dashboard: drag a card by its title (mouse: press & drag; touch: long-press, then drag) */
+#dCards > .dcard > h3{cursor:grab;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+#dCards > .dcard > h3::after{content:" ⠿";color:var(--ink-3);font-size:.85em;opacity:0;transition:opacity .15s}
+#dCards > .dcard:hover > h3::after{opacity:1}
+#dCards > .dragging{opacity:.75;outline:2px solid var(--water);box-shadow:0 12px 28px rgba(0,0,0,.22);position:relative;z-index:2}
+body.d-drag, body.d-drag *{cursor:grabbing!important;user-select:none!important}
+.dlay-reset{display:block;margin:10px auto 0;border:none;background:none;color:var(--ink-3);font:inherit;font-size:13px;text-decoration:underline;cursor:pointer}
+.dlay-reset[hidden]{display:none}
+/* dashboard: tasks card. Priority = ordinal red ramp (validated --ordinal, light & dark separately) */
+#viewDash{--pr0:#7F1B16;--pr1:#B8352D;--pr2:#DB5E55;--pr3:#EB958D}
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]) #viewDash{--pr0:#F7B0A9;--pr1:#E3695F;--pr2:#B8443C;--pr3:#8A2F29} }
+:root[data-theme="dark"] #viewDash{--pr0:#F7B0A9;--pr1:#E3695F;--pr2:#B8443C;--pr3:#8A2F29}
+.pr-0{background:var(--pr0)} .pr-1{background:var(--pr1)} .pr-2{background:var(--pr2)} .pr-3{background:var(--pr3)}
+.dt-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(88px,1fr));gap:8px;margin:10px 0 6px}
+.dt-tile{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:10px 12px;border-radius:12px;cursor:pointer;
+  background:var(--panel-2);border:1px solid var(--edge-2);color:var(--ink);text-align:start}
+.dt-tile:hover,.dt-tile:focus-visible{border-color:var(--water)}
+.dt-tile b{font-size:26px;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums}
+.dt-tile span{font-size:12.5px;font-weight:700;color:var(--ink-2)}
+.dt-tile.hot{border-color:var(--c-fault);background:var(--c-fault-bg)}
+.dt-tile.hot span::before{content:"⚠ ";color:var(--c-fault)}
+.dt-h{font-size:13.5px;font-weight:800;color:var(--ink-2);margin:14px 0 6px}
+.dt-hot{display:flex;flex-direction:column;gap:6px}
+.dt-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px 10px;text-align:start;cursor:pointer;
+  padding:8px 11px;border-radius:10px;border:1px solid var(--edge-2);border-inline-start:4px solid var(--water);background:var(--panel);color:var(--ink)}
+.dt-row:hover{background:var(--panel-2)}
+.dt-t{font-weight:800;font-size:14.5px;overflow-wrap:anywhere}
+.dt-m{font-size:12.5px;color:var(--ink-2);font-weight:700}
+.dt-empty p{margin:6px 0 10px;color:var(--ink-2)}
+@media (max-width:560px){ .dt-tiles{grid-template-columns:1fr 1fr} .dt-tile{padding:9px 11px} .dt-tile b{font-size:24px} }
 /* dashboard arrange mode */
 .dlay-btn{padding:7px 12px;font-size:13.5px;flex:none}
 .dlay-btn[aria-pressed="true"]{background:var(--water);border-color:var(--water);color:#fff}
@@ -788,3 +818,10 @@ html.sp-open,html.sp-open body{overflow:hidden}
 .dct.handle{cursor:grab;font-size:18px;margin-inline-end:auto;background:var(--water-soft);color:var(--water);border-color:var(--water)}
 .dct.handle:active{cursor:grabbing}
 @media (max-width:1099px){ .dct.wbtn,.dlay-w{display:none} }
+/* two-step delete */
+.del-what{white-space:pre-line;background:var(--panel-2);border:1px solid var(--edge-2);border-radius:10px;padding:10px 12px;
+  margin:4px 0 12px;font-weight:700;overflow-wrap:anywhere}
+.del-warn{color:var(--c-fault)!important;font-weight:800}
+#delOk.final{background:var(--c-fault);border-color:var(--c-fault);color:#fff}
+.del-type[hidden]{display:none}
+.dlay-hint{margin:0 2px 6px}

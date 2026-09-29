@@ -385,7 +385,7 @@
       if(m.email!==me){
         const iv=mk("button","btn mini","הזמן"); iv.type="button"; iv.onclick=()=>showInvite(m.email); r.appendChild(iv);
         const x=mk("button","btn mini","הסר"); x.type="button";
-        x.onclick=async()=>{ if(!confirm("להסיר את "+m.email+" מהצוות?")) return; try{ await F.deleteDoc(F.doc(db,"members",m.email)); }catch(e){ toast("ההסרה נכשלה"); } };
+        x.onclick=async()=>{ if(!await confirmDel("להסיר מהצוות?", (m.name?m.name+" · ":"")+m.email+"\nלא יוכל יותר להיכנס ליומן.")) return; try{ await F.deleteDoc(F.doc(db,"members",m.email)); }catch(e){ toast("ההסרה נכשלה"); } };
         r.appendChild(x);
       }
       box.appendChild(r);

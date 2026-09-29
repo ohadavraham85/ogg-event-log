@@ -120,7 +120,7 @@ function drawOpts(){
     b.append(bx,tx);
     if(custom.includes(v) && !cnt[v]){
       const d=document.createElement("button"); d.className="del"; d.textContent="✕"; d.title="הסר מהרשימה";
-      d.onclick = ev=>{ ev.stopPropagation(); removeValue(k,v); };
+      d.onclick = async ev=>{ ev.stopPropagation(); if(await confirmDel("להסיר מהרשימה?", META[k].title+": "+v)) removeValue(k,v); };
       b.appendChild(d);
     } else if(cnt[v]){
       const u=document.createElement("span"); u.className="use"; u.textContent=cnt[v]; b.appendChild(u);
@@ -197,7 +197,8 @@ function renderMgr(){
       if(!cnt[v]){
         const x=document.createElement("button"); x.className="btn";
         x.style.cssText="padding:5px 11px;font-size:13px"; x.textContent="הסר";
-        x.onclick=()=>{ lists["_custom_"+k].includes(v) ? removeValue(k,v) : hideSeed(k,v); };
+        x.onclick=async()=>{ if(!await confirmDel("להסיר מהרשימה?", META[k].title+": "+v)) return;
+          lists["_custom_"+k].includes(v) ? removeValue(k,v) : hideSeed(k,v); };
         row.appendChild(x);
       } else {
         const l=document.createElement("span"); l.className="inuse"; l.textContent="בשימוש";
@@ -220,6 +221,28 @@ function fmtWhen(s){
   if(!s) return ""; const d=new Date(s); if(isNaN(d)) return s;
   const p=n=>String(n).padStart(2,"0");
   return p(d.getDate())+"/"+p(d.getMonth()+1)+"/"+d.getFullYear()+" "+p(d.getHours())+":"+p(d.getMinutes());
+}
+
+/* ================= delete: always two confirmations =================
+   Step 1 shows exactly what will be deleted; step 2 is a separate, red "final" confirmation.
+   Bulk deletions also require typing "מחק". Returns a Promise<boolean>. */
+function confirmDel(title, what, bulk){
+  return new Promise(res=>{
+    const d=$("#dlgDel"), ok=$("#delOk"), no=$("#delNo"); let step=1;
+    $("#delTitle").textContent=title; $("#delWhat").textContent=what||"";
+    $("#delWarn").hidden=true; $("#delTypeWrap").hidden=true; $("#delType").value="";
+    ok.textContent="המשך למחיקה"; ok.classList.remove("final");
+    const done=v=>{ ok.onclick=no.onclick=null; d.onclose=null; if(d.open) d.close(); res(v); };
+    ok.onclick=()=>{
+      if(step===1){ step=2; $("#delWarn").hidden=false; if(bulk){ $("#delTypeWrap").hidden=false; setTimeout(()=>$("#delType").focus(),50); }
+        ok.textContent="כן, מחק סופית"; ok.classList.add("final"); return; }
+      if(bulk && $("#delType").value.trim()!=="מחק"){ toast("הקלד מחק כדי לאשר"); $("#delType").focus(); return; }
+      done(true);
+    };
+    no.onclick=()=>done(false);
+    d.onclose=()=>res(false);
+    d.showModal();
+  });
 }
 
 /* ================= save ================= */
@@ -403,7 +426,10 @@ function renderList(reset){
     } else {
     const ed=document.createElement("button"); ed.textContent="עריכה"; ed.onclick=()=>loadInto(e);
     const rm=document.createElement("button"); rm.textContent="מחיקה";
-    rm.onclick=()=>{ events=events.filter(x=>x.id!==e.id); persist(); renderAll(); toast("האירוע נמחק"); };
+    rm.onclick=async()=>{
+      const what=[fmtWhen(e.when),(e.type||[]).join(", "),e.title||String(e.desc||"").slice(0,80)].filter(Boolean).join(" · ");
+      if(!await confirmDel("למחוק את האירוע?", what+(CLOUD_ON?"\nהאירוע יימחק לכל הצוות.":""))) return;
+      events=events.filter(x=>x.id!==e.id); persist(); renderAll(); toast("האירוע נמחק"); };
     acts.append(ed,rm);
     }
     if(top) d.appendChild(top); d.append(b,det,acts); box.appendChild(d);
@@ -580,62 +606,61 @@ function hbars(items, max, cls){
   });
   return box;
 }
-/* dashboard layout (per device): order, hidden cards, wide/narrow. "✎ סידור" turns on arrange mode:
-   drag by the ⠿ handle (mouse or finger), or ▲ ▼; 👁 hides; ↔ wide/narrow. */
+/* dashboard layout (per device): the card order. Drag a card by its title — mouse: press and drag;
+   touch: long-press the title, then drag. The order is saved on this device. */
 const K_DLAY="ogg-dash-layout";
-let dLay={order:[],hidden:[],wide:{}}, dEdit=false;
-try{ const x=JSON.parse(localStorage.getItem(K_DLAY)||"null"); if(x&&typeof x==="object") dLay={order:x.order||[],hidden:x.hidden||[],wide:x.wide||{}}; }catch(e){}
-function saveDLay(){ try{ localStorage.setItem(K_DLAY, JSON.stringify(dLay)); }catch(e){} }
+let dOrder=[];
+try{ const x=JSON.parse(localStorage.getItem(K_DLAY)||"null"); if(x && Array.isArray(x.order)) dOrder=x.order; }catch(e){}
+function saveDLay(){ try{ localStorage.setItem(K_DLAY, JSON.stringify({order:dOrder})); }catch(e){} $("#dLayReset").hidden=!dOrder.length; }
 function dKey(c){ const h=c.querySelector("h3"); const t=h?h.textContent.trim():"";
   return /^אירועים לפי (יום|שבוע|חודש|שנה)$/.test(t) ? "trend" : t; }
-function captureOrder(){ dLay.order=[...$("#dCards").children].map(c=>c.dataset.key).filter(Boolean); saveDLay(); }
+function captureOrder(){ dOrder=[...$("#dCards").children].map(c=>c.dataset.key).filter(Boolean); saveDLay(); }
 function arrangeDash(){
   const box=$("#dCards"), cards=[...box.children].filter(c=>c.classList.contains("dcard"));
   cards.forEach(c=>{ c.dataset.key=dKey(c); });
-  const pos=k=>{ const i=dLay.order.indexOf(k); return i<0 ? 1000+cards.findIndex(c=>c.dataset.key===k) : i; };
+  const pos=k=>{ const i=dOrder.indexOf(k); return i<0 ? 1000+cards.findIndex(c=>c.dataset.key===k) : i; };
   cards.slice().sort((x,y)=>pos(x.dataset.key)-pos(y.dataset.key)).forEach(c=>box.appendChild(c));
   [...box.children].filter(c=>!c.classList.contains("dcard")).forEach(c=>box.appendChild(c));   // "no events" note last
-  cards.forEach(c=>{
-    const k=c.dataset.key, hid=dLay.hidden.includes(k);
-    if(k in dLay.wide) c.classList.toggle("wide", !!dLay.wide[k]);
-    c.classList.toggle("d-hidden", hid); c.hidden = hid && !dEdit;
-    c.classList.toggle("d-edit", dEdit);
-    const old=c.querySelector(".dc-tools"); if(old) old.remove();
-    if(!dEdit) return;
-    const tb=mk("div","dc-tools"), b=(txt,title,fn,cls)=>{ const x=mk("button","dct"+(cls?" "+cls:""),txt); x.type="button"; x.title=title; x.setAttribute("aria-label",title); x.onclick=fn; tb.appendChild(x); return x; };
-    const h=b("⠿","גרור לשינוי מקום",()=>{},"handle");
-    b("▲","למעלה",()=>{ const p=c.previousElementSibling; if(p){ box.insertBefore(c,p); captureOrder(); } });
-    b("▼","למטה",()=>{ const n=c.nextElementSibling; if(n){ box.insertBefore(n,c); captureOrder(); } });
-    b("↔",c.classList.contains("wide")?"צר":"רחב",()=>{ dLay.wide[k]=!c.classList.contains("wide"); saveDLay(); arrangeDash(); },"wbtn");
-    b(hid?"👁 הצג":"👁 הסתר",hid?"הצג את הכרטיס":"הסתר את הכרטיס",()=>{
-      dLay.hidden = hid ? dLay.hidden.filter(x=>x!==k) : dLay.hidden.concat(k); saveDLay(); arrangeDash(); },"eye");
-    dragHandle(h,c);
-    c.insertBefore(tb,c.firstChild);
+  cards.forEach(c=>{ const h=c.querySelector(":scope > h3"); if(h && !h.dataset.drag){ h.dataset.drag="1"; dragBy(h,c); } });
+  $("#dLayReset").hidden=!dOrder.length;
+}
+function dragMoveTo(c,x,y){
+  const box=$("#dCards");
+  if(y<70) window.scrollBy(0,-14); else if(y>innerHeight-70) window.scrollBy(0,14);
+  c.style.pointerEvents="none"; const el=document.elementFromPoint(x,y); c.style.pointerEvents="";
+  const t=el && el.closest && el.closest("#dCards > .dcard"); if(!t || t===c) return;
+  const r=t.getBoundingClientRect();
+  const sameRow = y>r.top+r.height*0.25 && y<r.bottom-r.height*0.25 && !t.classList.contains("wide") && r.width<box.clientWidth*0.8;
+  const before = sameRow ? x>r.left+r.width/2 : y<r.top+r.height/2;   // RTL: the right side comes first
+  box.insertBefore(c, before ? t : t.nextElementSibling);
+}
+function dragBy(h,c){
+  const start=()=>{ c.classList.add("dragging"); document.body.classList.add("d-drag"); if($("#dTip")) $("#dTip").hidden=true; };
+  const end=()=>{ if(!c.classList.contains("dragging")) return; c.classList.remove("dragging"); document.body.classList.remove("d-drag"); captureOrder(); };
+  // mouse (and pen): press on the title and move
+  h.addEventListener("pointerdown",ev=>{
+    if(ev.pointerType==="touch" || ev.button!==0) return;
+    const x0=ev.clientX, y0=ev.clientY; let on=false;
+    const mv=e=>{ if(!on){ if(Math.hypot(e.clientX-x0,e.clientY-y0)<6) return; on=true; start(); } e.preventDefault(); dragMoveTo(c,e.clientX,e.clientY); };
+    const up=()=>{ removeEventListener("pointermove",mv); removeEventListener("pointerup",up); if(on) end(); };
+    addEventListener("pointermove",mv); addEventListener("pointerup",up);
   });
-  $("#dLayBar").hidden=!dEdit; $("#dLayBtn").setAttribute("aria-pressed",String(dEdit));
-  $("#dLayBtn").textContent = dEdit ? "✓ סיום סידור" : "✎ סידור";
+  // touch: long-press the title (so normal scrolling still works), then drag
+  let timer=null, on=false, x0=0, y0=0;
+  h.addEventListener("touchstart",ev=>{
+    const t=ev.touches[0]; x0=t.clientX; y0=t.clientY; on=false;
+    timer=setTimeout(()=>{ on=true; start(); if(navigator.vibrate) try{ navigator.vibrate(15); }catch(e){} },380);
+  },{passive:true});
+  h.addEventListener("touchmove",ev=>{
+    const t=ev.touches[0];
+    if(!on){ if(Math.hypot(t.clientX-x0,t.clientY-y0)>10){ clearTimeout(timer); } return; }
+    ev.preventDefault(); dragMoveTo(c,t.clientX,t.clientY);
+  },{passive:false});
+  const tend=()=>{ clearTimeout(timer); if(on){ on=false; end(); } };
+  h.addEventListener("touchend",tend); h.addEventListener("touchcancel",tend);
+  h.addEventListener("contextmenu",e=>{ if(on) e.preventDefault(); });
 }
-function dragHandle(h,c){
-  h.style.touchAction="none";
-  h.onpointerdown=ev=>{
-    ev.preventDefault(); c.classList.add("dragging");   // listen on window: moving the card in the page drops pointer capture
-    const box=$("#dCards");
-    const move=e=>{
-      if(e.clientY<70) window.scrollBy(0,-14); else if(e.clientY>innerHeight-70) window.scrollBy(0,14);
-      c.style.pointerEvents="none"; const el=document.elementFromPoint(e.clientX,e.clientY); c.style.pointerEvents="";
-      const t=el && el.closest && el.closest("#dCards > .dcard"); if(!t || t===c) return;
-      const r=t.getBoundingClientRect();
-      const sameRow = e.clientY>r.top+r.height*0.25 && e.clientY<r.bottom-r.height*0.25 && !t.classList.contains("wide");
-      const before = sameRow ? e.clientX>r.left+r.width/2 : e.clientY<r.top+r.height/2;   // RTL: the right side comes first
-      box.insertBefore(c, before ? t : t.nextElementSibling);
-    };
-    const up=()=>{ c.classList.remove("dragging"); removeEventListener("pointermove",move); removeEventListener("pointerup",up); removeEventListener("pointercancel",up); captureOrder(); };
-    addEventListener("pointermove",move); addEventListener("pointerup",up); addEventListener("pointercancel",up);
-  };
-}
-$("#dLayBtn").onclick=()=>{ dEdit=!dEdit; arrangeDash(); };
-$("#dLayDone").onclick=()=>{ dEdit=false; arrangeDash(); toast("סידור הדשבורד נשמר"); };
-$("#dLayReset").onclick=()=>{ if(!confirm("להחזיר את הדשבורד לסידור הרגיל?")) return; dLay={order:[],hidden:[],wide:{}}; saveDLay(); renderDash(); };
+$("#dLayReset").onclick=()=>{ dOrder=[]; saveDLay(); renderDash(); toast("סדר הכרטיסים הוחזר"); };
 
 /* dashboard: tasks card — tiles, open tasks by priority (ordinal red ramp, validated light & dark),
    open tasks by assignee, and the ones that need attention now (overdue / urgent). Every piece opens the task list filtered. */
@@ -1314,19 +1339,19 @@ $("#impFile").onchange=ev=>{
   };
   r.readAsText(f); ev.target.value="";
 };
-$("#wipe").onclick=()=>{
+$("#wipe").onclick=async()=>{
   const mine=events.filter(e=>!isLocked(e)).length, arch=events.length-mine;
   if(!mine){ toast("אין רישומים שלך למחיקה"); return; }
-  if(!confirm("למחוק "+mine+" רישומים שלך? "+arch+" אירועי ארכיון יישארו.")) return;
+  if(!await confirmDel("למחוק את הרישומים שלך?", mine+" רישומים יימחקו. "+arch+" אירועי ארכיון יישארו.", true)) return;
   events=events.filter(e=>isLocked(e)); persist(); renderAll(); toast(mine+" רישומים נמחקו");
 };
-$("#wipeAll").onclick=()=>{
-  if(!confirm("למחוק את כל "+events.length+" האירועים, כולל הארכיון?")) return;
+$("#wipeAll").onclick=async()=>{
+  if(!await confirmDel("למחוק את כל היומן?", "כל "+events.length+" האירועים יימחקו, כולל הארכיון.", true)) return;
   events=[]; persist(); renderAll(); toast("היומן רוקן");
 };
 
 /* ================= version ================= */
-const APP_VER="1.45", APP_DATE="29/09/2026";
+const APP_VER="1.46", APP_DATE="29/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -1555,8 +1580,8 @@ function renderTasks(){
         tkLog(t, t.status==="בטיפול" ? "הועברה לטיפול" : "הוחזרה לפתוחה", "", true); t.upd=new Date().toISOString(); saveTasks(); });
       btn("ערוך","",()=>openTaskForm(t.id));
     }
-    btn("מחק","ghost",()=>{
-      if(!confirm("למחוק את המשימה \""+(t.title||"")+"\"?"+(t.eventId?" (האירוע ביומן נשאר)":""))) return;
+    btn("מחק","ghost",async()=>{
+      if(!await confirmDel("למחוק את המשימה?", (t.title||"")+((t.log||[]).length?"\nכולל יומן העדכונים ("+t.log.length+")":"")+(t.eventId?"\nהאירוע שנרשם ביומן נשאר.":"")+(CLOUD_ON?"\nהמשימה תימחק לכל הצוות.":""))) return;
       tasks=tasks.filter(x=>x.id!==t.id); saveTasks(); toast("המשימה נמחקה");
     });
     c.appendChild(acts); box.appendChild(c);
