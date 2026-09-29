@@ -1568,7 +1568,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.73", APP_DATE="30/09/2026";
+const APP_VER="1.74", APP_DATE="30/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -1993,7 +1993,7 @@ $("#tkCancel").onclick=closeTaskForm;
 $("#tkSave").onclick=()=>{
   // all fields are required: type, priority, assignee, due date, location, equipment, and what to do
   // assignment: a person, one or more departments, or both — at least one of them
-  const need=[["#tkType","סוג"],["#tkPrio","עדיפות"],["#tkStart","תאריך התחלה"],["#tkPpl","אחראי או מחלקה"],["#tkDue","תאריך יעד"],["#tkLoc","מיקום"],["#tkEq","ציוד"],["#tkTitle","מה צריך לעשות"]];
+  const need=[["#tkType","סוג"],["#tkPrio","עדיפות"],["#tkStart","תאריך התחלה"],["#tkPpl","אחראי או מחלקה"],["#tkDue","תאריך יעד"],["#tkLoc","מיקום"],["#tkEq","ציוד"],["#tkTitle","כותרת המשימה"]];
   const miss=need.filter(([id])=>{ const v=($(id).value||"").trim(); let bad=!v || v==="__other";
     if(id==="#tkPpl" && tkDeptSel.length) bad=false;
     $(id).closest(".tk-f").classList.toggle("bad",bad); if(id==="#tkPpl") $("#tkDepts").closest(".tk-f").classList.toggle("bad",bad); return bad; });
