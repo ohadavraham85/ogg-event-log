@@ -1149,6 +1149,7 @@ function show(w){
   document.querySelector(".wrap").style.paddingBottom = w==="New"?"130px":"40px";
 }
 $("#tabNew").onclick=()=>show("New");
+$("#fabNew").onclick=()=>{ show("New"); window.scrollTo({top:0}); };   // "+" in the events list replaces the "רישום אירוע" tab
 $("#tabList").onclick=()=>{ renderFilters(); renderList(); show("List"); };
 $("#tabDash").onclick=()=>{ renderDash(); show("Dash"); };
 $("#tabData").onclick=()=>{ renderStats(); renderMgr(); paintSettings(); show("Data"); };
@@ -1567,7 +1568,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.69", APP_DATE="29/09/2026";
+const APP_VER="1.70", APP_DATE="29/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
