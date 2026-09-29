@@ -1569,7 +1569,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.79", APP_DATE="30/09/2026";
+const APP_VER="1.80", APP_DATE="30/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -1881,59 +1881,52 @@ function renderCheck(t, c){
   }
   c.appendChild(box);
 }
-/* update log as a conversation: bubbles (mine on one side, others on the other, system lines in the middle)
-   and a message box always open under an open task — Enter sends, Shift+Enter is a new line.
-   A draft survives the list being redrawn (a sync from the team), and so does the focus. */
+/* update log: time, who, what — the last 3 lines (all on demand). "+ עדכון" under the log opens a short form. */
+let tkUpdFor=null;
 function renderLog(t, c){
   const log=(t.log||[]).slice().sort((x,y)=>String(x.at).localeCompare(String(y.at)));
   const open=tkOpen(t);
   if(!log.length && !open) return;
   const box=mk("div","tk-log");
-  const all=tkOpenLogs.has(t.id), show=all ? log : log.slice(-3);
-  const head=mk("div","tk-log-h","💬 שיחה ועדכונים"+(log.length?" ("+log.length+")":""));
-  if(log.length>3){ const b=mk("button","tk-more", all ? "הצג פחות" : "הצג את כל "+log.length);
-    b.type="button"; b.onclick=()=>{ all ? tkOpenLogs.delete(t.id) : tkOpenLogs.add(t.id); renderTasks(); }; head.appendChild(b); }
-  box.appendChild(head);
-  const meMail = window.cloudMe && window.cloudMe(), meName=reporter();
-  const chat=mk("div","tk-chat");
-  show.forEach(l=>{
-    const when=fmtWhen(l.at).replace(/\/\d{4}/,"");
-    if(l.sys){ const r=mk("div","tk-sys"); r.append(mk("span",null,(l.by?l.by+": ":"")+l.text+" · "), mk("span","tk-le-t",when)); chat.appendChild(r); return; }
-    const mine = meMail ? l.mail===meMail : (!!l.by && l.by===meName);
-    const r=mk("div","tk-msg"+(mine?" me":""));
-    if(!mine && l.by) r.appendChild(mk("b","tk-msg-by",l.by+":"));
-    const x=mk("span","tk-msg-x",l.text); if(l.mail) x.title=l.mail; r.appendChild(x);
-    r.appendChild(mk("span","tk-le-t",when));
-    chat.appendChild(r);
-  });
-  box.appendChild(chat);
-  if(open){
-    const f=mk("div","tk-send");
+  if(log.length){
+    const all=tkOpenLogs.has(t.id), show=all ? log : log.slice(-3);
+    const head=mk("div","tk-log-h","יומן עדכונים ("+log.length+")");
+    if(log.length>3){ const b=mk("button","tk-more", all ? "הצג פחות" : "הצג את כל "+log.length);
+      b.type="button"; b.onclick=()=>{ all ? tkOpenLogs.delete(t.id) : tkOpenLogs.add(t.id); renderTasks(); }; head.appendChild(b); }
+    box.appendChild(head);
+    show.forEach(l=>{
+      const r=mk("div","tk-le"+(l.sys?" sys":""));
+      const x=mk("div","tk-le-x"); if(l.by){ x.appendChild(mk("b",null,l.by+": ")); } x.append(l.text);
+      if(l.mail) x.title=l.mail;
+      r.append(x, mk("span","tk-le-t",fmtWhen(l.at).replace(/\/\d{4}/,"")));
+      box.appendChild(r);
+    });
+  }
+  if(open && tkUpdFor===t.id){
+    const f=mk("div","tk-upd");
+    const ta=mk("textarea"); ta.rows=2; ta.placeholder="מה התחדש? מה נעשה עכשיו?"; ta.dataset.draft=t.id; ta.value=tkDraft[t.id]||"";
+    ta.oninput=()=>{ tkDraft[t.id]=ta.value; };
+    const row=mk("div","tk-upd-row");
     // team log: the signed-in user is the reporter (no choice); this device: pick who reports (required)
-    const auto = !!meMail;
-    let who=null;
-    if(!auto){ who=mk("select","tk-send-who"); fillSelect(who, pplValues(), meName, "— מי כותב? —"); who.setAttribute("aria-label","מי כותב"); f.appendChild(who); }
-    const ta=mk("textarea"); ta.rows=1; ta.placeholder="כתוב עדכון…"; ta.dataset.draft=t.id; ta.value=tkDraft[t.id]||"";
-    ta.setAttribute("aria-label","עדכון למשימה");
-    const grow=()=>{ ta.style.height=""; if(ta.value.includes("\n") || ta.scrollHeight>ta.clientHeight+2) ta.style.height=Math.min(ta.scrollHeight+3,140)+"px"; };
-    const send=mk("button","tk-send-btn"); send.type="button"; send.setAttribute("aria-label","שלח עדכון"); send.title="שלח";
-    send.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12 4 4l3 8-3 8z" fill="currentColor"/></svg>';
-    const paintBtn=()=>send.disabled=!ta.value.trim();
-    ta.oninput=()=>{ tkDraft[t.id]=ta.value; grow(); paintBtn(); };
-    const go=()=>{
-      const txt=ta.value.trim(); if(!txt){ ta.focus(); return; }
+    const auto = window.cloudMe && window.cloudMe();
+    const who=mk("select"); fillSelect(who, pplValues(), reporter(), "— מי מדווח? —");
+    const whoTxt=mk("span","tk-upd-who","מדווח: "+reporter());
+    const ok=mk("button","btn primary","שמור עדכון"), no=mk("button","btn ghost","ביטול"); ok.type=no.type="button";
+    ok.onclick=()=>{
+      const txt=ta.value.trim(); if(!txt){ toast("כתוב מה התחדש"); ta.focus(); return; }
       const by = auto ? reporter() : who.value;
-      if(!by){ toast("בחר מי כותב"); who.focus(); return; }
+      if(!by){ toast("בחר מי מדווח"); who.focus(); return; }
       if(!auto) try{ localStorage.setItem(K_REPORTER,by); }catch(e){}
       tkLog(t, txt, by); if(t.status!=="בטיפול") t.status="בטיפול";
-      delete tkDraft[t.id]; tkOpenLogs.delete(t.id);
-      t.upd=new Date().toISOString(); saveTasks();           // redraws; the box keeps the focus for the next message
+      delete tkDraft[t.id]; t.upd=new Date().toISOString(); tkUpdFor=null; saveTasks(); toast("העדכון נוסף");
     };
-    send.onclick=go;
-    ta.onkeydown=e=>{ if(e.key==="Enter" && !e.shiftKey && !e.isComposing){ e.preventDefault(); go(); } };
-    f.append(ta,send); box.appendChild(f);
-    paintBtn(); setTimeout(grow,0);
-    if(tkFocus===t.id) setTimeout(()=>{ ta.focus({preventScroll:true}); ta.setSelectionRange(ta.value.length,ta.value.length); },0);
+    no.onclick=()=>{ delete tkDraft[t.id]; tkUpdFor=null; renderTasks(); };
+    row.append(auto ? whoTxt : who, ok, no); f.append(ta,row); box.appendChild(f);
+    setTimeout(()=>{ ta.focus({preventScroll:tkFocus===t.id}); ta.setSelectionRange(ta.value.length,ta.value.length); },50);
+  } else if(open){
+    const u=mk("button","btn upd tk-upd-btn","+ עדכון"); u.type="button";
+    u.onclick=()=>{ tkUpdFor=t.id; renderTasks(); };
+    box.appendChild(u);
   }
   c.appendChild(box);
 }

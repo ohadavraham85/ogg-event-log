@@ -1059,26 +1059,14 @@ small.dept{font-size:12px;font-weight:700;color:var(--c-maint);background:var(--
 .pchip .pchip-x{padding:5px 10px 5px 8px;opacity:.75}
 .pchip.lead button{color:#fff}
 .tk-ppl-f{grid-column:1/-1}
-/* task update log as a conversation */
-.tk-chat{display:flex;flex-direction:column;gap:4px;padding:2px 0}
-.tk-msg{align-self:flex-end;max-width:min(92%,640px);background:var(--panel-2);border:1px solid var(--edge);
-  border-radius:12px 12px 12px 4px;padding:3px 10px;min-width:0;font-size:14px;line-height:1.45;overflow-wrap:anywhere}
-.tk-msg.me{align-self:flex-start;background:color-mix(in srgb,var(--water) 14%,var(--panel));border-color:color-mix(in srgb,var(--water) 35%,var(--edge));
-  border-radius:12px 12px 4px 12px}
-.tk-msg-by{font-size:13px;font-weight:900;color:var(--water);margin-inline-end:5px}
-.tk-msg-x{color:var(--ink);white-space:pre-line}
-.tk-msg .tk-le-t{display:inline-block;margin:0;margin-inline-start:8px;font-size:11px}
-.tk-sys{align-self:center;max-width:100%;text-align:center;font-size:12px;color:var(--ink-3);background:var(--panel-2);
-  border-radius:99px;padding:3px 11px;overflow-wrap:anywhere}
-.tk-sys .tk-le-t{margin:0;font-size:11.5px}
-.tk-send{display:flex;align-items:flex-end;gap:7px;margin-top:6px;flex-wrap:wrap}
-.tk-send textarea{flex:1 1 200px;min-width:0;font:inherit;font-size:16px;line-height:1.35;padding:9px 14px;border:1.5px solid var(--edge);
-  border-radius:20px;background:var(--panel-2);color:var(--ink);resize:none;box-sizing:border-box;max-height:140px;height:38px;min-height:38px;padding-block:7px;overflow-y:auto;width:auto}
-.tk-send textarea:focus{outline:none;border-color:var(--water)}
-.tk-send-who{flex:0 1 150px;align-self:center;min-width:0;font:inherit;font-size:14px;padding:7px 10px;border:1px solid var(--edge);border-radius:10px;background:var(--panel);color:var(--ink)}
-.tk-send-btn{flex:none;width:38px;height:38px;border-radius:50%;border:none;background:var(--water);color:#fff;cursor:pointer;display:grid;place-items:center}
-.tk-send-btn svg{width:20px;height:20px;transform:scaleX(-1)}
-.tk-send-btn:disabled{opacity:.4;cursor:default}
+/* update log: the form and the "+ עדכון" button under it */
+.tk-upd{margin-top:8px;display:grid;gap:7px}
+.tk-upd textarea{font:inherit;font-size:16px;min-height:0;padding:9px 11px;border:1.5px solid var(--water);border-radius:10px;background:var(--panel-2);color:var(--ink);width:100%;box-sizing:border-box}
+.tk-upd-row{display:flex;gap:7px;flex-wrap:wrap}
+.tk-upd-row select{flex:1 1 130px;min-width:0;font:inherit;font-size:14.5px;padding:8px;border:1px solid var(--edge);border-radius:10px;background:var(--panel);color:var(--ink)}
+.tk-upd-row .btn{padding:8px 12px;font-size:14px;flex:none}
+.tk-upd-who{flex:1 1 130px;align-self:center;font-weight:800;color:var(--ink-2);font-size:14px}
+.tk-upd-btn{margin-top:6px;padding:6px 14px;font-size:14px;border-color:var(--water);color:var(--water)}
 /* checklist inside a task */
 .tk-check{margin-top:10px;border-top:1px dashed var(--edge);padding-top:8px}
 .tk-check.ck-empty{border-top:none;padding-top:0;margin-top:4px}
