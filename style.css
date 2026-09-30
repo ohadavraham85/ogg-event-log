@@ -1218,3 +1218,6 @@ small.dept{font-size:12px;font-weight:700;color:var(--c-maint);background:var(--
 .col.cur .cb{background:color-mix(in srgb,var(--one) 75%,#000)}
 @media (prefers-color-scheme:dark){ :root:not([data-theme="light"]) .kpi.hero{background:linear-gradient(135deg,color-mix(in srgb,var(--water) 55%,#000),color-mix(in srgb,var(--water) 30%,#000))} }
 :root[data-theme="dark"] .kpi.hero{background:linear-gradient(135deg,color-mix(in srgb,var(--water) 55%,#000),color-mix(in srgb,var(--water) 30%,#000))}
+/* serial number (#123) on events and tasks */
+.sn{display:inline-block;font-size:12px;font-weight:900;color:var(--ink-2);background:var(--panel-2);border:1px solid var(--edge);border-radius:7px;padding:1px 6px;font-variant-numeric:tabular-nums;direction:ltr;unicode-bidi:isolate;white-space:nowrap}
+.tk-t .sn{margin-inline-end:7px;vertical-align:2px}

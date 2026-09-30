@@ -130,7 +130,7 @@
     tSynced={}; tasks.forEach(t=>{ tSynced[t.id]=JSON.stringify(t); });
     tFresh=!(+get(K_SYNC_T)); tInit=false;
     const tSince=Math.max(0,(+get(K_SYNC_T)||0)-5*60*1000);
-    unsubTasks=F.onSnapshot(F.query(F.collection(db,"meta"), F.where("_upd",">",F.Timestamp.fromMillis(tSince))), applyTasks, ()=>{});
+    unsubTasks=F.onSnapshot(F.query(F.collection(db,"meta"), F.where("_upd",">",F.Timestamp.fromMillis(tSince))), {includeMetadataChanges:true}, applyTasks, ()=>{});   // metadata too: know when the server answered even if nothing changed
     cloudPush(); cloudPushTasks();                         // anything changed while signed out / offline
   }
   function stopSync(){
@@ -167,7 +167,8 @@
       if(fresh.length) announce(fresh);
     }
     // first answer from the server (not the local cache): now we know what the cloud really has
-    if(!initialDone && !snap.metadata.fromCache){ initialDone=true; renderAccount(); window.CLOUD_READY=true; if(window.weeklyCheck) setTimeout(window.weeklyCheck,1000); }
+    if(!initialDone && !snap.metadata.fromCache){ initialDone=true; renderAccount(); window.CLOUD_READY=true; if(window.weeklyCheck) setTimeout(window.weeklyCheck,1000);
+      if(window.nosAfterSync) setTimeout(window.nosAfterSync,1500); }
     syncChip(snap.metadata);
   }
   function applyTasks(snap){
@@ -206,7 +207,7 @@
       tSynced[tid]=js; changed=true;
     });
     put(K_SYNC_T,String(maxU));
-    if(!snap.metadata.fromCache) tInit=true;
+    if(!snap.metadata.fromCache){ if(!tInit && window.nosAfterSync) setTimeout(window.nosAfterSync,1800); tInit=true; window.TASKS_READY=true; }
     if(changed){ try{ localStorage.setItem("ogg-cloud-tasks", JSON.stringify(tasks)); }catch(e){} renderTasks(); }
     if(mergedLog) setTimeout(cloudPushTasks,0);           // send the merged log back
     const openMine=()=>{ if(typeof showMyTasks==="function") showMyTasks(); };

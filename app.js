@@ -53,7 +53,30 @@ function load(){
   lists._roles_ppl = saved._roles_ppl && typeof saved._roles_ppl==="object" ? saved._roles_ppl : {};   // person → role
   lists._dept_ppl = saved._dept_ppl && typeof saved._dept_ppl==="object" ? saved._dept_ppl : {};      // person → department
 }
+/* serial numbers: every event and every task keeps a permanent number — #1 is the oldest
+   (events by their date, tasks by when they were opened); a new one gets the next number.
+   Team log: numbering waits for the first full sync, and a long run of unnumbered records (the first
+   numbering, an import) is left to a manager's device. Two devices giving the same number at once:
+   the older record keeps it, the other gets the next free one (the same on every device). */
+function numberAll(arr, key){
+  const used=new Set(); let changed=false;
+  const ord=(a,b)=>String(key(a)).localeCompare(String(key(b))) || String(a.id).localeCompare(String(b.id));
+  arr.filter(x=>x.no).sort(ord).forEach(x=>{ if(used.has(x.no)){ delete x.no; changed=true; } else used.add(x.no); });
+  const todo=arr.filter(x=>!x.no).sort(ord); if(!todo.length) return changed;
+  let max=0; used.forEach(n=>{ if(n>max) max=n; });
+  todo.forEach(x=>{ x.no=++max; }); return true;
+}
+const canNumber=(n,ready)=>!CLOUD_ON || (ready && (n<=20 || isManager()));
+function ensureNos(){
+  const ce = canNumber(events.filter(e=>!e.no).length, window.CLOUD_READY) && numberAll(events, e=>e.when||"");
+  const ct = canNumber(tasks.filter(t=>!t.no).length, window.CLOUD_READY && window.TASKS_READY) && numberAll(tasks, t=>t.created||t.start||"");
+  if(ct){ try{ localStorage.setItem(LST, JSON.stringify(tasks)); }catch(e){} if(window.cloudPushTasks) window.cloudPushTasks(); }
+  return ce;
+}
+window.nosAfterSync=()=>{ const ce=ensureNos(); if(ce){ persist(); renderAll(); } renderTasks(); };
+const snOf=x=>x && x.no ? "#"+x.no : "";
 function persist(){
+  ensureNos();
   try{
     localStorage.setItem(LS, JSON.stringify(events));
     const out={}; Object.keys(SEED).forEach(k=>{ out[k]=lists["_custom_"+k]; out["_hide_"+k]=lists["_hide_"+k]; }); out._core_ppl=lists._core_ppl||[]; out._roles_ppl=lists._roles_ppl||{}; out._dept_ppl=lists._dept_ppl||{};
@@ -508,8 +531,10 @@ function matchRows(){
     if(from && (!day || day<from)) return false;
     if(to && (!day || day>to)) return false;
     if(q){
+      const qn=q.replace(/^#/,"");                       // "#123" or "123" finds event number 123
+      if(/^\d+$/.test(qn) && e.no===+qn){} else {
       const hay=[e.title,e.desc,e.act].concat(e.type||[],e.loc||[],e.eq||[],e.ppl||[]).join(" ");
-      if(!hay.includes(q)) return false;
+      if(!hay.includes(q)) return false; }
     }
     return true;
   });
@@ -571,6 +596,7 @@ function renderList(reset){
     const wh=document.createElement("span"); wh.className="where";
     wh.textContent=[(e.loc||[]).join(" · "),(e.eq||[]).join(" · ")].filter(Boolean).join(" · ");
     top.append(w,kd,sp,wh);
+    if(e.no){ const sn=document.createElement("span"); sn.className="sn"; sn.textContent="#"+e.no; sn.title="מספר סידורי"; top.insertBefore(sn,top.firstChild); }
     if(UNSEEN.has(e.id)){ const nw=document.createElement("span"); nw.className="newtag"; nw.textContent="חדש"; top.insertBefore(nw,top.firstChild); }
     if(e.title){
       const hh=document.createElement("div"); hh.className="hl"; hh.textContent=e.title;
@@ -1588,9 +1614,9 @@ wkLast();
 
 function exportCsv(rows, filtered){
   rows = rows && rows.length ? rows : events;
-  const head=["תאריך","סוג","כותרת","מיקום","ציוד","תיאור אירוע","פעולה שננקטה","מעורבים","סטטוס","מקור"];
+  const head=["מס'","תאריך","סוג","כותרת","מיקום","ציוד","תיאור אירוע","פעולה שננקטה","מעורבים","סטטוס","מקור"];
   const esc=v=>'"'+String(v==null?"":v).replace(/"/g,'""')+'"';
-  const body=rows.map(e=>[fmtWhen(e.when),(e.type||[]).join("; "),e.title||"",(e.loc||[]).join("; "),
+  const body=rows.map(e=>[e.no||"",fmtWhen(e.when),(e.type||[]).join("; "),e.title||"",(e.loc||[]).join("; "),
     (e.eq||[]).join("; "),e.desc,e.act,(e.ppl||[]).join("; "),(e.stat||[]).join("; "),
     e.src||"רישום ידני"].map(esc).join(","));
   download((filtered?"יומן-מסונן-":"יומן-אירועים-")+"אוג.csv",
@@ -1645,7 +1671,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.92", APP_DATE="30/09/2026";
+const APP_VER="1.93", APP_DATE="30/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2032,10 +2058,10 @@ document.querySelectorAll("#tkListView button").forEach(b=>b.onclick=()=>{ tkLV=
 paintTkLV();
 function exportTasksCsv(rows){
   rows = rows && rows.length ? rows : tasks;
-  const head=["כותרת","סטטוס","עדיפות","סוג","אחראי","משויכים","מחלקות","מיקום","ציוד","תאריך התחלה","תאריך יעד","מחזוריות","רשימת בדיקה","תיאור","עדכונים","נפתחה","הושלמה","מה בוצע"];
+  const head=["מס'","כותרת","סטטוס","עדיפות","סוג","אחראי","משויכים","מחלקות","מיקום","ציוד","תאריך התחלה","תאריך יעד","מחזוריות","רשימת בדיקה","תיאור","עדכונים","נפתחה","הושלמה","מה בוצע"];
   const esc=v=>'"'+String(v==null?"":v).replace(/"/g,'""')+'"';
   const body=rows.map(t=>{ const ck=(t.check||[]).filter(x=>x&&!x.del);
-    return [t.title||"", t.status||"", prioOf(t), t.type||"", (t.ppl||[])[0]||"", (t.ppl||[]).slice(1).join("; "), (t.depts||[]).join("; "),
+    return [t.no||"", t.title||"", t.status||"", prioOf(t), t.type||"", (t.ppl||[])[0]||"", (t.ppl||[]).slice(1).join("; "), (t.depts||[]).join("; "),
       (t.loc||[]).join("; "), (t.eq||[]).join("; "), dmy(t.start||""), dmy(t.due||""), t.rep?repLabel(t.rep):"",
       ck.length ? ck.filter(x=>x.done).length+"/"+ck.length+" — "+ck.map(x=>(x.done?"✓ ":"○ ")+x.text).join("; ") : "",
       t.desc||"", (t.log||[]).slice().sort((x,y)=>String(x.at).localeCompare(String(y.at))).map(l=>fmtWhen(l.at)+" "+(l.by?l.by+": ":"")+l.text).join("\n"),
@@ -2044,7 +2070,7 @@ function exportTasksCsv(rows){
   toast(rows.length+" משימות הורדו");
 }
 $("#tkExp").onclick=()=>exportTasksCsv(tkLastRows);
-function tkText(t){ return [t.title,t.desc,t.act,t.type,t.prio,(t.ppl||[]).join(" "),(t.loc||[]).join(" "),(t.eq||[]).join(" "),(t.depts||[]).join(" "),
+function tkText(t){ return [snOf(t),t.title,t.desc,t.act,t.type,t.prio,(t.ppl||[]).join(" "),(t.loc||[]).join(" "),(t.eq||[]).join(" "),(t.depts||[]).join(" "),
   (t.log||[]).map(l=>(l.by||"")+" "+(l.text||"")).join(" "),(t.check||[]).filter(x=>x&&!x.del).map(x=>x.text).join(" ")].join(" ").toLowerCase(); }
 function renderTasks(){
   const ae=document.activeElement; tkFocus = ae && ae.dataset && ae.dataset.draft || null;   // typing in a task's message box
@@ -2071,7 +2097,7 @@ function renderTasks(){
     c.addEventListener("click",ev=>{ if(tkLV!=="rows" || ev.target.closest("button,input,textarea,select,a,.tk-log,.tk-check")) return;
       tkRowOpen.has(t.id) ? tkRowOpen.delete(t.id) : tkRowOpen.add(t.id); c.classList.toggle("x"); }); c.style.borderInlineStartColor = tkOpen(t) ? "var(--c-"+ph+")" : "";
     if(tkOpen(t) && pr==="דחופה") c.style.background="color-mix(in srgb,var(--c-fault-bg) 55%,var(--panel))";
-    c.appendChild(mk("div","tk-t",t.title||"(ללא כותרת)"));
+    { const tt=mk("div","tk-t"); if(t.no) tt.appendChild(mk("span","sn","#"+t.no)); tt.append(t.title||"(ללא כותרת)"); c.appendChild(tt); }
     const tags=mk("div","tk-tags"), tag=(txt,cls,hue)=>{ const x=mk("span","tk-tag"+(cls?" "+cls:""),txt);
       if(hue){ x.style.background="var(--c-"+hue+"-bg)"; x.style.color="var(--c-"+hue+")"; x.style.borderColor="transparent"; } tags.appendChild(x); };
     if(tkOpen(t)){
@@ -2489,6 +2515,6 @@ addEventListener("resize",closeSS);
 ["#tkPpl","#tkLoc","#tkEq","#tfPpl","#tfLoc"].forEach(id=>enhanceSelect($(id)));
 
 /* ================= boot ================= */
-load(); loadTasks(); setNow(); renderAll(); renderTasks(); renderDash(); show(REFRESH_VIEW||"Dash");
+load(); loadTasks(); if(!CLOUD_ON) window.nosAfterSync(); setNow(); renderAll(); renderTasks(); renderDash(); show(REFRESH_VIEW||"Dash");
 setTimeout(weeklyCheck,1500);
 if(DEEP_OPEN) goList({stat:OPEN_ANY});
