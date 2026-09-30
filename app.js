@@ -857,6 +857,7 @@ $("#dLayReset").onclick=()=>{ dOrder=[]; saveDLay(); renderDash(); toast("סדר
 function goTasks(o){
   Object.keys(tkF).forEach(k=>tkF[k]= k==="late" ? false : "");
   Object.assign(tkF, o.f||{}); tkView=o.view||"open"; closeTaskForm();
+  const on=Object.keys(o.f||{}).some(k=>k!=="q" && tkF[k]); $("#tfPanel").hidden=!on; $("#tfToggle").setAttribute("aria-expanded",String(on));
   paintTkSeg(); renderTasks(); show("Tasks"); window.scrollTo({top:0});
 }
 function dashTasks(cards, from){
@@ -1585,7 +1586,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.88", APP_DATE="30/09/2026";
+const APP_VER="1.89", APP_DATE="30/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -1674,7 +1675,7 @@ let DEEP_OPEN=false;
    Storage: this device (localStorage); team mode syncs them through cloud.js (window.cloudPushTasks). */
 const LST = CLOUD_ON ? "ogg-cloud-tasks" : "ogg-tasks-v1";
 let tasks=[], tkView="open", tkEdit=null, tkDoneId=null;
-const tkF={ppl:"",loc:"",type:"",prio:"",dept:"",late:false};                 // list filters (dropdowns at the top)
+const tkF={ppl:"",loc:"",type:"",prio:"",dept:"",late:false,q:""};                 // list filters (dropdowns at the top)
 const PRIOS=["דחופה","גבוהה","רגילה","נמוכה"];
 const PRIO_HUE={"דחופה":"fault","גבוהה":"flood","רגילה":"maint","נמוכה":"gen"};
 const prioOf=t=>PRIOS.includes(t.prio) ? t.prio : (t.urgent ? "דחופה" : "רגילה");   // older tasks: urgent flag
@@ -1845,13 +1846,19 @@ function renderTkFilters(){
   fillSelect($("#tfPrio"), PRIOS, tkF.prio, "כל העדיפויות");
   colorSelect($("#tfPrio"), PRIO_HUE[tkF.prio]); colorSelect($("#tfType"), tkF.type ? hueOf(tkF.type) : "");
   ["#tfPpl","#tfLoc","#tfType"].forEach(id=>$(id).classList.toggle("on",!!$(id).value));
-  $("#tfClear").hidden=!Object.values(tkF).some(Boolean);
-  $("#tfClear").textContent = "✕ נקה סינון"+(tkF.late ? " (באיחור)" : "");
+  // like the events list: search + "סינון" (a panel), the badge counts the filters that are on
+  const nOn=["ppl","loc","type","prio","dept","late"].filter(k=>tkF[k]).length;
+  $("#tfBadge").textContent = nOn ? String(nOn) : "";
+  $("#tfLate").setAttribute("aria-pressed",String(!!tkF.late));
+  if($("#tq").value!==tkF.q) $("#tq").value=tkF.q;
   const dl=$("#dlPpl"); dl.textContent=""; (lists.ppl||[]).forEach(v=>{ const x=document.createElement("option"); x.value=v; dl.appendChild(x); });
 }
 $("#tkSort").value=tkSort;
 $("#tkSort").onchange=()=>{ tkSort=$("#tkSort").value; try{ localStorage.setItem("ogg-tk-sort",tkSort); }catch(e){} renderTasks(); };
 $("#tfClear").onclick=()=>{ Object.keys(tkF).forEach(k=>tkF[k]= k==="late" ? false : ""); renderTasks(); };
+$("#tfToggle").onclick=()=>{ const p=$("#tfPanel"), open=p.hidden; p.hidden=!open; $("#tfToggle").setAttribute("aria-expanded",String(open)); };
+$("#tfLate").onclick=()=>{ tkF.late=!tkF.late; renderTasks(); };
+$("#tq").oninput=()=>{ tkF.q=$("#tq").value; renderTasks(); };
 ["ppl","loc","type","prio","dept"].forEach(k=>{ const el=$("#tf"+k[0].toUpperCase()+k.slice(1)); el.onchange=()=>{ tkF[k]=el.value; renderTasks(); }; });
 /* update log: every task keeps a running log — time, who reported, what happened.
    Status changes are logged automatically; when the task is finished the log goes into the event ("המשך טיפול"). */
@@ -1956,6 +1963,9 @@ function renderLog(t, c){
   }
   c.appendChild(box);
 }
+// everything a search can find in a task: title, description, people, places, equipment, departments, updates, checklist
+function tkText(t){ return [t.title,t.desc,t.act,t.type,t.prio,(t.ppl||[]).join(" "),(t.loc||[]).join(" "),(t.eq||[]).join(" "),(t.depts||[]).join(" "),
+  (t.log||[]).map(l=>(l.by||"")+" "+(l.text||"")).join(" "),(t.check||[]).filter(x=>x&&!x.del).map(x=>x.text).join(" ")].join(" ").toLowerCase(); }
 function renderTasks(){
   const ae=document.activeElement; tkFocus = ae && ae.dataset && ae.dataset.draft || null;   // typing in a task's message box
   paintTaskCount(); renderTkFilters(); paintMe();
@@ -1965,10 +1975,13 @@ function renderTasks(){
   const today=ymd(new Date());
   const pass=t=>(!tkF.ppl || (t.ppl||[]).includes(tkF.ppl)) && (!tkF.loc || (t.loc||[]).includes(tkF.loc))
              && (!tkF.type || t.type===tkF.type) && (!tkF.prio || prioOf(t)===tkF.prio)
-             && (!tkF.late || (t.due && t.due<today)) && (!tkF.dept || (t.depts||[]).includes(tkF.dept));
+             && (!tkF.late || (t.due && t.due<today)) && (!tkF.dept || (t.depts||[]).includes(tkF.dept))
+             && (!tkF.q || tkText(t).includes(tkF.q.trim().toLowerCase()));
   const rows = (tkView!=="done"
     ? tasks.filter(t=>tkOpen(t) && (tkView!=="mine" || isMine(t))).sort(tkCmp())
-    : tasks.filter(t=>!tkOpen(t)).sort((a,b)=>String(b.doneAt||"").localeCompare(String(a.doneAt||"")))).filter(pass);
+    : tasks.filter(t=>!tkOpen(t)).sort((a,b)=>String(b.doneAt||"").localeCompare(String(a.doneAt||"")))), shown=rows.filter(pass);
+  $("#tkResCount").textContent = shown.length===rows.length ? nf(rows.length)+" משימות" : nf(shown.length)+" מתוך "+nf(rows.length);
+  rows.length=0; rows.push(...shown);
   if(!rows.length){ box.appendChild(mk("div","tk-empty", Object.values(tkF).some(Boolean) ? "אין משימות שמתאימות לסינון." :
     tkView==="mine" ? (myName() ? "אין משימות פתוחות שלך או של המחלקה שלך." : (window.cloudMe ? "המנהל עדיין לא הגדיר לך שם בצוות." : "בחר למעלה \"אני:\" כדי לראות את המשימות שלך.")) : tkView==="open" ? "אין משימות פתוחות." : "עדיין לא הושלמו משימות.")); return; }
   rows.forEach(t=>{

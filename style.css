@@ -1159,3 +1159,8 @@ small.dept{font-size:12px;font-weight:700;color:var(--c-maint);background:var(--
 .cloud-bulk summary{cursor:pointer;font-weight:800;color:var(--water);padding:4px 0}
 .cloud-bulk textarea{min-height:0;margin:6px 0 8px;font-size:15px}
 .cloud-bulk .row{gap:8px;flex-wrap:wrap}
+/* tasks: search + "סינון" panel, like the events list */
+#tfBadge:not(:empty){display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 5px;border-radius:99px;background:var(--c-fault);color:#fff;font-size:12px;font-weight:900;margin-inline-start:4px}
+#tfPanel .tk-filters{margin:0}
+#tfLate[aria-pressed="true"]{background:var(--c-fault);border-color:var(--c-fault);color:#fff}
+#tkResCount{font-weight:800;color:var(--ink-2);font-size:14px}
