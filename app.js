@@ -3,7 +3,7 @@ const $ = s => document.querySelector(s);
 
 /* ================= seed lists ================= */
 const SEED = {
-  type:["תקלה","אחזקה חודשית","גלישות חרום","אחזקה","אחזקה מונעת","אחזקה שנתית","אחזקת שבר","אחזקה מתוכננת","אחזקה יזומה","הפסקות חשמל",
+  type:["תקלה","אחזקה חודשית","גלישות חרום","אחזקה","אחזקה מונעת","אחזקה שנתית","אחזקת שבר","אחזקה מתוכננת","הפסקות חשמל",
         "תהליך","הודעת יומן","ביקור","נפילות/קפיצות חשמל","סיור בטיחות חודשי","כללי"],
   loc:[], eq:[], ppl:[],   // plant-specific values are not kept in the code: they come from
                           // the events on this device, from values added in the app, and from loaded backups
@@ -19,7 +19,7 @@ const META = {
 const TONE = {"תקלה":"f","גלישות חרום":"a","הפסקות חשמל":"a","נפילות/קפיצות חשמל":"a"};
 const HUE = {"תקלה":"fault","גלישות חרום":"flood","הפסקות חשמל":"power","נפילות/קפיצות חשמל":"power",
   "אחזקה":"maint","אחזקה חודשית":"maint","אחזקה שנתית":"maint","אחזקה מונעת":"maint",
-  "אחזקת שבר":"fault","אחזקה מתוכננת":"maint","אחזקה יזומה":"maint",
+  "אחזקת שבר":"fault","אחזקה מתוכננת":"maint",
   "ביקור":"visit","סיור בטיחות חודשי":"visit","תהליך":"visit"};
 function hueOf(t){ return HUE[t] || (/^אחזק/.test(t||"") ? "maint" : "gen"); }
 /* event types in one family stay together in every list ("אחזקה", "אחזקה חודשית", "אחזקת שבר"…):
@@ -1681,7 +1681,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.95", APP_DATE="30/09/2026";
+const APP_VER="1.96", APP_DATE="30/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
