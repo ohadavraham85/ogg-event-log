@@ -1244,3 +1244,8 @@ small.dept{font-size:12px;font-weight:700;color:var(--c-maint);background:var(--
 .img-row{margin-top:8px;align-items:center;gap:8px;flex-wrap:wrap}
 #imgName{flex:1 1 200px;font-size:13px;color:var(--ink-2);overflow-wrap:anywhere}
 .tk-fbtns{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px} .tk-files.none .tk-fbtns{margin-top:0}
+/* task form: the title comes first and stands out */
+.tk-title-f{margin-bottom:14px}
+.tk-title-f > span{font-size:15px;font-weight:900;color:var(--ink)}
+.tk-f.tk-title-f input{font-size:19px;font-weight:800;padding:12px 14px;border:2px solid var(--water);background:var(--panel)}
+.tk-f.tk-title-f input::placeholder{font-weight:600;color:var(--ink-3)}

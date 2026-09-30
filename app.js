@@ -1685,7 +1685,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.99", APP_DATE="30/09/2026";
+const APP_VER="2.00", APP_DATE="30/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2273,7 +2273,10 @@ function openTaskForm(id){
   $("#tkStart").value=t ? (t.start || String(t.created||"").slice(0,10) || ymd(new Date())) : ymd(new Date());
   $("#tkDue").min=$("#tkStart").value;
   $("#tkForm").hidden=false; $("#tkNewBtn").hidden=true;
-  $("#tkForm").scrollIntoView({block:"start",behavior:"smooth"});
+  // open with the title in view, just below the sticky header; a new task starts in the title
+  const hb=document.querySelector("header.bar"), off=(hb && getComputedStyle(hb).position==="sticky" ? hb.getBoundingClientRect().height : 0)+12;
+  window.scrollTo({top:$("#tkForm").getBoundingClientRect().top+window.scrollY-off, behavior:"smooth"});
+  if(!t) setTimeout(()=>$("#tkTitle").focus({preventScroll:true}),350);
 }
 /* "+ אחר…": type a new value; it joins the app's lists (like adding it in settings → lists) */
 [["#tkPpl","ppl","שם האחראי"],["#tkLoc","loc","מיקום חדש"],["#tkEq","eq","ציוד חדש"]].forEach(([id,k,label])=>{
