@@ -1178,3 +1178,43 @@ small.dept{font-size:12px;font-weight:700;color:var(--c-maint);background:var(--
 .cal-dept[hidden]{display:none}
 .cal-dept .dchip{display:inline-flex;align-items:center;gap:4px}
 .cal-dept .dchip .seg-n{font-size:12px;opacity:.85}
+/* ===== livelier dashboard ===== */
+/* KPI tiles: each tinted by what it counts, with an icon chip; the hero (open) is filled */
+.kpi{position:relative;overflow:hidden;border-inline-start:4px solid var(--kc,var(--edge));background:linear-gradient(135deg,color-mix(in srgb,var(--kc,var(--panel)) 12%,var(--panel)),var(--panel) 70%)}
+.kpi .kl{display:flex;align-items:center;gap:6px}
+.kpi .ki{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:8px;font-size:13px;background:color-mix(in srgb,var(--kc,var(--water)) 18%,var(--panel));flex:none}
+.kpi.k-open{--kc:var(--water)}
+.kpi.k-fault{--kc:var(--c-fault)}
+.kpi.k-reg{--kc:var(--c-power)}
+.kpi.k-done{--kc:var(--c-visit)}
+.kpi.hero{background:linear-gradient(135deg,var(--water),color-mix(in srgb,var(--water) 65%,#000));border-color:transparent;color:#fff;
+  box-shadow:0 8px 22px color-mix(in srgb,var(--water) 35%,transparent)}
+.kpi.hero .kl,.kpi.hero .kgo{color:rgba(255,255,255,.85)}
+.kpi.hero .ki{background:rgba(255,255,255,.2)}
+.kpi.hero::after{content:"";position:absolute;inset-inline-end:-30px;top:-30px;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,.08);pointer-events:none}
+.kpi b{font-variant-numeric:tabular-nums}
+.kpi .ktr{font-size:11.5px;font-weight:800;color:var(--ink-2)}
+.kpi .ktr.bad{color:var(--c-fault)}
+.kpi .ktr.good{color:var(--c-visit)}
+.kpi:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(0,0,0,.12)}
+.kpi{transition:transform .15s,box-shadow .15s}
+/* cards: a coloured top line + a dot by the title */
+.dcard{border-top:3px solid var(--acc,var(--edge))}
+.dcard > h3::before{content:"";display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--acc,var(--water));margin-inline-end:7px;vertical-align:1px}
+#dDept.on,#dPpl.on{border-color:var(--water);color:var(--water);background:var(--water-soft);font-weight:800}
+/* opening the board: tiles and cards rise in, bars grow from their baseline */
+@keyframes dRise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes dGrowX{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes dGrowY{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+.anim > .kpi,.anim > .card{animation:dRise .45s cubic-bezier(.2,.8,.2,1) both}
+.anim > :nth-child(2){animation-delay:.05s} .anim > :nth-child(3){animation-delay:.1s} .anim > :nth-child(4){animation-delay:.15s}
+.anim > :nth-child(5){animation-delay:.2s} .anim > :nth-child(6){animation-delay:.25s} .anim > :nth-child(n+7){animation-delay:.3s}
+.anim .hf,.anim .pb,.anim .sbar{transform-origin:right center;animation:dGrowX .8s cubic-bezier(.2,.8,.2,1) .15s both}
+.anim .col .cb{transform-origin:center bottom;animation:dGrowY .8s cubic-bezier(.2,.8,.2,1) .15s both}
+.anim .col:nth-child(3n+1) .cb{animation-delay:.2s} .anim .col:nth-child(3n+2) .cb{animation-delay:.25s}
+@media (prefers-reduced-motion:reduce){ .anim *, .anim > *{animation:none!important} .kpi{transition:none} }
+/* the time chart: bars in the theme colour, the current period darker */
+.col .cb{background:linear-gradient(180deg,color-mix(in srgb,var(--one) 80%,#fff),var(--one))}
+.col.cur .cb{background:color-mix(in srgb,var(--one) 75%,#000)}
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]) .kpi.hero{background:linear-gradient(135deg,color-mix(in srgb,var(--water) 55%,#000),color-mix(in srgb,var(--water) 30%,#000))} }
+:root[data-theme="dark"] .kpi.hero{background:linear-gradient(135deg,color-mix(in srgb,var(--water) 55%,#000),color-mix(in srgb,var(--water) 30%,#000))}

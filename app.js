@@ -730,7 +730,9 @@ const STAT_CLS={"פתוח":"s-open","בטיפול":"s-work","ממתין לחלק
 const AGE=[ // days since the event, open events only
   {l:"עד שבוע",a:0,b:7},{l:"שבוע עד חודש",a:8,b:30},{l:"1–3 חודשים",a:31,b:90},
   {l:"3–12 חודשים",a:91,b:365},{l:"מעל שנה",a:366,b:Infinity}];
-let dRange="365", dPpl="";
+let dRange="365", dPpl="", dDept="", dAnim=true;   // dAnim: animate the next draw (when the dashboard is opened)
+try{ dDept=localStorage.getItem("ogg-dash-dept")||""; }catch(e){}
+const inDeptE=(e,d)=>(e.ppl||[]).some(n=>deptOf(n)===d), inDeptT=(t,d)=>(t.depts||[]).includes(d) || (t.ppl||[]).some(n=>deptOf(n)===d);
 try{ dRange=localStorage.getItem("ogg-dash-range")||"365"; }catch(e){}
 const nf=n=>n.toLocaleString("he-IL");
 function ymd(d){ const p=n=>String(n).padStart(2,"0"); return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate()); }
@@ -768,8 +770,11 @@ function tipOn(el, value, label){
   el.addEventListener("focus",show_); el.addEventListener("blur",hide);
 }
 function mk(tag,cls,text){ const e=document.createElement(tag); if(cls) e.className=cls; if(text!=null) e.textContent=text; return e; }
+// each card has its own accent (a thin coloured top line and title mark) so the board reads at a glance
+const D_ACC={"משימות":"power","סטטוס":"flood","אירועים פתוחים לפי ותק":"fault","פתוחים לפי סוג":"fault","פתוחים לפי מיקום":"maint","לפי מעורבים":"visit","לפי מחלקות":"power"};
 function dcard(title,sub,body,rows,head){
-  const c=mk("div","card dcard");
+  const c=mk("div","card dcard"), acc=D_ACC[title] || (/^אירועים לפי/.test(title) ? "water" : "");
+  if(acc) c.style.setProperty("--acc", acc==="water" ? "var(--water)" : "var(--c-"+acc+")");
   c.appendChild(mk("h3",null,title));
   if(sub) c.appendChild(mk("p","dsub",sub));
   c.appendChild(body);
@@ -787,6 +792,7 @@ function hbars(items, max, cls){
     if(it.go){ row.type="button"; row.onclick=it.go; }
     row.appendChild(mk("span","hl",it.l));
     const tr=mk("span","ht"); const f=mk("span","hf "+(it.cls||cls||""));
+    if(it.hue) f.style.background="var(--c-"+it.hue+")";
     // leave room at the end of the track for the value label
     const r=max? it.v/max : 0;
     f.style.width = it.v ? "max(3px, calc((100% - 46px) * "+r+"))" : "0px"; tr.appendChild(f);
@@ -861,7 +867,7 @@ function goTasks(o){
   paintTkSeg(); renderTasks(); show("Tasks"); window.scrollTo({top:0});
 }
 function dashTasks(cards, from){
-  const today=ymd(new Date()), byP=t=>!dPpl || (t.ppl||[]).includes(dPpl);
+  const today=ymd(new Date()), byP=t=>(!dPpl || (t.ppl||[]).includes(dPpl)) && (!dDept || inDeptT(t,dDept));
   const open=tasks.filter(t=>tkOpen(t) && byP(t));
   const done=tasks.filter(t=>!tkOpen(t) && byP(t) && (!from || String(t.doneAt||"").slice(0,10)>=from)).length;
   if(!tasks.length){
@@ -932,22 +938,44 @@ function renderDash0(){
   const ps=$("#dPpl"); ps.textContent="";
   [["","כל המעורבים"]].concat(people.map(v=>[v,v])).forEach(([v,l])=>{ const o=mk("option",null,l); o.value=v; ps.appendChild(o); });
   ps.value=dPpl; ps.hidden=!people.length;
+  // department filter: events of the people in it; tasks assigned to it or to its people
+  const depts=allDepts(); if(dDept && !depts.includes(dDept)) dDept="";
+  const dsel=$("#dDept"); dsel.textContent="";
+  [["","כל המחלקות"]].concat(depts.map(v=>[v,"🏢 "+v])).forEach(([v,l])=>{ const o=mk("option",null,l); o.value=v; dsel.appendChild(o); });
+  dsel.value=dDept; dsel.hidden=!depts.length; dsel.classList.toggle("on",!!dDept); ps.classList.toggle("on",!!dPpl);
+  const inScope=e=>(!dPpl || (e.ppl||[]).includes(dPpl)) && (!dDept || inDeptE(e,dDept));
   const rows = events.filter(e=>{
-    if(dPpl && !(e.ppl||[]).includes(dPpl)) return false;
+    if(!inScope(e)) return false;
     if(!from) return true; const d=(e.when||"").slice(0,10); return d && d>=from; });
+  // the same length of time just before, for the "compared with before" line on the tiles
+  const pFrom = from ? ymd(daysAgo(2*(+dRange)-1)) : "";
+  const prev = from ? events.filter(e=>{ if(!inScope(e)) return false; const d=(e.when||"").slice(0,10); return d && d>=pFrom && d<from; }) : null;
+  const anim=dAnim; dAnim=false;
+  $("#dCards").classList.toggle("anim",anim); $("#dKpis").classList.toggle("anim",anim);
   const open = rows.filter(isOpen);
   const closed = rows.length-open.length;
   const faults = open.filter(e=>(e.type||[]).includes("תקלה")).length;
-  $("#dScope").textContent = (from? "מ-"+dmy(from)+" עד היום" : "כל התקופה")+(dPpl? " · "+dPpl : "")+" · "+nf(rows.length)+" אירועים";
+  $("#dScope").textContent = (from? "מ-"+dmy(from)+" עד היום" : "כל התקופה")+(dDept? " · מחלקת "+dDept : "")+(dPpl? " · "+dPpl : "")+" · "+nf(rows.length)+" אירועים";
 
   /* KPI row */
   const k=$("#dKpis"); k.textContent="";
-  [[ "פתוחים (לא נסגרו)", open.length, "hero", {stat:OPEN_ANY,from} ],
-   [ "תקלות פתוחות", faults, "", {stat:OPEN_ANY,type:"תקלה",from} ],
-   [ "נרשמו", rows.length, "", {from} ],
-   [ "נסגרו", closed, "", {stat:"נסגר",from} ]].forEach(([l,v,cls,q])=>{
+  // each tile: icon, number (counts up when the board opens), and — for "נרשמו"/"נסגרו"/"תקלות" — the change from the period before
+  const pv = prev && { reg:prev.length, closed:prev.filter(e=>!isOpen(e)).length, faults:prev.filter(e=>(e.type||[]).includes("תקלה")).length };
+  const regF = rows.filter(e=>(e.type||[]).includes("תקלה")).length;
+  [[ "פתוחים (לא נסגרו)", open.length, "hero k-open", "📂", {stat:OPEN_ANY,from}, null ],
+   [ "תקלות פתוחות", faults, "k-fault", "⚡", {stat:OPEN_ANY,type:"תקלה",from}, pv && [regF,pv.faults,"תקלות נרשמו",true] ],
+   [ "נרשמו", rows.length, "k-reg", "📝", {from}, pv && [rows.length,pv.reg,"",false] ],
+   [ "נסגרו", closed, "k-done", "✅", {stat:"נסגר",from}, pv && [closed,pv.closed,"",false] ]].forEach(([l,v,cls,ic,q,cmp])=>{
     const t=mk("button","kpi "+cls); t.type="button";
-    t.append(mk("span","kl",l), mk("b",null,nf(v)), mk("span","kgo","הצג ברשימה ‹"));
+    const head=mk("span","kl"); head.append(mk("span","ki",ic), l);
+    const num=mk("b",null,nf(v)); if(anim && v>0) countUp(num,v);
+    t.append(head, num);
+    if(cmp){ const [now_,was,word,upBad]=cmp, d=now_-was;
+      const txt = !was ? (now_ ? "חדש בתקופה" : "") : (d===0 ? "ללא שינוי" : (d>0?"▲ ":"▼ ")+Math.abs(Math.round(100*d/was))+"%");
+      const prevName={"30":"30 הימים הקודמים","90":"90 הימים הקודמים","365":"12 החודשים הקודמים"}[dRange]||"התקופה הקודמת";
+      if(txt){ const tr=mk("span","ktr "+(d===0||!was ? "" : (d>0)===upBad ? "bad" : "good"), txt+(was&&d?" מהקודם":""));
+        tr.title=(word||"")+" לעומת "+prevName+" — אז: "+nf(was)+" · עכשיו: "+nf(now_); t.appendChild(tr); } }
+    t.appendChild(mk("span","kgo","הצג ברשימה ‹"));
     t.onclick=()=>goList(q); k.appendChild(t);
   });
 
@@ -1053,7 +1081,7 @@ function renderDash0(){
     const c={}; open.forEach(e=>(e[key]||[]).forEach(v=>{ c[v]=(c[v]||0)+1; }));
     const all=Object.keys(c).sort((a,b)=>c[b]-c[a]);
     const top=all.slice(0,6), rest=all.slice(6).reduce((s,v)=>s+c[v],0);
-    const items=top.map(v=>({l:v,v:c[v],go:()=>goList({stat:OPEN_ANY,[filterKey]:v,from})}));
+    const items=top.map(v=>({l:v,v:c[v],hue:key==="type"?hueOf(v):"",go:()=>goList({stat:OPEN_ANY,[filterKey]:v,from})}));
     if(rest) items.push({l:"אחר ("+all.slice(6).length+")",v:rest,cls:"other"});
     if(!items.length) return;
     const max=Math.max(...items.map(i=>i.v));
@@ -1061,6 +1089,29 @@ function renderDash0(){
   };
   topBars("type","פתוחים לפי סוג","type");
   topBars("loc","פתוחים לפי מיקום","loc");
+
+  /* by department: open / closed events and open tasks per department (tap = show only that department) */
+  if(!dDept && depts.length){
+    const per=depts.map(d=>{ const ev=rows.filter(e=>inDeptE(e,d)); return {l:d, o:ev.filter(isOpen).length, c:ev.filter(e=>!isOpen(e)).length,
+      t:tasks.filter(t=>tkOpen(t) && inDeptT(t,d) && (!dPpl || (t.ppl||[]).includes(dPpl))).length}; }).sort((a,b)=>(b.o+b.c)-(a.o+a.c) || b.t-a.t);
+    const max=Math.max(1,...per.map(i=>i.o+i.c)), body=mk("div");
+    const lg=mk("div","legend"); [["אירועים פתוחים","s-open"],["אירועים שנסגרו","s-done"]].forEach(([l,c])=>{ const li=mk("span","li"); li.append(mk("i",c),mk("span",null,l)); lg.appendChild(li); });
+    const box=mk("div","pbars");
+    per.forEach(it=>{
+      const row=mk("div","pbar"), lb=mk("button","pl","🏢 "+it.l); lb.type="button";
+      lb.onclick=()=>{ dDept=it.l; try{ localStorage.setItem("ogg-dash-dept",dDept); }catch(e){} dAnim=true; renderDash(); window.scrollTo({top:0,behavior:"smooth"}); };
+      tipOn(lb, "הצג את הדשבורד של המחלקה", it.l);
+      const tr=mk("span","pt"), bar=mk("span","pb"); bar.style.width = (it.o+it.c) ? "max(4px, calc(100% * "+((it.o+it.c)/max)+"))" : "0";
+      [["o","s-open","פתוחים"],["c","s-done","נסגרו"]].forEach(([k,cls,word])=>{ if(!it[k]) return;
+        const sg=mk("span","pseg "+cls); sg.style.flexGrow=it[k]; tipOn(sg, nf(it[k])+" "+word, it.l); bar.appendChild(sg); });
+      tr.appendChild(bar);
+      const head=mk("div","ph"); head.append(lb, mk("span","pv", nf(it.o+it.c)+" אירועים"+(it.o?" · "+nf(it.o)+" פתוחים":"")+(it.t?" · "+nf(it.t)+" משימות פתוחות":"")));
+      row.append(head,tr); box.appendChild(row);
+    });
+    body.append(lg,box);
+    cards.appendChild(dcard("לפי מחלקות","לפי המחלקה של המעורבים · לחיצה על מחלקה מציגה רק אותה", body,
+      per.map(i=>[i.l,i.o+i.c,i.o,i.c,i.t]), ["מחלקה","אירועים","פתוחים","נסגרו","משימות פתוחות"]));
+  }
 
   /* by person: open vs closed per person (hidden when one person is already selected) */
   if(!dPpl){
@@ -1096,7 +1147,15 @@ function renderDash0(){
     }
   }
 }
-$("#dPpl").onchange=()=>{ dPpl=$("#dPpl").value; renderDash(); };
+$("#dPpl").onchange=()=>{ dPpl=$("#dPpl").value; dAnim=true; renderDash(); };
+$("#dDept").onchange=()=>{ dDept=$("#dDept").value; try{ localStorage.setItem("ogg-dash-dept",dDept); }catch(e){} dAnim=true; renderDash(); };
+/* numbers count up when the dashboard opens (skipped when the phone asks for less motion) */
+function countUp(el, to){
+  if(matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const t0=performance.now(), dur=Math.min(900, 350+to*2);
+  const step=t=>{ const k=Math.min(1,(t-t0)/dur), e=1-Math.pow(1-k,3); el.textContent=nf(Math.round(to*e)); if(k<1) requestAnimationFrame(step); };
+  el.textContent="0"; requestAnimationFrame(step);
+}
 document.querySelectorAll("#dRange button").forEach(b=>b.onclick=()=>{
   dRange=b.dataset.r; try{ localStorage.setItem("ogg-dash-range",dRange); }catch(e){}
   renderDash();
@@ -1156,7 +1215,7 @@ function show(w){
 $("#tabNew").onclick=()=>show("New");
 $("#fabNew").onclick=()=>{ show("New"); window.scrollTo({top:0}); };   // "+" in the events list replaces the "רישום אירוע" tab
 $("#tabList").onclick=()=>{ renderFilters(); renderList(); show("List"); };
-$("#tabDash").onclick=()=>{ renderDash(); show("Dash"); };
+$("#tabDash").onclick=()=>{ dAnim=true; renderDash(); show("Dash"); };
 $("#tabData").onclick=$("#setBtn").onclick=()=>{ renderStats(); renderMgr(); paintSettings(); show("Data"); window.scrollTo({top:0}); };
 /* settings: one topic at a time (lists / team / files / general); the last one is remembered */
 let sgCur="lists"; try{ sgCur=localStorage.getItem("ogg-settings-topic")||"lists"; }catch(e){}
@@ -1586,7 +1645,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.91", APP_DATE="30/09/2026";
+const APP_VER="1.92", APP_DATE="30/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
