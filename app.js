@@ -1671,7 +1671,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.93", APP_DATE="30/09/2026";
+const APP_VER="1.94", APP_DATE="30/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -1999,6 +1999,105 @@ function renderCheck(t, c){
   }
   c.appendChild(box);
 }
+/* ================= files on a task =================
+   Photos (camera or gallery) and other files. The task keeps a short list (name, type, size, who, when,
+   a small preview for photos); the file itself is kept on this device (IndexedDB "ogg-files") and, in
+   the team log, in the cloud ("files" — needs the updated security rules; until they are published a
+   file stays on the device that added it and is sent later). Photos are shrunk (≤1600px JPEG);
+   other files up to 700KB for now — bigger storage comes later. */
+const FDB={p:null};
+function fdb(){ return FDB.p || (FDB.p=new Promise((res,rej)=>{ const r=indexedDB.open("ogg-files",1);
+  r.onupgradeneeded=()=>r.result.createObjectStore("f"); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); })); }
+async function fPut(id,rec){ const db=await fdb(); return new Promise((res,rej)=>{ const tx=db.transaction("f","readwrite"); tx.objectStore("f").put(rec,id); tx.oncomplete=()=>res(); tx.onerror=()=>rej(tx.error); }); }
+async function fGet(id){ try{ const db=await fdb(); return await new Promise(res=>{ const r=db.transaction("f").objectStore("f").get(id); r.onsuccess=()=>res(r.result||null); r.onerror=()=>res(null); }); }catch(e){ return null; } }
+window.fGet=fGet; window.fPut=fPut;
+const F_MAX=700*1024;
+const readDataURL=f=>new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(f); });
+function shrinkImage(file, max, q){ return new Promise((res,rej)=>{ const img=new Image(), url=URL.createObjectURL(file);
+  img.onload=()=>{ const k=Math.min(1,max/Math.max(img.naturalWidth,img.naturalHeight)), c=document.createElement("canvas");
+    c.width=Math.max(1,Math.round(img.naturalWidth*k)); c.height=Math.max(1,Math.round(img.naturalHeight*k));
+    const g=c.getContext("2d"); g.fillStyle="#fff"; g.fillRect(0,0,c.width,c.height); g.drawImage(img,0,0,c.width,c.height);
+    URL.revokeObjectURL(url); res(c.toDataURL("image/jpeg",q)); };
+  img.onerror=()=>{ URL.revokeObjectURL(url); rej(new Error("img")); }; img.src=url; }); }
+const kb=n=>n>=1048576 ? (n/1048576).toFixed(1)+"MB" : Math.max(1,Math.round(n/1024))+"KB";
+const fIcon=m=>/pdf/.test(m.type)?"📄":/sheet|excel|csv/.test(m.type)?"📊":/word|document/.test(m.type)?"📝":/^image\//.test(m.type)?"🖼":/^video\//.test(m.type)?"🎬":"📎";
+async function addFiles(t, list, fromCam){
+  const out=[];
+  for(const f of list){
+    try{
+      let data, type=f.type||"application/octet-stream", name=f.name||"קובץ", thumb="";
+      if(/^image\//.test(type) && !/svg|gif/.test(type)){
+        for(const [mx,q] of [[1600,.78],[1280,.7],[1024,.62],[800,.55]]){ data=await shrinkImage(f,mx,q); if(data.length<900000) break; }
+        thumb=await shrinkImage(f,180,.6); type="image/jpeg";
+        name = fromCam || /^image(\.|$)/i.test(name) ? "צילום "+nowLocal().replace("T"," ").slice(0,16).replace(/:/g,"-")+".jpg" : name.replace(/\.[^.]+$/,"")+".jpg";
+      } else {
+        if(f.size>F_MAX){ toast("\""+name+"\" גדול מדי ("+kb(f.size)+") — בינתיים עד 700KB"); continue; }
+        data=await readDataURL(f);
+      }
+      const id=newId(), size=Math.round((data.length-data.indexOf(",")-1)*0.75);
+      await fPut(id,{data,name,type,up:false});
+      const meta={id,name,type,size,by:reporter()||"",at:nowLocal(),...(thumb?{thumb}:{})};
+      if(!Array.isArray(t.files)) t.files=[]; t.files.push(meta); out.push(meta);
+      if(window.cloudPutFile) window.cloudPutFile(id);
+    }catch(e){ toast("לא הצלחתי לקרוא את \""+(f.name||"הקובץ")+"\""); }
+  }
+  if(!out.length) return;
+  tkLog(t, out.length===1 ? "צורף קובץ: "+out[0].name : "צורפו "+out.length+" קבצים: "+out.map(x=>x.name).join(", "), "", true);
+  t.upd=new Date().toISOString(); saveTasks(); toast(out.length===1 ? "הקובץ צורף" : "צורפו "+out.length+" קבצים");
+}
+async function fileRec(m){
+  let rec=await fGet(m.id);
+  if(!rec && window.cloudGetFile){ rec=await window.cloudGetFile(m.id); if(rec){ rec.up=true; try{ await fPut(m.id,rec); }catch(e){} } }
+  return rec;
+}
+function dataToBlob(d){ const i=d.indexOf(","), meta=d.slice(5,i), bin=atob(d.slice(i+1)), u=new Uint8Array(bin.length);
+  for(let k=0;k<bin.length;k++) u[k]=bin.charCodeAt(k); return new Blob([u],{type:meta.split(";")[0]||"application/octet-stream"}); }
+async function openFile(m){
+  const rec=await fileRec(m);
+  if(!rec){ toast(CLOUD_ON ? "הקובץ עדיין לא זמין — הוא שמור רק במכשיר שהוסיף אותו" : "הקובץ לא נמצא במכשיר הזה"); return; }
+  const url=URL.createObjectURL(dataToBlob(rec.data));
+  if(/^image\//.test(m.type)){
+    $("#imgView").src=url; $("#imgView").alt=m.name; $("#imgName").textContent=m.name+" · "+kb(m.size)+(m.by?" · "+m.by:"")+(m.at?" · "+fmtWhen(m.at):"");
+    $("#imgDl").href=url; $("#imgDl").download=m.name; $("#dlgImg").showModal();
+    $("#dlgImg").addEventListener("close",()=>setTimeout(()=>URL.revokeObjectURL(url),500),{once:true});
+  } else {
+    const a=document.createElement("a"); a.href=url; a.download=m.name;
+    if(/pdf|^text\//.test(m.type)){ a.target="_blank"; a.removeAttribute("download"); }
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),60000);
+  }
+}
+$("#imgClose").onclick=()=>$("#dlgImg").close();
+function renderFiles(t, c){
+  const fs=(t.files||[]).filter(x=>x && !x.del), open=tkOpen(t);
+  if(!fs.length && !open) return;
+  const box=mk("div","tk-files"+(fs.length?"":" none"));
+  if(fs.length) box.appendChild(mk("div","tk-files-h","📎 קבצים ("+fs.length+")"));
+  const grid=mk("div","tk-fgrid");
+  fs.forEach(m=>{
+    const b=mk("button","tk-file"+(m.thumb?" img":"")); b.type="button"; b.title=m.name+" · "+kb(m.size||0)+(m.by?" · "+m.by:"");
+    if(m.thumb){ const im=mk("img"); im.src=m.thumb; im.alt=m.name; im.loading="lazy"; b.appendChild(im); }
+    else b.append(mk("span","tf-ic",fIcon(m)), mk("span","tf-n",m.name));
+    b.onclick=()=>openFile(m);
+    if(open && isManager()){ const d=mk("span","tf-del","✕"); d.setAttribute("role","button"); d.setAttribute("aria-label","הסר את "+m.name);
+      d.onclick=async ev=>{ ev.stopPropagation(); if(!await confirmDel("להסיר את הקובץ מהמשימה?", m.name)) return;
+        m.del=true; tkLog(t,"הוסר קובץ: "+m.name,"",true); t.upd=new Date().toISOString(); saveTasks(); };
+      b.appendChild(d); }
+    grid.appendChild(b);
+  });
+  if(open){
+    const mkAdd=(label,cam)=>{ const l=mk("label","tk-fadd"), i=mk("input"); i.type="file"; i.hidden=true;
+      if(cam){ i.accept="image/*"; i.setAttribute("capture","environment"); } else i.multiple=true;
+      i.onchange=()=>{ const fl=[...i.files]; i.value=""; if(fl.length) addFiles(t,fl,cam); };
+      l.append(label,i); return l; };
+    var btns=mk("div","tk-fbtns"); btns.append(mkAdd("📷 צילום",true), mkAdd("📎 קובץ",false));
+  }
+  if(fs.length) box.appendChild(grid);
+  if(btns) box.appendChild(btns);
+  c.appendChild(box);
+}
+// team log: files that are still only on this device (rules not published yet, or offline) — send them
+window.filesRetry=async()=>{ if(!window.cloudPutFile) return;
+  for(const t of tasks) for(const m of (t.files||[])){ if(!m || m.del) continue; const r=await fGet(m.id); if(r && !r.up) window.cloudPutFile(m.id); } };
 /* update log: time, who, what — the last 3 lines (all on demand). "+ עדכון" under the log opens a short form. */
 let tkUpdFor=null;
 function renderLog(t, c){
@@ -2058,10 +2157,10 @@ document.querySelectorAll("#tkListView button").forEach(b=>b.onclick=()=>{ tkLV=
 paintTkLV();
 function exportTasksCsv(rows){
   rows = rows && rows.length ? rows : tasks;
-  const head=["מס'","כותרת","סטטוס","עדיפות","סוג","אחראי","משויכים","מחלקות","מיקום","ציוד","תאריך התחלה","תאריך יעד","מחזוריות","רשימת בדיקה","תיאור","עדכונים","נפתחה","הושלמה","מה בוצע"];
+  const head=["מס'","קבצים","כותרת","סטטוס","עדיפות","סוג","אחראי","משויכים","מחלקות","מיקום","ציוד","תאריך התחלה","תאריך יעד","מחזוריות","רשימת בדיקה","תיאור","עדכונים","נפתחה","הושלמה","מה בוצע"];
   const esc=v=>'"'+String(v==null?"":v).replace(/"/g,'""')+'"';
   const body=rows.map(t=>{ const ck=(t.check||[]).filter(x=>x&&!x.del);
-    return [t.no||"", t.title||"", t.status||"", prioOf(t), t.type||"", (t.ppl||[])[0]||"", (t.ppl||[]).slice(1).join("; "), (t.depts||[]).join("; "),
+    return [t.no||"", (t.files||[]).filter(x=>x&&!x.del).map(x=>x.name).join("; "), t.title||"", t.status||"", prioOf(t), t.type||"", (t.ppl||[])[0]||"", (t.ppl||[]).slice(1).join("; "), (t.depts||[]).join("; "),
       (t.loc||[]).join("; "), (t.eq||[]).join("; "), dmy(t.start||""), dmy(t.due||""), t.rep?repLabel(t.rep):"",
       ck.length ? ck.filter(x=>x.done).length+"/"+ck.length+" — "+ck.map(x=>(x.done?"✓ ":"○ ")+x.text).join("; ") : "",
       t.desc||"", (t.log||[]).slice().sort((x,y)=>String(x.at).localeCompare(String(y.at))).map(l=>fmtWhen(l.at)+" "+(l.by?l.by+": ":"")+l.text).join("\n"),
@@ -2071,7 +2170,7 @@ function exportTasksCsv(rows){
 }
 $("#tkExp").onclick=()=>exportTasksCsv(tkLastRows);
 function tkText(t){ return [snOf(t),t.title,t.desc,t.act,t.type,t.prio,(t.ppl||[]).join(" "),(t.loc||[]).join(" "),(t.eq||[]).join(" "),(t.depts||[]).join(" "),
-  (t.log||[]).map(l=>(l.by||"")+" "+(l.text||"")).join(" "),(t.check||[]).filter(x=>x&&!x.del).map(x=>x.text).join(" ")].join(" ").toLowerCase(); }
+  (t.log||[]).map(l=>(l.by||"")+" "+(l.text||"")).join(" "),(t.check||[]).filter(x=>x&&!x.del).map(x=>x.text).join(" "),(t.files||[]).filter(x=>x&&!x.del).map(x=>x.name).join(" ")].join(" ").toLowerCase(); }
 function renderTasks(){
   const ae=document.activeElement; tkFocus = ae && ae.dataset && ae.dataset.draft || null;   // typing in a task's message box
   paintTaskCount(); renderTkFilters(); paintMe();
@@ -2094,7 +2193,7 @@ function renderTasks(){
     const pr=prioOf(t), ph=PRIO_HUE[pr];
     const c=mk("div","tk"+(tkOpen(t)?"":" done")+(tkRowOpen.has(t.id)?" x":"")); c.dataset.id=t.id;
     // "רשימה": one compact line per task; a tap opens it in full (and closes it again)
-    c.addEventListener("click",ev=>{ if(tkLV!=="rows" || ev.target.closest("button,input,textarea,select,a,.tk-log,.tk-check")) return;
+    c.addEventListener("click",ev=>{ if(tkLV!=="rows" || ev.target.closest("button,input,textarea,select,a,label,.tk-log,.tk-check,.tk-files")) return;
       tkRowOpen.has(t.id) ? tkRowOpen.delete(t.id) : tkRowOpen.add(t.id); c.classList.toggle("x"); }); c.style.borderInlineStartColor = tkOpen(t) ? "var(--c-"+ph+")" : "";
     if(tkOpen(t) && pr==="דחופה") c.style.background="color-mix(in srgb,var(--c-fault-bg) 55%,var(--panel))";
     { const tt=mk("div","tk-t"); if(t.no) tt.appendChild(mk("span","sn","#"+t.no)); tt.append(t.title||"(ללא כותרת)"); c.appendChild(tt); }
@@ -2107,6 +2206,7 @@ function renderTasks(){
       if(t.type) tag(t.type,"",hueOf(t.type));
       if(t.status==="בטיפול") tag("בטיפול","w");
       if(t.rep) tag("🔁 "+repLabel(t.rep),"rep");
+      { const nf_=(t.files||[]).filter(x=>x&&!x.del).length; if(nf_) tag("📎 "+nf_); }
       { const ci=(t.check||[]).filter(x=>x && !x.del); if(ci.length) tag("☑ "+ci.filter(x=>x.done).length+"/"+ci.length, ci.every(x=>x.done)?"ok":""); }
       if(t.start && t.start>today) tag("מתחילה "+dmy(t.start).slice(0,5));
       if(t.due) tag((t.due<today?"באיחור · ":t.due===today?"היום · ":"יעד ")+dmy(t.due).slice(0,5), t.due<today?"late":t.due===today?"today":"");
@@ -2121,6 +2221,7 @@ function renderTasks(){
     if(meta) c.appendChild(mk("div","tk-m",meta));
     if(t.desc) c.appendChild(mk("div","tk-d",t.desc));
     renderCheck(t, c);
+    renderFiles(t, c);
     if(!tkOpen(t) && t.act) c.appendChild(mk("div","tk-d","בוצע: "+t.act));
     renderLog(t, c);
     const acts=mk("div","tk-acts"), btn=(label,cls,fn)=>{ const b=mk("button","btn"+(cls?" "+cls:""),label); b.type="button"; b.onclick=fn; acts.appendChild(b); };

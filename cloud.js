@@ -196,6 +196,13 @@
         const have=new Set((t.log||[]).map(l=>l.id)), extra=was.log.filter(l=>l && !have.has(l.id));
         if(extra.length){ t.log=(t.log||[]).concat(extra).sort((x,y)=>String(x.at).localeCompare(String(y.at))); mergedLog=true; }
       }
+      // files: keep ones added here meanwhile (two people attaching at once); a removed one stays removed
+      if(was && Array.isArray(was.files) && was.files.length){
+        const inc=new Map((t.files||[]).map(x=>[x.id,x])); let merged=false;
+        was.files.forEach(x=>{ if(!x) return; const y=inc.get(x.id);
+          if(!y){ inc.set(x.id,x); merged=true; } else if(x.del && !y.del){ inc.set(x.id,Object.assign({},y,{del:true})); merged=true; } });
+        if(merged){ t.files=[...inc.values()]; mergedLog=true; }
+      }
       // checklist: keep items added here meanwhile; a removed item (del) stays removed on every device
       if(was && Array.isArray(was.check) && was.check.length){
         const inc=new Map((t.check||[]).map(x=>[x.id,x])); let merged=false;
@@ -207,7 +214,7 @@
       tSynced[tid]=js; changed=true;
     });
     put(K_SYNC_T,String(maxU));
-    if(!snap.metadata.fromCache){ if(!tInit && window.nosAfterSync) setTimeout(window.nosAfterSync,1800); tInit=true; window.TASKS_READY=true; }
+    if(!snap.metadata.fromCache){ if(!tInit){ if(window.nosAfterSync) setTimeout(window.nosAfterSync,1800); if(window.filesRetry) setTimeout(window.filesRetry,4000); } tInit=true; window.TASKS_READY=true; }
     if(changed){ try{ localStorage.setItem("ogg-cloud-tasks", JSON.stringify(tasks)); }catch(e){} renderTasks(); }
     if(mergedLog) setTimeout(cloudPushTasks,0);           // send the merged log back
     const openMine=()=>{ if(typeof showMyTasks==="function") showMyTasks(); };
@@ -251,6 +258,17 @@
     if(!out.length && t.status!==was.status) out.push({...base, id:t.id+":st:"+upd, kind:"status", text:"סטטוס: "+(t.status||"")});
     return out;
   }
+  /* files: one document per file in "files" (read/add: team members; remove: admins).
+     If the security rules don't allow it yet, the file stays on this device and is sent later. */
+  async function pushFile(id){
+    try{ const rec=await window.fGet(id); if(!rec || rec.up) return;
+      await F.setDoc(F.doc(db,"files",id),{data:rec.data,name:rec.name,type:rec.type,_upd:F.serverTimestamp(),_by:me});
+      rec.up=true; await window.fPut(id,rec);
+    }catch(e){ /* not allowed yet / offline — retried on the next start */ }
+  }
+  window.cloudPutFile=id=>{ if(started && me) pushFile(id); };
+  window.cloudGetFile=async id=>{ if(!started || !me) return null;
+    try{ const d=await F.getDoc(F.doc(db,"files",id)); if(!d.exists()) return null; const x=d.data(); return {data:x.data,name:x.name,type:x.type}; }catch(e){ return null; } };
   function cloudPushTasks(){
     if(!started || !me) return;
     const cur={}; tasks.forEach(t=>{ cur[t.id]=JSON.stringify(t); });

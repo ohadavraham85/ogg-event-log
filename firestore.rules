@@ -25,6 +25,14 @@ service cloud.firestore {
         && (request.resource.data.get('_del', false) != true || isAdmin());
       allow delete: if false;
     }
+    // files attached to tasks (one document each): team members read and add; only an admin removes
+    match /files/{id} {
+      allow read: if isMember();
+      allow create, update: if isMember()
+        && request.resource.data._upd == request.time
+        && request.resource.data._by == myEmail();
+      allow delete: if isAdmin();
+    }
     match /meta/{doc} {
       allow read: if isMember();
       // tasks (task-<id>): only an admin may mark one deleted; no hard deletes of shared data
