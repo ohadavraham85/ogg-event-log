@@ -1154,3 +1154,8 @@ small.dept{font-size:12px;font-weight:700;color:var(--c-maint);background:var(--
   background:linear-gradient(160deg,var(--water),color-mix(in srgb,var(--water) 72%,#000));
   box-shadow:0 5px 16px color-mix(in srgb,var(--water) 45%,transparent)}
 .tabs button.tab-dash .ti{width:17px;height:17px}
+/* team: add several members at once */
+.cloud-bulk{margin:8px 0 12px}
+.cloud-bulk summary{cursor:pointer;font-weight:800;color:var(--water);padding:4px 0}
+.cloud-bulk textarea{min-height:0;margin:6px 0 8px;font-size:15px}
+.cloud-bulk .row{gap:8px;flex-wrap:wrap}

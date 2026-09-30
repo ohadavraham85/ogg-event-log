@@ -398,6 +398,36 @@
       };
       card.appendChild(mk("p","hint","השם מחבר את איש הצוות למשימות: משימה שהאחראי בה הוא השם הזה תופיע אצלו ב\"שלי\" ויקבל עליה התראה."));
       add.append(inp,nameIn,sel,b); card.appendChild(add);
+      // several at once: one per line — "email", "email name", "name <email>" or "email, name" (from Excel / WhatsApp / a mail)
+      const bulk=mk("details","cloud-bulk"); bulk.appendChild(mk("summary",null,"הוספת כמה אנשי צוות בבת אחת"));
+      const ta=mk("textarea","txt"); ta.rows=6; ta.dir="auto";
+      ta.placeholder="שורה לכל אחד — מייל ושם, למשל:\nyossi@example.com יוסי לוי\nדני כהן <dani@example.com>";
+      const brow=mk("div","row"), bsel=mk("select","dsel");
+      [["member","איש צוות"],["admin","מנהל"]].forEach(([v,l])=>{ const o=mk("option",null,l); o.value=v; bsel.appendChild(o); });
+      const bb=mk("button","btn primary","הוסף את כולם"); bb.type="button";
+      const bres=mk("p","hint"); bres.hidden=true;
+      const parse=txt=>{ const out=new Map(), re=/[^\s<>,;:"'()\[\]]+@[^\s<>,;:"'()\[\]]+\.[^\s<>,;:"'()\[\]]+/g;
+        txt.split(/\r?\n|;/).forEach(line=>{ const ems=(line.match(re)||[]).map(x=>x.toLowerCase().replace(/\.$/,""));
+          if(!ems.length) return;
+          const name = ems.length===1 ? line.replace(re,"").replace(/[<>,;:"'()\[\]|\t]+/g," ").replace(/\s+/g," ").replace(/^[\s\-–]+|[\s\-–]+$/g,"").trim() : "";
+          ems.forEach(em=>{ if(!out.has(em) || (name && !out.get(em))) out.set(em, ems.length===1 ? name : ""); }); });
+        return out; };
+      bb.onclick=async()=>{
+        const all=parse(ta.value); if(!all.size){ toast("לא נמצאו מיילים"); return; }
+        const have=new Set(members.map(m=>m.email)), add=[...all].filter(([em])=>!have.has(em)), skip=all.size-add.length;
+        if(!add.length){ toast("כולם כבר ברשימת הצוות"); return; }
+        if(!confirm("להוסיף "+add.length+" אנשי צוות ("+bsel.options[bsel.selectedIndex].text+")?"+(skip?"\n"+skip+" כבר ברשימה — יידלגו.":""))) return;
+        bb.disabled=true;
+        try{ const w=F.writeBatch(db);
+          add.forEach(([em,name])=>w.set(F.doc(db,"members",em),{role:bsel.value,added:F.serverTimestamp(),by:me,...(name?{name}:{})}));
+          await w.commit();
+          ta.value=""; bres.hidden=false;
+          bres.textContent="נוספו "+add.length+(skip?" · "+skip+" כבר היו ברשימה":"")+(add.some(([,n])=>!n)?" · בלי שם: "+add.filter(([,n])=>!n).length+" (אפשר להוסיף שם ברשימה למטה)":"")+". שלח להם הזמנה מהכפתור \"הזמן\" ליד כל אחד.";
+          toast("נוספו "+add.length+" אנשי צוות");
+        }catch(e){ toast("ההוספה נכשלה"); }
+        bb.disabled=false;
+      };
+      brow.append(bsel,bb); bulk.append(ta,brow,bres); card.appendChild(bulk);
       const inv=mk("div","cloud-invite"); inv.id="cloudInvite"; inv.hidden=true; card.appendChild(inv);
       const list=mk("div","cloud-members"); list.id="cloudMembers"; card.appendChild(list);
       paintMembers();
