@@ -3,7 +3,7 @@ const $ = s => document.querySelector(s);
 
 /* ================= seed lists ================= */
 const SEED = {
-  type:["תקלה","אחזקה חודשית","גלישות חרום","אחזקה","אחזקה מונעת","אחזקה שנתית","הפסקות חשמל",
+  type:["תקלה","אחזקה חודשית","גלישות חרום","אחזקה","אחזקה מונעת","אחזקה שנתית","אחזקת שבר","אחזקה מתוכננת","אחזקה יזומה","הפסקות חשמל",
         "תהליך","הודעת יומן","ביקור","נפילות/קפיצות חשמל","סיור בטיחות חודשי","כללי"],
   loc:[], eq:[], ppl:[],   // plant-specific values are not kept in the code: they come from
                           // the events on this device, from values added in the app, and from loaded backups
@@ -19,8 +19,17 @@ const META = {
 const TONE = {"תקלה":"f","גלישות חרום":"a","הפסקות חשמל":"a","נפילות/קפיצות חשמל":"a"};
 const HUE = {"תקלה":"fault","גלישות חרום":"flood","הפסקות חשמל":"power","נפילות/קפיצות חשמל":"power",
   "אחזקה":"maint","אחזקה חודשית":"maint","אחזקה שנתית":"maint","אחזקה מונעת":"maint",
+  "אחזקת שבר":"fault","אחזקה מתוכננת":"maint","אחזקה יזומה":"maint",
   "ביקור":"visit","סיור בטיחות חודשי":"visit","תהליך":"visit"};
-function hueOf(t){ return HUE[t] || "gen"; }
+function hueOf(t){ return HUE[t] || (/^אחזק/.test(t||"") ? "maint" : "gen"); }
+/* event types in one family stay together in every list ("אחזקה", "אחזקה חודשית", "אחזקת שבר"…):
+   families by their first word (אחזקה/אחזקת = the same), each where its most used member is,
+   the plain word first, then the rest as they were ordered (most used first). */
+function groupTypes(arr){
+  const stem=v=>String(v).trim().split(/\s+/)[0].replace(/[התי]$/,""), fam=new Map();
+  arr.forEach(v=>{ const k=stem(v); if(!fam.has(k)) fam.set(k,[]); fam.get(k).push(v); });
+  return [...fam.values()].flatMap(g=>{ const base=g.filter(v=>!/\s/.test(v.trim())); return base.concat(g.filter(v=>!base.includes(v))); });
+}
 const isCore=v=>!!(lists && (lists._core_ppl||[]).includes(v));
 const roleOf=v=>(lists && lists._roles_ppl && lists._roles_ppl[v]) || "";
 const deptOf=v=>(lists && lists._dept_ppl && lists._dept_ppl[v]) || "";
@@ -140,7 +149,8 @@ function closeSheet(){
 function drawOpts(){
   const box=$("#shOpts"); box.textContent="";
   const q=$("#shQ").value.trim(), k=shKey, cnt=useCount(k), custom=lists["_custom_"+k];
-  const items = coreFirst(lists[k].slice().sort((a,b)=>(cnt[b]||0)-(cnt[a]||0)), k);
+  let items = coreFirst(lists[k].slice().sort((a,b)=>(cnt[b]||0)-(cnt[a]||0)), k);
+  if(k==="type") items=groupTypes(items);
   const hits = items.filter(v=>!q || v.includes(q));
   if(!hits.length){
     const d=document.createElement("div"); d.className="empty"; d.style.margin="10px";
@@ -1671,7 +1681,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.94", APP_DATE="30/09/2026";
+const APP_VER="1.95", APP_DATE="30/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -1905,7 +1915,8 @@ function byUse(k){
   if(!freqCache || freqCache.n!==events.length){ freqCache={n:events.length};
     ["loc","eq","ppl","type"].forEach(f=>{ const m=new Map(); events.forEach(e=>(e[f]||[]).forEach(v=>m.set(v,(m.get(v)||0)+1))); freqCache[f]=m; }); }
   const m=freqCache[k];
-  return coreFirst((lists[k]||[]).slice().sort((x,y)=>(m.get(y)||0)-(m.get(x)||0) || x.localeCompare(y,"he")), k);
+  const out=coreFirst((lists[k]||[]).slice().sort((x,y)=>(m.get(y)||0)-(m.get(x)||0) || x.localeCompare(y,"he")), k);
+  return k==="type" ? groupTypes(out) : out;
 }
 function pplValues(){ const off=lists._hide_ppl||[];
   return coreFirst([...new Set((window.TEAM_NAMES||[]).filter(n=>!off.includes(n)).concat(byUse("ppl")))], "ppl"); }
@@ -2395,7 +2406,7 @@ function openTaskDone(id){
   const t=tasks.find(x=>x.id===id); if(!t) return; tkDoneId=id;
   $("#tdName").textContent=t.title;
   $("#tdAct").value=t.act||"";
-  const types=lists.type||[], def=t.type || (types.includes("אחזקה") ? "אחזקה" : types[0]);
+  const types=byUse("type"), def=t.type || (types.includes("אחזקה") ? "אחזקה" : types[0]);
   fillSelect($("#tdType"), types, def);
   colorSelect($("#tdType"), hueOf($("#tdType").value));
   $("#tdWhen").value=nowLocal();
