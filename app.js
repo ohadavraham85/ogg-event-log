@@ -3,7 +3,7 @@ const $ = s => document.querySelector(s);
 
 /* ================= seed lists ================= */
 const SEED = {
-  type:["תקלה","אחזקה חודשית","גלישות חרום","אחזקה","אחזקה מונעת","אחזקה שנתית","אחזקת שבר","אחזקה מתוכננת","אחזקה יומית","הפסקות חשמל",
+  type:["תקלה","אחזקה חודשית","גלישות חרום","אחזקה","אחזקה מונעת","אחזקה שנתית","אחזקת שבר","אחזקה מתוכננת","אחזקה יומית","אחזקה שבועית","הפסקות חשמל",
         "תהליך","הודעת יומן","ביקור","נפילות/קפיצות חשמל","סיור בטיחות חודשי","כללי"],
   loc:[], eq:[], ppl:[],   // plant-specific values are not kept in the code: they come from
                           // the events on this device, from values added in the app, and from loaded backups
@@ -19,7 +19,7 @@ const META = {
 const TONE = {"תקלה":"f","גלישות חרום":"a","הפסקות חשמל":"a","נפילות/קפיצות חשמל":"a"};
 const HUE = {"תקלה":"fault","גלישות חרום":"flood","הפסקות חשמל":"power","נפילות/קפיצות חשמל":"power",
   "אחזקה":"maint","אחזקה חודשית":"maint","אחזקה שנתית":"maint","אחזקה מונעת":"maint",
-  "אחזקת שבר":"fault","אחזקה מתוכננת":"maint","אחזקה יומית":"maint",
+  "אחזקת שבר":"fault","אחזקה מתוכננת":"maint","אחזקה יומית":"maint","אחזקה שבועית":"maint",
   "ביקור":"visit","סיור בטיחות חודשי":"visit","תהליך":"visit"};
 function hueOf(t){ return HUE[t] || (/^אחזק/.test(t||"") ? "maint" : "gen"); }
 /* event types in one family stay together in every list ("אחזקה", "אחזקה חודשית", "אחזקת שבר"…):
@@ -1681,7 +1681,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.97", APP_DATE="30/09/2026";
+const APP_VER="1.98", APP_DATE="30/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2265,7 +2265,7 @@ function openTaskForm(id){
   $("#tkFormTitle").textContent = t ? "עריכת משימה" : "משימה חדשה";
   $("#tkTitle").value=t?t.title||"":""; $("#tkDesc").value=t?t.desc||"":"";
   $("#tkDue").value=t?t.due||"":"";
-  setRep(t && t.rep);
+  setRep(t && t.rep); repAuto=false;
   $("#tkStart").value=t ? (t.start || String(t.created||"").slice(0,10) || ymd(new Date())) : ymd(new Date());
   $("#tkDue").min=$("#tkStart").value;
   $("#tkForm").hidden=false; $("#tkNewBtn").hidden=true;
@@ -2383,7 +2383,16 @@ function setRep(r){
   paintRep();
 }
 function paintRep(){ const v=$("#tkRep").value; $("#tkRepC").hidden = v!=="c"; $("#tkRepHint").hidden = !v; }
-$("#tkRep").addEventListener("change",paintRep);
+$("#tkRep").addEventListener("change",()=>{ repAuto=false; paintRep(); });
+/* a type that says how often (יומית / שבועית / חודשית / שנתית, also "סיור בטיחות חודשי") sets the recurrence by itself;
+   picked by hand it stays as chosen, and switching to a type without one clears only what was set automatically */
+let repAuto=false;
+const repOfType=v=>/יומי/.test(v)?"d":/שבועי/.test(v)?"w":/חודשי/.test(v)?"m":/שנתי/.test(v)?"y":"";
+$("#tkType").addEventListener("change",()=>{
+  const u=repOfType($("#tkType").value||""), cur=$("#tkRep").value;
+  if(u && (!cur || repAuto)){ if(cur!==u){ setRep({n:1,u}); repAuto=true; toast("מחזוריות: "+repLabel({n:1,u})+" — אפשר לשנות"); } }
+  else if(!u && repAuto){ setRep(null); repAuto=false; }
+});
 function addRep(s, r, k){                     // "YYYY-MM-DD" + k intervals (month ends stay in their month: 31/01 → 28/02)
   if(!s) return s; const [Y,M,D]=s.split("-").map(Number), n=(+r.n||1)*(k||1);
   if(r.u==="d" || r.u==="w"){ const d=new Date(Y,M-1,D,12); d.setDate(d.getDate()+n*(r.u==="w"?7:1)); return ymd(d); }
