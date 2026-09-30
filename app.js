@@ -1586,7 +1586,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.90", APP_DATE="30/09/2026";
+const APP_VER="1.91", APP_DATE="30/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2241,10 +2241,30 @@ let calY, calM, calSel=null, calMd="all", calLeg="";   // calLeg: legend colour 
 calMd="ev";                                             // set by the list the calendar is opened from
 (()=>{ const d=new Date(); calY=d.getFullYear(); calM=d.getMonth(); })();
 const HEB_MONTHS=["ינואר","פברואר","מרץ","אפריל","מאי","יוני","יולי","אוגוסט","ספטמבר","אוקטובר","נובמבר","דצמבר"];
+/* by department: a task belongs to the departments it is assigned to and to those of its people;
+   an event — to the departments of the people involved. */
+let calDept=""; try{ calDept=localStorage.getItem("ogg-cal-dept")||""; }catch(e){}
+const tkInDept=(t,d)=>(t.depts||[]).includes(d) || (t.ppl||[]).some(n=>deptOf(n)===d);
+const evInDept=(e,d)=>(e.ppl||[]).some(n=>deptOf(n)===d);
+function paintCalDept(){
+  const box=$("#calDept"), ds=allDepts(); box.hidden=!ds.length; box.textContent=""; if(!ds.length) return;
+  if(calDept && !ds.includes(calDept)) calDept="";
+  const pre=calY+"-"+String(calM+1).padStart(2,"0"), mS=pre+"-01", mE=pre+"-31";
+  const inMonth = calMd==="tk"
+    ? t=>(tkOpen(t) && t.due && (t.start&&t.start<=t.due?t.start:t.due)<=mE && t.due>=mS) || (!tkOpen(t) && String(t.doneAt||"").startsWith(pre))
+    : e=>(e.when||"").startsWith(pre);
+  const src = calMd==="tk" ? tasks.filter(inMonth) : events.filter(inMonth), isIn = calMd==="tk" ? tkInDept : evInDept;
+  [["", "כל המחלקות", src.length]].concat(ds.map(d=>[d,"🏢 "+d,src.filter(x=>isIn(x,d)).length])).forEach(([v,l,n])=>{
+    const b=mk("button","dchip"+(v===calDept?" on":"")); b.type="button"; b.setAttribute("aria-pressed",String(v===calDept));
+    b.append(l+" "); b.appendChild(mk("span","seg-n",nf(n)));
+    b.onclick=()=>{ calDept=v; try{ localStorage.setItem("ogg-cal-dept",calDept); }catch(e){} renderCal(); };
+    box.appendChild(b); });
+}
 function calIndex(){
   const ev={}, due={}, done={}, rep={}, today=ymd(new Date()), L=calLeg, on=x=>!L || L===x;
-  if(calMd!=="tk" && on("ev")) events.forEach(e=>{ const d=(e.when||"").slice(0,10); if(d) (ev[d]=ev[d]||[]).push(e); });
-  if(calMd!=="ev") tasks.forEach(t=>{
+  const D=calDept, okT=t=>!D || tkInDept(t,D), okE=e=>!D || evInDept(e,D);
+  if(calMd!=="tk" && on("ev")) events.filter(okE).forEach(e=>{ const d=(e.when||"").slice(0,10); if(d) (ev[d]=ev[d]||[]).push(e); });
+  if(calMd!=="ev") tasks.filter(okT).forEach(t=>{
     if(tkOpen(t) && t.due && on(t.due<today?"late":"tk")){
       // an open task sits on every day from its start date to its due date (older tasks without a start: the due day only)
       const s0=t.start && t.start<=t.due ? t.start : t.due; let d=new Date(s0+"T12:00"), n=0;
@@ -2260,6 +2280,7 @@ function renderCal(){
   document.querySelectorAll("#calMode button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.m===calMd)));
   document.querySelectorAll("#calLeg button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.l===calLeg)));
   $("#calLeg").classList.toggle("picked",!!calLeg);
+  paintCalDept();
   document.querySelectorAll("#calLeg button").forEach(b=>b.hidden = calMd==="ev" ? b.dataset.l!=="ev" : calMd==="tk" ? b.dataset.l==="ev" : false);
   // monthly counts on the mode buttons (always for the month shown, whatever the mode)
   const pre=calY+"-"+String(calM+1).padStart(2,"0");

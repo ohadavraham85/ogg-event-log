@@ -1173,3 +1173,8 @@ small.dept{font-size:12px;font-weight:700;color:var(--c-maint);background:var(--
 #viewTasks.rows .tk:not(.x) .tk-m{margin:0;margin-inline-start:auto;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
 #viewTasks.rows .tk:not(.x) :is(.tk-d,.tk-check,.tk-log,.tk-acts){display:none}
 #viewTasks.rows .tk.x{cursor:pointer}
+/* calendar: show by department */
+.cal-dept{display:flex;flex-wrap:wrap;gap:6px;flex:1 1 100%}
+.cal-dept[hidden]{display:none}
+.cal-dept .dchip{display:inline-flex;align-items:center;gap:4px}
+.cal-dept .dchip .seg-n{font-size:12px;opacity:.85}
