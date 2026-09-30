@@ -1145,3 +1145,12 @@ small.dept{font-size:12px;font-weight:700;color:var(--c-maint);background:var(--
 .cal-row.r-rep{border-inline-start:4px dashed var(--c-power);opacity:.9}
 .tk-sort{display:flex;align-items:center;gap:6px;font-size:13.5px;font-weight:800;color:var(--ink-2);grid-column:1/-1;justify-self:start}
 .tk-sort select{font:inherit;font-size:14px;font-weight:700;padding:7px 9px;border:1.5px solid var(--edge);border-radius:10px;background:var(--panel);color:var(--ink)}
+/* tabs: משימות (right) · דשבורד (middle, prominent — the opening view) · אירועים (left) */
+.tabs{align-items:stretch}
+.tabs button.tab-dash{flex:1.35;font-size:1.08em;font-weight:900;letter-spacing:-.01em;border-width:2px;
+  background:linear-gradient(160deg,color-mix(in srgb,var(--water) 16%,var(--panel)),color-mix(in srgb,var(--water) 5%,var(--panel)));
+  box-shadow:0 2px 8px color-mix(in srgb,var(--water) 22%,transparent)}
+.tabs button.tab-dash[aria-selected="true"]{color:#fff;border-color:var(--water);
+  background:linear-gradient(160deg,var(--water),color-mix(in srgb,var(--water) 72%,#000));
+  box-shadow:0 5px 16px color-mix(in srgb,var(--water) 45%,transparent)}
+.tabs button.tab-dash .ti{width:17px;height:17px}
