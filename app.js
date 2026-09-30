@@ -1241,6 +1241,7 @@ function show(w){
   if($("#dTip")) $("#dTip").hidden=true;
   const prev=curView; curView=w;
   if(prev==="List" && w!=="List" && UNSEEN.size){ UNSEEN.clear(); saveUnseen(); }   // seen once you leave the list
+  if(prev==="Tasks" && w!=="Tasks" && typeof tkMarkSeen==="function") tkMarkSeen();   // new tasks: seen once you leave the tasks list
   if($("#newCnt")) paintNewCount();
   // the calendar opens from the events or the tasks list, and that tab stays lit; settings is the gear in the header
   const lit = w==="Cal" ? (calMd==="tk" ? "Tasks" : "List") : w;
@@ -1685,7 +1686,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.02", APP_DATE="30/09/2026";
+const APP_VER="2.03", APP_DATE="30/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -1847,8 +1848,21 @@ function openedByMe(t){
   return m ? l.mail===m : (!!l.by && l.by===reporter());
 }
 window.openedByMe=openedByMe;
-// a task opened in the last two days is "new": it stays at the top of the list, marked
-const TK_NEW_MS=48*3600e3, tkIsNew=t=>tkOpen(t) && t.created && Date.now()-Date.parse(t.created)<TK_NEW_MS;
+/* "new" task: one I haven't seen yet (per person, on this device) — it stays at the top of the list, marked.
+   Seen = it was on the screen in the task list and I left the list (like "חדש" on events).
+   Tasks I opened myself are never new to me; on the first use, what is already there counts as seen. */
+const tkSeenKey=()=>"ogg-tk-seen-"+((window.cloudMe && window.cloudMe()) || "local");
+let tkSeen=null, tkShownNew=new Set();
+function tkSeenLoad(){ const k=tkSeenKey(); if(tkSeen && tkSeen.k===k) return tkSeen;
+  let d=null; try{ d=JSON.parse(localStorage.getItem(k)||"null"); }catch(e){}
+  if(!d || !Array.isArray(d.ids)) d={since:new Date().toISOString(), ids:[]};
+  tkSeen={k, since:d.since, ids:new Set(d.ids)}; if(!localStorage.getItem(k)) tkSeenSave(); return tkSeen; }
+function tkSeenSave(){ const S=tkSeen; if(!S) return;
+  const live=new Set(tasks.map(t=>t.id)); try{ localStorage.setItem(S.k, JSON.stringify({since:S.since, ids:[...S.ids].filter(id=>live.has(id))})); }catch(e){} }
+function tkIsNew(t){ if(!tkOpen(t) || openedByMe(t)) return false; const S=tkSeenLoad();
+  return !S.ids.has(t.id) && String(t.created||"")>S.since; }
+document.addEventListener("visibilitychange",()=>{ if(document.hidden && curView==="Tasks") tkMarkSeen(); });   // left the app from the list
+function tkMarkSeen(){ if(!tkShownNew.size) return; const S=tkSeenLoad(); tkShownNew.forEach(id=>S.ids.add(id)); tkShownNew.clear(); tkSeenSave(); }
 function paintTaskCount(){
   const V=tkVis(), n=V.filter(tkOpen).length;              // "(open/total)": 4/5 = 4 open out of 5
   $("#tkCnt").textContent = "("+(V.length ? nf(n)+"/"+nf(V.length) : "0")+")";
@@ -2233,7 +2247,7 @@ function renderTasks(){
     const tags=mk("div","tk-tags"), tag=(txt,cls,hue)=>{ const x=mk("span","tk-tag"+(cls?" "+cls:""),txt);
       if(hue){ x.style.background="var(--c-"+hue+"-bg)"; x.style.color="var(--c-"+hue+")"; x.style.borderColor="transparent"; } tags.appendChild(x); };
     if(tkOpen(t)){
-      if(tkIsNew(t)) tag("✨ חדשה","new");
+      if(tkIsNew(t)){ tag("✨ חדשה","new"); if(!$("#viewTasks").hidden) tkShownNew.add(t.id); }
       if(isMine(t)) tag((t.ppl||[]).includes(myName()) ? "שלי" : "המחלקה שלי","me");
       else if(openedByMe(t)) tag("פתחתי","me");
       (t.depts||[]).forEach(d=>tag("🏢 "+d,"dept"));
