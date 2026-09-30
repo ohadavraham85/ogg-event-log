@@ -1164,3 +1164,12 @@ small.dept{font-size:12px;font-weight:700;color:var(--c-maint);background:var(--
 #tfPanel .tk-filters{margin:0}
 #tfLate[aria-pressed="true"]{background:var(--c-fault);border-color:var(--c-fault);color:#fff}
 #tkResCount{font-weight:800;color:var(--ink-2);font-size:14px}
+/* tasks: "אריחים" = cards (two columns on a wide screen), "רשימה" = one line each, tap to open */
+@media (min-width:900px){ #viewTasks:not(.rows) #tkList{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;align-items:start}
+  #viewTasks:not(.rows) #tkList > .tk{margin:0} #viewTasks:not(.rows) #tkList > .tk-empty{grid-column:1/-1} }
+#viewTasks.rows .tk:not(.x){display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;padding:8px 12px;margin-bottom:6px;cursor:pointer}
+#viewTasks.rows .tk:not(.x) .tk-t{margin:0;font-size:15px;flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+#viewTasks.rows .tk:not(.x) .tk-tags{margin:0;flex-wrap:wrap}
+#viewTasks.rows .tk:not(.x) .tk-m{margin:0;margin-inline-start:auto;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+#viewTasks.rows .tk:not(.x) :is(.tk-d,.tk-check,.tk-log,.tk-acts){display:none}
+#viewTasks.rows .tk.x{cursor:pointer}

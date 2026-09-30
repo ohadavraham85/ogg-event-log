@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;900&family=Rubik:wght@500;600;700&family=Assistant:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=1.89">
+<link rel="stylesheet" href="style.css?v=1.90">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0E7C86">
 <meta name="color-scheme" content="light dark">
@@ -112,7 +112,7 @@
       <img class="logo" src="icons/logo-header.png" alt="מבט&quot;י — מפעלי ביוב וטיהור ירושלים" width="101" height="137">
       <div class="mark">יומן אירועים ומשימות <span class="sub">מט"ש אוג</span></div>
       <div class="clock" id="clock" aria-live="off"><span class="c-hello" id="cHello" hidden></span><span class="c-day" id="cDay"></span><span class="c-date" id="cDate"></span><b class="c-time" id="cTime"></b></div>
-      <span class="ver" id="verChip" title="גרסה">v1.89</span>
+      <span class="ver" id="verChip" title="גרסה">v1.90</span>
       <button class="icon-btn inbox-btn" id="inboxBtn" aria-label="הודעות" title="הודעות" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm7-6V11a7 7 0 0 0-5.5-6.84V3.5a1.5 1.5 0 0 0-3 0v.66A7 7 0 0 0 5 11v5l-2 2v1h18v-1z" fill="currentColor"/></svg><span class="newcnt" id="inboxN" hidden></span></button>
       <button class="icon-btn" id="refreshBtn" aria-label="רענון" title="רענון — טעינה מחדש ובדיקת עדכון"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M20.5 3.5v5h-5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       <button class="icon-btn" id="themeBtn" aria-label="מצב תצוגה">☾</button>
@@ -270,7 +270,12 @@
     <div class="resbar">
       <span id="tkResCount"></span>
       <label class="sortwrap"><span>מיון</span><select id="tkSort" aria-label="מיון משימות"><option value="new">החדשות למעלה</option><option value="due">לפי תאריך יעד</option><option value="prio">לפי עדיפות ויעד</option></select></label>
+      <div class="seg lv" role="group" aria-label="תצוגה" id="tkListView">
+        <button type="button" data-v="tiles">אריחים</button>
+        <button type="button" data-v="rows">רשימה</button>
+      </div>
       <button class="btn mini cal-open" id="tkCalBtn" type="button"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M7 2h2v2h6V2h2v2h2.5A1.5 1.5 0 0 1 21 5.5v14A1.5 1.5 0 0 1 19.5 21h-15A1.5 1.5 0 0 1 3 19.5v-14A1.5 1.5 0 0 1 4.5 4H7zM5 9v10h14V9zm2 2h3v3H7z"/></svg>לוח שנה</button>
+      <button class="btn mini" id="tkExp" type="button">ייצוא לאקסל</button>
     </div>
     <button type="button" class="fab" id="tkNewBtn" aria-label="משימה חדשה" title="משימה חדשה"><span aria-hidden="true">＋</span>חדש</button>
     <div class="card tk-form" id="tkForm" hidden>
@@ -388,7 +393,7 @@
 
     <div class="card" data-sg="general">
       <h3>גרסה</h3>
-      <p id="verLine">גרסה 1.89 · 30/09/2026</p>
+      <p id="verLine">גרסה 1.90 · 30/09/2026</p>
       <div class="row"><button class="btn" id="reloadApp">בדוק עדכון</button></div>
     </div>
 
@@ -497,9 +502,9 @@
     <button class="btn ghost" id="wkClose" hidden>סגור</button></div>
 </dialog>
 
-<script src="firebase-config.js?v=1.89"></script>
-<script src="app.js?v=1.89"></script>
-<script src="cloud.js?v=1.89"></script>
+<script src="firebase-config.js?v=1.90"></script>
+<script src="app.js?v=1.90"></script>
+<script src="cloud.js?v=1.90"></script>
 <script>
 if("serviceWorker" in navigator){
   window.addEventListener("load",()=>{ navigator.serviceWorker.register("sw.js").catch(()=>{}); });

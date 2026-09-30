@@ -1586,7 +1586,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.89", APP_DATE="30/09/2026";
+const APP_VER="1.90", APP_DATE="30/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -1964,6 +1964,27 @@ function renderLog(t, c){
   c.appendChild(box);
 }
 // everything a search can find in a task: title, description, people, places, equipment, departments, updates, checklist
+/* tasks shown like the events list: "אריחים" (cards) or "רשימה" (a line each), and "ייצוא לאקסל" of what is shown */
+let tkLV="tiles", tkLastRows=[]; const tkRowOpen=new Set();
+try{ tkLV=localStorage.getItem("ogg-tk-view")==="rows" ? "rows" : "tiles"; }catch(e){}
+function paintTkLV(){ $("#viewTasks").classList.toggle("rows",tkLV==="rows");
+  document.querySelectorAll("#tkListView button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===tkLV))); }
+document.querySelectorAll("#tkListView button").forEach(b=>b.onclick=()=>{ tkLV=b.dataset.v; try{ localStorage.setItem("ogg-tk-view",tkLV); }catch(e){} paintTkLV(); });
+paintTkLV();
+function exportTasksCsv(rows){
+  rows = rows && rows.length ? rows : tasks;
+  const head=["כותרת","סטטוס","עדיפות","סוג","אחראי","משויכים","מחלקות","מיקום","ציוד","תאריך התחלה","תאריך יעד","מחזוריות","רשימת בדיקה","תיאור","עדכונים","נפתחה","הושלמה","מה בוצע"];
+  const esc=v=>'"'+String(v==null?"":v).replace(/"/g,'""')+'"';
+  const body=rows.map(t=>{ const ck=(t.check||[]).filter(x=>x&&!x.del);
+    return [t.title||"", t.status||"", prioOf(t), t.type||"", (t.ppl||[])[0]||"", (t.ppl||[]).slice(1).join("; "), (t.depts||[]).join("; "),
+      (t.loc||[]).join("; "), (t.eq||[]).join("; "), dmy(t.start||""), dmy(t.due||""), t.rep?repLabel(t.rep):"",
+      ck.length ? ck.filter(x=>x.done).length+"/"+ck.length+" — "+ck.map(x=>(x.done?"✓ ":"○ ")+x.text).join("; ") : "",
+      t.desc||"", (t.log||[]).slice().sort((x,y)=>String(x.at).localeCompare(String(y.at))).map(l=>fmtWhen(l.at)+" "+(l.by?l.by+": ":"")+l.text).join("\n"),
+      t.created?fmtWhen(t.created):"", t.doneAt?fmtWhen(t.doneAt):"", t.act||""].map(esc).join(","); });
+  download("משימות-אוג.csv",[head.map(esc).join(",")].concat(body).join("\r\n"),"text/csv;charset=utf-8");
+  toast(rows.length+" משימות הורדו");
+}
+$("#tkExp").onclick=()=>exportTasksCsv(tkLastRows);
 function tkText(t){ return [t.title,t.desc,t.act,t.type,t.prio,(t.ppl||[]).join(" "),(t.loc||[]).join(" "),(t.eq||[]).join(" "),(t.depts||[]).join(" "),
   (t.log||[]).map(l=>(l.by||"")+" "+(l.text||"")).join(" "),(t.check||[]).filter(x=>x&&!x.del).map(x=>x.text).join(" ")].join(" ").toLowerCase(); }
 function renderTasks(){
@@ -1981,12 +2002,15 @@ function renderTasks(){
     ? tasks.filter(t=>tkOpen(t) && (tkView!=="mine" || isMine(t))).sort(tkCmp())
     : tasks.filter(t=>!tkOpen(t)).sort((a,b)=>String(b.doneAt||"").localeCompare(String(a.doneAt||"")))), shown=rows.filter(pass);
   $("#tkResCount").textContent = shown.length===rows.length ? nf(rows.length)+" משימות" : nf(shown.length)+" מתוך "+nf(rows.length);
-  rows.length=0; rows.push(...shown);
+  rows.length=0; rows.push(...shown); tkLastRows=shown;
   if(!rows.length){ box.appendChild(mk("div","tk-empty", Object.values(tkF).some(Boolean) ? "אין משימות שמתאימות לסינון." :
     tkView==="mine" ? (myName() ? "אין משימות פתוחות שלך או של המחלקה שלך." : (window.cloudMe ? "המנהל עדיין לא הגדיר לך שם בצוות." : "בחר למעלה \"אני:\" כדי לראות את המשימות שלך.")) : tkView==="open" ? "אין משימות פתוחות." : "עדיין לא הושלמו משימות.")); return; }
   rows.forEach(t=>{
     const pr=prioOf(t), ph=PRIO_HUE[pr];
-    const c=mk("div","tk"+(tkOpen(t)?"":" done")); c.dataset.id=t.id; c.style.borderInlineStartColor = tkOpen(t) ? "var(--c-"+ph+")" : "";
+    const c=mk("div","tk"+(tkOpen(t)?"":" done")+(tkRowOpen.has(t.id)?" x":"")); c.dataset.id=t.id;
+    // "רשימה": one compact line per task; a tap opens it in full (and closes it again)
+    c.addEventListener("click",ev=>{ if(tkLV!=="rows" || ev.target.closest("button,input,textarea,select,a,.tk-log,.tk-check")) return;
+      tkRowOpen.has(t.id) ? tkRowOpen.delete(t.id) : tkRowOpen.add(t.id); c.classList.toggle("x"); }); c.style.borderInlineStartColor = tkOpen(t) ? "var(--c-"+ph+")" : "";
     if(tkOpen(t) && pr==="דחופה") c.style.background="color-mix(in srgb,var(--c-fault-bg) 55%,var(--panel))";
     c.appendChild(mk("div","tk-t",t.title||"(ללא כותרת)"));
     const tags=mk("div","tk-tags"), tag=(txt,cls,hue)=>{ const x=mk("span","tk-tag"+(cls?" "+cls:""),txt);
