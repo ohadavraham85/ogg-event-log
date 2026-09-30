@@ -188,7 +188,8 @@
       if(!firstEver && mine && d._by && d._by!==me && t.status!=="הושלמה" && mineT(t) && !(was && mineT(was))) assigned.push(t);
       // messages list: anything someone else did to a task of mine (or that stopped being mine),
       // or to a task I'm involved in — I opened it or wrote an update on it
-      const touched=x=>!!x && (x.log||[]).some(l=>l && l.mail===me), inv=x=>!!x && (mineT(x) || touched(x));
+      // a manager also follows tasks they opened or wrote in; a team member only their own / their department's
+      const touched=x=>!!x && get(K_ROLE)==="admin" && (x.log||[]).some(l=>l && l.mail===me), inv=x=>!!x && (mineT(x) || touched(x));
       if(!firstEver && d._by && d._by!==me && (inv(t) || inv(was)))
         news.push(...taskNews(was, t, whoOf(d._by), mineT(t), !!was && mineT(was), d._upd && d._upd.toMillis ? d._upd.toMillis() : Date.now()));
       // update log: keep entries this device has that the incoming copy lacks (two people updating at once)
@@ -210,7 +211,7 @@
           if(!y){ inc.set(x.id,x); merged=true; } else if(x.del && !y.del){ inc.set(x.id,Object.assign({},y,{del:true})); merged=true; } });
         if(merged){ t.check=[...inc.values()]; mergedLog=true; }
       }
-      if(i>=0) tasks[i]=t; else { tasks.push(t); if(!firstEver && d._by && d._by!==me) fresh.push(t); }
+      if(i>=0) tasks[i]=t; else { tasks.push(t); if(!firstEver && d._by && d._by!==me && (!window.tkVisible || window.tkVisible(t))) fresh.push(t); }
       tSynced[tid]=js; changed=true;
     });
     put(K_SYNC_T,String(maxU));

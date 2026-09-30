@@ -908,8 +908,8 @@ function goTasks(o){
 }
 function dashTasks(cards, from){
   const today=ymd(new Date()), byP=t=>(!dPpl || (t.ppl||[]).includes(dPpl)) && (!dDept || inDeptT(t,dDept));
-  const open=tasks.filter(t=>tkOpen(t) && byP(t));
-  const done=tasks.filter(t=>!tkOpen(t) && byP(t) && (!from || String(t.doneAt||"").slice(0,10)>=from)).length;
+  const open=tkVis().filter(t=>tkOpen(t) && byP(t));
+  const done=tkVis().filter(t=>!tkOpen(t) && byP(t) && (!from || String(t.doneAt||"").slice(0,10)>=from)).length;
   if(!tasks.length){
     const b=mk("div","dt-empty"); b.appendChild(mk("p",null,"אין עדיין משימות. משימה שמסיימים נרשמת ביומן כאירוע."));
     const go=mk("button","btn","+ משימה חדשה"); go.type="button"; go.onclick=()=>{ goTasks({}); openTaskForm(null); };
@@ -1133,7 +1133,7 @@ function renderDash0(){
   /* by department: open / closed events and open tasks per department (tap = show only that department) */
   if(!dDept && depts.length){
     const per=depts.map(d=>{ const ev=rows.filter(e=>inDeptE(e,d)); return {l:d, o:ev.filter(isOpen).length, c:ev.filter(e=>!isOpen(e)).length,
-      t:tasks.filter(t=>tkOpen(t) && inDeptT(t,d) && (!dPpl || (t.ppl||[]).includes(dPpl))).length}; }).sort((a,b)=>(b.o+b.c)-(a.o+a.c) || b.t-a.t);
+      t:tkVis().filter(t=>tkOpen(t) && inDeptT(t,d) && (!dPpl || (t.ppl||[]).includes(dPpl))).length}; }).sort((a,b)=>(b.o+b.c)-(a.o+a.c) || b.t-a.t);
     const max=Math.max(1,...per.map(i=>i.o+i.c)), body=mk("div");
     const lg=mk("div","legend"); [["אירועים פתוחים","s-open"],["אירועים שנסגרו","s-done"]].forEach(([l,c])=>{ const li=mk("span","li"); li.append(mk("i",c),mk("span",null,l)); lg.appendChild(li); });
     const box=mk("div","pbars");
@@ -1685,7 +1685,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.00", APP_DATE="30/09/2026";
+const APP_VER="2.01", APP_DATE="30/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -1834,13 +1834,17 @@ function paintHello(){
   const n=myName() || (mail ? mail.split("@")[0] : "");
   el.textContent = n ? "שלום "+n : ""; el.hidden=!n;
 }
+/* who sees which tasks: a manager (and this device, without the team log) — all of them;
+   a team member — only the tasks assigned to them by name or to their department */
+function tkVis(){ return isManager() ? tasks : tasks.filter(isMine); }
+window.tkVisible=t=>isManager() || isMine(t);
 function paintTaskCount(){
-  const n=tasks.filter(tkOpen).length;                     // "(open/total)": 4/5 = 4 open out of 5
-  $("#tkCnt").textContent = "("+(tasks.length ? nf(n)+"/"+nf(tasks.length) : "0")+")";
-  $("#tkCnt").title = n+" פתוחות מתוך "+tasks.length+" משימות"; $("#tkCnt").dir="ltr";
-  const m=tasks.filter(t=>tkOpen(t)&&isMine(t)).length, el=$("#tkMine");
+  const V=tkVis(), n=V.filter(tkOpen).length;              // "(open/total)": 4/5 = 4 open out of 5
+  $("#tkCnt").textContent = "("+(V.length ? nf(n)+"/"+nf(V.length) : "0")+")";
+  $("#tkCnt").title = n+" פתוחות מתוך "+V.length+" משימות"; $("#tkCnt").dir="ltr";
+  const m=V.filter(t=>tkOpen(t)&&isMine(t)).length, el=$("#tkMine");
   el.textContent = m ? String(m) : ""; el.title = m ? m+" משימות פתוחות שלך" : ""; el.hidden=!m;
-  const segN={open:n, done:tasks.length-n, mine:m};
+  const segN={open:n, done:V.length-n, mine:m};
   document.querySelectorAll("#tkSeg button").forEach(b=>{
     const base={open:"פתוחות",done:"הושלמו",mine:"המשימות שלי"}[b.dataset.v];
     b.textContent=""; b.append(base+" "); b.appendChild(mk("span","seg-n",nf(segN[b.dataset.v]||0))); });
@@ -1900,6 +1904,7 @@ function openInbox(){
 }
 function goTask(tid){
   const t=tasks.find(x=>x.id===tid); if(!t){ toast("המשימה כבר לא קיימת"); return; }
+  if(!isManager() && !isMine(t)){ toast("המשימה כבר לא משויכת אליך או למחלקה שלך"); return; }
   Object.keys(tkF).forEach(k=>tkF[k]= k==="late" ? false : "");
   tkView = !tkOpen(t) ? "done" : isMine(t) ? "mine" : "open"; tkOpenLogs.add(t.id);
   paintTkSeg(); renderTasks(); show("Tasks");
@@ -2198,8 +2203,8 @@ function renderTasks(){
              && (!tkF.late || (t.due && t.due<today)) && (!tkF.dept || (t.depts||[]).includes(tkF.dept))
              && (!tkF.q || tkText(t).includes(tkF.q.trim().toLowerCase()));
   const rows = (tkView!=="done"
-    ? tasks.filter(t=>tkOpen(t) && (tkView!=="mine" || isMine(t))).sort(tkCmp())
-    : tasks.filter(t=>!tkOpen(t)).sort((a,b)=>String(b.doneAt||"").localeCompare(String(a.doneAt||"")))), shown=rows.filter(pass);
+    ? tkVis().filter(t=>tkOpen(t) && (tkView!=="mine" || isMine(t))).sort(tkCmp())
+    : tkVis().filter(t=>!tkOpen(t)).sort((a,b)=>String(b.doneAt||"").localeCompare(String(a.doneAt||"")))), shown=rows.filter(pass);
   $("#tkResCount").textContent = shown.length===rows.length ? nf(rows.length)+" משימות" : nf(shown.length)+" מתוך "+nf(rows.length);
   rows.length=0; rows.push(...shown); tkLastRows=shown;
   if(!rows.length){ box.appendChild(mk("div","tk-empty", Object.values(tkF).some(Boolean) ? "אין משימות שמתאימות לסינון." :
@@ -2368,7 +2373,9 @@ $("#tkSave").onclick=()=>{
     const t=Object.assign({id:newId(), status:"פתוחה", created:now, log:[]}, data);
     if(tkCkSel.length) t.check=tkCkSel.map(text=>({id:newId(), text, done:false}));
     tkLog(t, "המשימה נפתחה"+(data.ppl.length?" · אחראי: "+data.ppl[0]:"")+(data.ppl.length>1?" · משויכים: "+data.ppl.slice(1).join(", "):"")+(data.depts.length?" · מחלקות: "+data.depts.join(", "):""), "", true); tasks.push(t); }
-  closeTaskForm(); if(tkView==="done"){ tkView="open"; paintTkSeg(); } saveTasks(); toast(was?"המשימה עודכנה":"המשימה נשמרה");
+  closeTaskForm(); if(tkView==="done"){ tkView="open"; paintTkSeg(); } saveTasks();
+  const saved=tasks.find(x=>x.id===(was||tasks[tasks.length-1].id));
+  toast(saved && !isManager() && !isMine(saved) ? (was?"המשימה עודכנה":"המשימה נשמרה")+" — היא לא משויכת אליך או למחלקה שלך, ולכן לא תופיע אצלך" : (was?"המשימה עודכנה":"המשימה נשמרה"));
 };
 function paintTkSeg(){ document.querySelectorAll("#tkSeg button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===tkView))); }
 document.querySelectorAll("#tkSeg button").forEach(b=>b.onclick=()=>{ tkView=b.dataset.v; paintTkSeg(); renderTasks(); });
@@ -2466,7 +2473,7 @@ function paintCalDept(){
   const inMonth = calMd==="tk"
     ? t=>(tkOpen(t) && t.due && (t.start&&t.start<=t.due?t.start:t.due)<=mE && t.due>=mS) || (!tkOpen(t) && String(t.doneAt||"").startsWith(pre))
     : e=>(e.when||"").startsWith(pre);
-  const src = calMd==="tk" ? tasks.filter(inMonth) : events.filter(inMonth), isIn = calMd==="tk" ? tkInDept : evInDept;
+  const src = calMd==="tk" ? tkVis().filter(inMonth) : events.filter(inMonth), isIn = calMd==="tk" ? tkInDept : evInDept;
   [["", "כל המחלקות", src.length]].concat(ds.map(d=>[d,"🏢 "+d,src.filter(x=>isIn(x,d)).length])).forEach(([v,l,n])=>{
     const b=mk("button","dchip"+(v===calDept?" on":"")); b.type="button"; b.setAttribute("aria-pressed",String(v===calDept));
     b.append(l+" "); b.appendChild(mk("span","seg-n",nf(n)));
@@ -2477,7 +2484,7 @@ function calIndex(){
   const ev={}, due={}, done={}, rep={}, today=ymd(new Date()), L=calLeg, on=x=>!L || L===x;
   const D=calDept, okT=t=>!D || tkInDept(t,D), okE=e=>!D || evInDept(e,D);
   if(calMd!=="tk" && on("ev")) events.filter(okE).forEach(e=>{ const d=(e.when||"").slice(0,10); if(d) (ev[d]=ev[d]||[]).push(e); });
-  if(calMd!=="ev") tasks.filter(okT).forEach(t=>{
+  if(calMd!=="ev") tkVis().filter(okT).forEach(t=>{
     if(tkOpen(t) && t.due && on(t.due<today?"late":"tk")){
       // an open task sits on every day from its start date to its due date (older tasks without a start: the due day only)
       const s0=t.start && t.start<=t.due ? t.start : t.due; let d=new Date(s0+"T12:00"), n=0;
@@ -2499,7 +2506,7 @@ function renderCal(){
   const pre=calY+"-"+String(calM+1).padStart(2,"0");
   const nEv=events.filter(e=>(e.when||"").startsWith(pre)).length;
   const mS=pre+"-01", mE=pre+"-31";
-  const nTk=tasks.filter(t=>(tkOpen(t) && t.due && (t.start&&t.start<=t.due?t.start:t.due)<=mE && t.due>=mS) || (!tkOpen(t) && String(t.doneAt||"").startsWith(pre))).length;
+  const nTk=tkVis().filter(t=>(tkOpen(t) && t.due && (t.start&&t.start<=t.due?t.start:t.due)<=mE && t.due>=mS) || (!tkOpen(t) && String(t.doneAt||"").startsWith(pre))).length;
   const segN={all:nEv+nTk, ev:nEv, tk:nTk};
   document.querySelectorAll("#calMode button").forEach(b=>{ const base={all:"הכל",ev:"אירועים",tk:"משימות"}[b.dataset.m];
     b.textContent=""; b.append(base+" "); b.appendChild(mk("span","seg-n",nf(segN[b.dataset.m]))); b.title=segN[b.dataset.m]+" ב"+HEB_MONTHS[calM]; });
