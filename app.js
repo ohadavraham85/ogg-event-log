@@ -24,11 +24,15 @@ const HUE = {"תקלה":"fault","גלישות חרום":"flood","הפסקות ח
 function hueOf(t){ return HUE[t] || (/^אחזק/.test(t||"") ? "maint" : "gen"); }
 /* event types in one family stay together in every list ("אחזקה", "אחזקה חודשית", "אחזקת שבר"…):
    families by their first word (אחזקה/אחזקת = the same), each where its most used member is,
-   the plain word first, then the rest as they were ordered (most used first). */
+   the plain word first, then in a fixed order (see rank). */
 function groupTypes(arr){
   const stem=v=>String(v).trim().split(/\s+/)[0].replace(/[התי]$/,""), fam=new Map();
   arr.forEach(v=>{ const k=stem(v); if(!fam.has(k)) fam.set(k,[]); fam.get(k).push(v); });
-  return [...fam.values()].flatMap(g=>{ const base=g.filter(v=>!/\s/.test(v.trim())); return base.concat(g.filter(v=>!base.includes(v))); });
+  // inside a family a fixed order: the plain word, then by how often (יומית → שבועית → חודשית → רבעונית → שנתית), then מונעת, מתוכננת, שבר, then the rest
+  const rank=v=>{ v=String(v).trim(); if(!/\s/.test(v)) return 0;
+    const r=[[/יומי/,1],[/שבועי/,2],[/חודשי/,3],[/רבעוני/,4],[/חצי.?שנתי/,5],[/שנתי/,6],[/מונע/,7],[/מתוכנ/,8],[/שבר/,9]].find(([re])=>re.test(v));
+    return r ? r[1] : 10; };
+  return [...fam.values()].flatMap(g=>g.map((v,i)=>[v,i]).sort((a,b)=>rank(a[0])-rank(b[0]) || a[1]-b[1]).map(x=>x[0]));
 }
 const isCore=v=>!!(lists && (lists._core_ppl||[]).includes(v));
 const roleOf=v=>(lists && lists._roles_ppl && lists._roles_ppl[v]) || "";
@@ -1681,7 +1685,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="1.98", APP_DATE="30/09/2026";
+const APP_VER="1.99", APP_DATE="30/09/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
