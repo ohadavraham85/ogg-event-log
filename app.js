@@ -1096,12 +1096,12 @@ function renderDash0(){
   // each tile: icon, number (counts up when the board opens), and — for "נרשמו"/"נסגרו"/"תקלות" — the change from the period before
   const pv = prev && { reg:prev.length, closed:prev.filter(e=>!isOpen(e)).length, faults:prev.filter(e=>(e.type||[]).includes("תקלה")).length };
   const regF = rows.filter(e=>(e.type||[]).includes("תקלה")).length;
-  [[ "פתוחים (לא נסגרו)", open.length, "hero k-open", "📂", {stat:OPEN_ANY,from}, null ],
-   [ "תקלות פתוחות", faults, "k-fault", "⚡", {stat:OPEN_ANY,type:"תקלה",from}, pv && [regF,pv.faults,"תקלות נרשמו",true] ],
-   [ "נרשמו", rows.length, "k-reg", "📝", {from}, pv && [rows.length,pv.reg,"",false] ],
-   [ "נסגרו", closed, "k-done", "✅", {stat:"נסגר",from}, pv && [closed,pv.closed,"",false] ]].forEach(([l,v,cls,ic,q,cmp])=>{
+  [[ ["אירועים פתוחים","פתוחים"], open.length, "hero k-open", "📂", {stat:OPEN_ANY,from}, null ],
+   [ ["אירועי תקלה פתוחים","תקלות פתוחות"], faults, "k-fault", "⚡", {stat:OPEN_ANY,type:"תקלה",from}, pv && [regF,pv.faults,"תקלות נרשמו",true] ],
+   [ ["אירועים שנרשמו","נרשמו"], rows.length, "k-reg", "📝", {from}, pv && [rows.length,pv.reg,"",false] ],
+   [ ["אירועים שנסגרו","נסגרו"], closed, "k-done", "✅", {stat:"נסגר",from}, pv && [closed,pv.closed,"",false] ]].forEach(([l,v,cls,ic,q,cmp])=>{
     const t=mk("button","kpi "+cls); t.type="button";
-    const head=mk("span","kl"); head.append(mk("span","ki",ic), l);
+    const head=mk("span","kl"); head.append(mk("span","ki",ic), mk("span","kl-full",l[0]), mk("span","kl-short",l[1]));   // the phone view shows the short word under an "אירועים" heading
     const num=mk("b",null,nf(v)); if(anim && v>0) countUp(num,v);
     t.append(head, num);
     if(cmp){ const [now_,was,word,upBad]=cmp, d=now_-was;
@@ -1856,7 +1856,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.29", APP_DATE="01/10/2026";
+const APP_VER="2.30", APP_DATE="01/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){

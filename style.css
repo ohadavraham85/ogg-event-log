@@ -1390,8 +1390,13 @@ html.lite #dKpis .kpi{grid-column:auto;padding:8px 10px;border-radius:11px;gap:0
 html.lite #dKpis .kpi.hero::before, html.lite #dKpis .kpi.hero::after{display:none}
 html.lite #dKpis .k-reg, html.lite #dKpis .kgo, html.lite #dKpis .ki{display:none}
 html.lite #dKpis .kpi .kl{font-size:11.5px;line-height:1.25}
+.kl-short{display:none}
+html.lite #dKpis .kl-full{display:none}
+html.lite #dKpis .kl-short{display:inline}
+html.lite #dKpis::before{content:"אירועים";grid-column:1/-1;font-size:15px;font-weight:900;color:var(--ink);margin:2px 2px 0}
 html.lite #dKpis .kpi b, html.lite #dKpis .kpi.hero b{font-size:22px}
-html.lite .dcard[data-t="משימות"] .dsub, html.lite .dcard[data-t="משימות"] h3{display:none}
+html.lite .dcard[data-t="משימות"] .dsub{display:none}
+html.lite .dcard[data-t="משימות"] h3{font-size:15px;margin:0 0 8px}
 html.lite .dcard[data-t="משימות"]{padding-top:10px}
 html.lite .dt-tiles{grid-template-columns:repeat(4,1fr);gap:6px;margin:0 0 8px}
 html.lite .dt-tile{padding:7px 8px;border-radius:10px}
