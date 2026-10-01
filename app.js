@@ -1833,7 +1833,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.22", APP_DATE="01/10/2026";
+const APP_VER="2.23", APP_DATE="01/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2030,7 +2030,7 @@ function showMyTasks(){
    A new assignment, an update-log entry or edited details that someone else made on a task of mine
    (or my department's) becomes a message (built in cloud.js). Kept on this device for the signed-in user;
    unread messages pop up as a list when the app is opened, and the bell in the header shows them any time. */
-const INBOX_MAX=80, INBOX_ICON={assign:"📌",update:"💬",status:"🔄",edit:"✏️",off:"↩",fb:"📣"};
+const INBOX_MAX=300, INBOX_ICON={assign:"📌",update:"💬",status:"🔄",edit:"✏️",off:"↩",fb:"📣"};
 const inboxKey=()=>"ogg-inbox-"+((window.cloudMe && window.cloudMe()) || "local");
 function inboxGet(){ try{ const a=JSON.parse(localStorage.getItem(inboxKey())||"[]"); return Array.isArray(a) ? a : []; }catch(e){ return []; } }
 function inboxPut(a){
@@ -2041,13 +2041,14 @@ function inboxPut(a){
 function paintInbox(){
   const b=$("#inboxBtn"); if(!b) return;
   b.hidden=!CLOUD_ON; if(!CLOUD_ON) return;
-  const n=inboxGet().filter(x=>!x.read).length, s=$("#inboxN");
+  const n=inboxGet().filter(x=>!x.read && !x.arch).length, s=$("#inboxN");
   s.textContent = n>99 ? "99+" : String(n); s.hidden=!n;
   b.setAttribute("aria-label", n ? n+" הודעות חדשות" : "הודעות"); b.title = n ? n+" הודעות חדשות" : "הודעות";
 }
 let inboxOpenUntil=Date.now()+20000;          // "the app was just opened": messages arriving now pop the list up
 function inboxAdd(items, toasted){
   const a=inboxGet(), ids=new Set(a.map(x=>x.id)), now=nowLocal()+":"+String(new Date().getSeconds()).padStart(2,"0");
+  inboxDelIds().forEach(i=>ids.add(i));
   const add=items.filter(x=>x && !ids.has(x.id)).map(x=>Object.assign({at:now}, x, {read:false}));
   if(!add.length) return;
   inboxPut(add.concat(a));
@@ -2055,26 +2056,78 @@ function inboxAdd(items, toasted){
   else if(!toasted) toast(add.length===1 ? "הודעה חדשה: "+(add[0].title||"") : add.length+" הודעות חדשות", {label:"הצג", fn:openInbox});
 }
 function inboxCheck(){
-  if(!CLOUD_ON || !inboxGet().some(x=>!x.read)) return;
+  if(!CLOUD_ON || !inboxGet().some(x=>!x.read && !x.arch)) return;
   const sp=$("#splash"); if(sp && !sp.hidden) return;                 // after the opening screen
   if(document.querySelector("dialog[open]")) return;                  // the weekly window etc. first (retried when it closes)
   openInbox();
 }
+let inbTab="in";
+const inbDelKey=()=>inboxKey()+"-del";
+function inboxDelIds(){ try{ const a=JSON.parse(localStorage.getItem(inbDelKey())||"[]"); return Array.isArray(a) ? a : []; }catch(e){ return []; } }
+function inboxArchive(id, on){ const a=inboxGet(), x=a.find(m=>m.id===id); if(!x) return; x.arch=on; x.read=true; inboxPut(a); openInbox(); }
+function inboxDelete(ids){                       // final delete; remembered so the same message is not brought back
+  const set=new Set(ids); inboxPut(inboxGet().filter(m=>!set.has(m.id)));
+  try{ localStorage.setItem(inbDelKey(), JSON.stringify(inboxDelIds().concat(ids).slice(-400))); }catch(e){}
+  openInbox();
+}
+// swipe a message to the right → it moves to the archive
+function inbSwipe(row, card, fn){
+  let x0=null, y0=0, dx=0, drag=false;
+  card.addEventListener("pointerdown",e=>{ if(e.button) return; x0=e.clientX; y0=e.clientY; dx=0; drag=false; });
+  card.addEventListener("pointermove",e=>{
+    if(x0==null) return; dx=e.clientX-x0; const dy=e.clientY-y0;
+    if(!drag){ if(Math.abs(dx)>10 && Math.abs(dx)>Math.abs(dy)*1.3){ drag=true; row.classList.add("drag"); try{ card.setPointerCapture(e.pointerId); }catch(_){} card.style.transition="none"; } else if(Math.abs(dy)>10){ x0=null; return; } else return; }
+    const d=Math.max(0,dx); card.style.transform="translateX("+d+"px)"; row.classList.toggle("go", d>90);
+  });
+  const end=()=>{ if(x0==null) return; x0=null; card.style.transition=""; row.classList.remove("drag");
+    if(drag && dx>90){ card.style.transform="translateX(110%)"; card.style.opacity="0"; if(typeof haptic==="function") haptic(); setTimeout(fn,180); }
+    else { card.style.transform=""; row.classList.remove("go"); }
+    if(drag){ card.dataset.swiped="1"; setTimeout(()=>delete card.dataset.swiped,50); } };
+  card.addEventListener("pointerup",end); card.addEventListener("pointercancel",end);
+}
 function openInbox(){
-  const d=$("#dlgInbox"), box=$("#inbList"), a=inboxGet(), n=a.filter(x=>!x.read).length;
-  $("#inbTitle").textContent = n ? "הודעות חדשות ("+n+")" : "הודעות";
+  const d=$("#dlgInbox"), box=$("#inbList"), all=inboxGet(), arch=all.filter(x=>x.arch), a=all.filter(x=>!x.arch), n=a.filter(x=>!x.read).length;
+  const inArch = inbTab==="arch";
+  $("#inbTitle").textContent = inArch ? "ארכיון הודעות" : n ? "הודעות חדשות ("+n+")" : "הודעות";
+  $("#inbArchBtn").textContent = "ארכיון"+(arch.length?" ("+arch.length+")":"");
+  document.querySelectorAll("#dlgInbox [data-ib]").forEach(b=>b.setAttribute("aria-pressed", String(b.dataset.ib===inbTab)));
+  $("#inbHint").textContent = inArch ? "הודעות שהוסרו מהרשימה. אפשר להחזיר הודעה, או למחוק אותה סופית."
+    : "הקצאות ועדכונים שאחרים עשו במשימות שלך, של המחלקה שלך, ובמשימות שפתחת או עדכנת. לחיצה על הודעה פותחת את המשימה; החלקה ימינה מעבירה אותה לארכיון.";
+  const list = inArch ? arch : a;
+  $("#inbClose").textContent = inArch ? "סגור" : "קראתי";
+  $("#inbAll").textContent = inArch ? "מחק הכל סופית" : "העבר הכל לארכיון";
+  $("#inbAll").hidden = !list.length;
   box.textContent="";
-  if(!a.length) box.appendChild(mk("div","inb-empty","אין הודעות. כאן יופיעו הקצאות ועדכונים במשימות שלך."));
-  a.forEach(x=>{
+  if(!list.length) box.appendChild(mk("div","inb-empty", inArch ? "הארכיון ריק." : "אין הודעות. כאן יופיעו הקצאות ועדכונים במשימות שלך."));
+  list.forEach(x=>{
+    const row=mk("div","inb-row");
     const r=mk("button","inb"+(x.read?"":" new")); r.type="button";
     r.appendChild(mk("span","inb-i",INBOX_ICON[x.kind]||"•"));
     const body=mk("span","inb-b"); body.appendChild(mk("b","inb-t",x.title||"(ללא כותרת)")); body.appendChild(mk("span","inb-x",x.text||""));
     body.appendChild(mk("span","inb-m",[x.by,fmtWhen(x.at)].filter(Boolean).join(" · "))); r.appendChild(body);
-    r.onclick=()=>{ d.close(); if(x.fb){ if(window.openFeedback) window.openFeedback(x.fb); } else goTask(x.tid); };
-    box.appendChild(r);
+    r.onclick=()=>{ if(r.dataset.swiped) return; d.close(); if(x.fb){ if(window.openFeedback) window.openFeedback(x.fb); } else goTask(x.tid); };
+    row.appendChild(r);
+    if(inArch){
+      const act=mk("div","inb-act");
+      const back=mk("button","btn mini","↩ החזר"); back.type="button"; back.onclick=()=>inboxArchive(x.id,false);
+      const del=mk("button","btn mini danger","מחק סופית"); del.type="button"; del.onclick=()=>inboxDelete([x.id]);
+      act.append(back,del); row.appendChild(act);
+    } else {
+      row.appendChild(mk("span","inb-swipe","לארכיון ←"));
+      const xb=mk("button","inb-xb","✕"); xb.type="button"; xb.setAttribute("aria-label","העבר לארכיון"); xb.title="העבר לארכיון";
+      xb.onclick=()=>inboxArchive(x.id,true); row.appendChild(xb);
+      inbSwipe(row, r, ()=>inboxArchive(x.id,true));
+    }
+    box.appendChild(row);
   });
   if(!d.open) d.showModal();
 }
+document.querySelectorAll("#dlgInbox [data-ib]").forEach(b=>b.onclick=()=>{ inbTab=b.dataset.ib; openInbox(); });
+$("#inbAll").onclick=()=>{
+  const all=inboxGet();
+  if(inbTab==="arch"){ const ids=all.filter(x=>x.arch).map(x=>x.id); if(ids.length && confirm("למחוק סופית "+ids.length+" הודעות מהארכיון?")) inboxDelete(ids); }
+  else { all.forEach(x=>{ if(!x.arch){ x.arch=true; x.read=true; } }); inboxPut(all); openInbox(); }
+};
 function goTask(tid){
   const t=tasks.find(x=>x.id===tid); if(!t){ toast("המשימה כבר לא קיימת"); return; }
   if(!window.tkVisible(t)){ toast("המשימה כבר לא משויכת אליך או למחלקה שלך"); return; }
@@ -2084,7 +2137,7 @@ function goTask(tid){
   const c=document.querySelector('#tkList .tk[data-id="'+tid+'"]');
   if(c){ c.scrollIntoView({block:"center"}); c.classList.add("flash"); setTimeout(()=>c.classList.remove("flash"),2200); }
 }
-$("#inboxBtn").onclick=openInbox;
+$("#inboxBtn").onclick=()=>{ inbTab="in"; openInbox(); };
 $("#inbClose").onclick=()=>$("#dlgInbox").close();
 $("#dlgInbox").addEventListener("close",()=>{ const a=inboxGet(); if(a.some(x=>!x.read)){ a.forEach(x=>x.read=true); inboxPut(a); } });
 $("#dlgWeek").addEventListener("close",()=>setTimeout(inboxCheck,300));
