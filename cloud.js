@@ -115,8 +115,17 @@
   /* ---------- sync ---------- */
   const clean=d=>{ const e={}; for(const k in d) if(k[0]!=="_") e[k]=d[k]; return e; };
   const plain=o=>JSON.parse(JSON.stringify(o));          // drops undefined (Firestore rejects it)
+  /* start the team sync — after whatever was kept in IndexedDB is loaded. Safety: a device with no events (or no tasks)
+     but a "synced up to here" mark downloads everything again (a save that failed must not hide the log) */
   function startSync(){
     if(started) return; started=true;
+    Promise.resolve(window.bigReady).catch(()=>{}).then(()=>{
+      if(!events.length && +get(K_SYNC)) put(K_SYNC,null);
+      if(!tasks.length && +get(K_SYNC_T)) put(K_SYNC_T,null);
+      startSync0();
+    });
+  }
+  function startSync0(){
     synced={}; events.forEach(e=>{ synced[e.id]=JSON.stringify(e); });
     listsSynced=listsJSON();
     const since=Math.max(0,(+get(K_SYNC)||0)-5*60*1000);   // small overlap is harmless
@@ -174,12 +183,12 @@
         else { idx.set(id,events.length); events.push(e); if(!firstEver && d._by && d._by!==me) fresh.push({e,by:d._by}); }
         synced[id]=js; changed=true;
       });
-      put(K_SYNC,String(maxU));
       if(changed){
         events.sort((a,b)=>(b.when||"").localeCompare(a.when||""));
-        try{ localStorage.setItem(LS, JSON.stringify(events)); }catch(e){}
+        // move the "synced up to here" mark only once the log is really kept on this device
+        window.saveBig(LS, JSON.stringify(events)).then(ok=>{ if(ok) put(K_SYNC,String(maxU)); else setChip("off","אין מקום לשמור את היומן במכשיר"); });
         rebuildLists(); renderAll();
-      }
+      } else put(K_SYNC,String(maxU));
       if(fresh.length) announce(fresh);
     }
     // first answer from the server (not the local cache): now we know what the cloud really has
@@ -230,9 +239,10 @@
       if(i>=0) tasks[i]=t; else { tasks.push(t); if(!firstEver && d._by && d._by!==me && (!window.tkVisible || window.tkVisible(t))) fresh.push(t); }
       tSynced[tid]=js; changed=true;
     });
-    put(K_SYNC_T,String(maxU));
+    const tMark=String(maxU);
     if(!snap.metadata.fromCache){ if(!tInit){ if(window.nosAfterSync) setTimeout(window.nosAfterSync,1800); if(window.filesRetry) setTimeout(window.filesRetry,4000); } tInit=true; window.TASKS_READY=true; }
-    if(changed){ try{ localStorage.setItem("ogg-cloud-tasks", JSON.stringify(tasks)); }catch(e){} renderTasks(); }
+    if(changed){ window.saveBig("ogg-cloud-tasks", JSON.stringify(tasks)).then(ok=>{ if(ok) put(K_SYNC_T,tMark); }); renderTasks(); }
+    else put(K_SYNC_T,tMark);
     if(mergedLog) setTimeout(cloudPushTasks,0);           // send the merged log back
     const openMine=()=>{ if(typeof showMyTasks==="function") showMyTasks(); };
     if(assigned.length){
@@ -381,7 +391,12 @@
     card.appendChild(mk("h3",null,"יומן משותף"));
     card.appendChild(mk("p",null,"מחובר כ-"+me+(role==="admin"?" · מנהל":"")+". כל רישום נשמר ביומן המשותף ומגיע לכל הצוות."));
     const nm=mk("p","hint cloud-myname"); nm.id="cloudMyName"; card.appendChild(nm); paintMyName();
-    const row=mk("div","row"); const out=mk("button","btn","התנתק"); out.type="button"; out.onclick=logout; row.appendChild(out); card.appendChild(row);
+    const row=mk("div","row"); const out=mk("button","btn","התנתק"); out.type="button"; out.onclick=logout; row.appendChild(out);
+    // something missing on this device? download the whole shared log again (nothing in the cloud changes)
+    const rs=mk("button","btn","סנכרון מלא מחדש"); rs.type="button"; rs.title="מוריד מחדש את כל האירועים והמשימות מהענן למכשיר הזה";
+    rs.onclick=()=>{ if(!confirm("להוריד מחדש את כל היומן המשותף למכשיר הזה? (שום דבר בענן לא משתנה)")) return;
+      put(K_SYNC,null); put(K_SYNC_T,null); location.reload(); };
+    row.appendChild(rs); card.appendChild(row);
 
     // device notifications for new events (while the app is open or in the background)
     const nt=mk("div","cloud-notif");
@@ -603,6 +618,7 @@
     stopSync();
     try{ await F.signOut(auth); }catch(e){}
     ["ogg-cloud-log","ogg-cloud-lists","ogg-cloud-tasks",K_SYNC,K_SYNC_T,K_ROLE].forEach(k=>put(k,null));
+    try{ await Promise.all(["ogg-cloud-log","ogg-cloud-tasks"].map(k=>window.kvDel ? window.kvDel(k) : null)); }catch(e){}
     try{ await F.terminate(db); await F.clearIndexedDbPersistence(db); }catch(e){}
     location.reload();
   }

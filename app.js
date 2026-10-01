@@ -51,6 +51,30 @@ const LS = CLOUD_ON ? "ogg-cloud-log" : "ogg-log-v2", LSL = CLOUD_ON ? "ogg-clou
 let events=[], lists=null, editId=null, fileHandle=null;
 const sel = {type:[], loc:[], eq:[], ppl:[], stat:["פתוח"]};
 
+/* the log and the tasks can outgrow the browser's small storage (~5MB): then they go to IndexedDB instead.
+   saveBig resolves true only when the data is really kept somewhere — the team sync moves its "synced up to here"
+   mark only after that, so a failed save can't leave a device thinking it has records it doesn't. */
+const KV={p:null};
+function kvdb(){ return KV.p || (KV.p=new Promise((res,rej)=>{ const r=indexedDB.open("ogg-kv",1);
+  r.onupgradeneeded=()=>r.result.createObjectStore("kv"); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); })); }
+async function kvOp(mode,fn){ const db=await kvdb(); return new Promise((res,rej)=>{ const tx=db.transaction("kv",mode), st=tx.objectStore("kv"), r=fn(st);
+  tx.oncomplete=()=>res(r && r.result); tx.onerror=()=>rej(tx.error); }); }
+const kvSet=(k,v)=>kvOp("readwrite",st=>st.put(v,k)), kvGet=k=>kvOp("readonly",st=>st.get(k)), kvDel=k=>kvOp("readwrite",st=>st.delete(k));
+function saveBig(k,str){
+  try{ localStorage.setItem(k,str); kvDel(k).catch(()=>{}); return Promise.resolve(true); }
+  catch(e){ try{ localStorage.removeItem(k); }catch(_){} return kvSet(k,str).then(()=>true,()=>false); }
+}
+async function loadBig(k){ try{ const v=localStorage.getItem(k); if(v) return v; }catch(e){} try{ return (await kvGet(k))||null; }catch(e){ return null; } }
+window.saveBig=saveBig; window.loadBig=loadBig; window.kvDel=kvDel;
+// what didn't fit in localStorage is read back from IndexedDB (before the team sync starts — it waits for this)
+window.bigReady=(async()=>{
+  await Promise.resolve();                          // after the whole script has run (load() first)
+  try{ if(!localStorage.getItem(LS)){ const v=await loadBig(LS); if(v){ events=JSON.parse(v)||[];
+    Object.keys(SEED).forEach(k=>{ const custom=lists["_custom_"+k]||[], hidden=lists["_hide_"+k]||[];
+      lists[k]=[...new Set(SEED[k].concat(custom, events.flatMap(e=>Array.isArray(e[k])?e[k]:[])))].filter(v=>!hidden.includes(v)); });
+    renderAll(); } } }catch(e){}
+  try{ if(!localStorage.getItem(LST)){ const v=await loadBig(LST); if(v){ tasks=JSON.parse(v)||[]; renderTasks(); } } }catch(e){}
+})();
 function load(){
   try{ events = JSON.parse(localStorage.getItem(LS)||"[]"); }catch(e){ events=[]; }
   let saved={}; try{ saved = JSON.parse(localStorage.getItem(LSL)||"{}"); }catch(e){}
@@ -90,8 +114,8 @@ window.nosAfterSync=()=>{ const ce=ensureNos(); if(ce){ persist(); renderAll(); 
 const snOf=x=>x && x.no ? "#"+x.no : "";
 function persist(){
   ensureNos();
+  saveBig(LS, JSON.stringify(events)).then(ok=>{ if(!ok) toast("הדפדפן חסם שמירה מקומית"); });
   try{
-    localStorage.setItem(LS, JSON.stringify(events));
     const out={}; Object.keys(SEED).forEach(k=>{ out[k]=lists["_custom_"+k]; out["_hide_"+k]=lists["_hide_"+k]; }); out._core_ppl=lists._core_ppl||[]; out._roles_ppl=lists._roles_ppl||{}; out._dept_ppl=lists._dept_ppl||{};
     localStorage.setItem(LSL, JSON.stringify(out));
   }catch(e){ toast("הדפדפן חסם שמירה מקומית"); }
@@ -1718,7 +1742,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.11", APP_DATE="01/10/2026";
+const APP_VER="2.12", APP_DATE="01/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -1814,7 +1838,7 @@ const prioOf=t=>PRIOS.includes(t.prio) ? t.prio : (t.urgent ? "דחופה" : "ר
 function loadTasks(){ try{ tasks=JSON.parse(localStorage.getItem(LST)||"[]"); if(!Array.isArray(tasks)) tasks=[]; }catch(e){ tasks=[]; } }
 function saveTasks(){
   if(ensureNos()) persist();                      // a new task gets its number right away (events too, if any were waiting)
-  try{ localStorage.setItem(LST, JSON.stringify(tasks)); }catch(e){ toast("הדפדפן חסם שמירה מקומית"); }
+  saveBig(LST, JSON.stringify(tasks)).then(ok=>{ if(!ok) toast("הדפדפן חסם שמירה מקומית"); });
   if(window.cloudPushTasks) window.cloudPushTasks();
   writeFile();
   renderTasks();
