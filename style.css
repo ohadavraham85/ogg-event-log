@@ -732,7 +732,10 @@ html.sp-open,html.sp-open body{overflow:hidden}
 .tk-filters select.on{border-color:var(--water);color:var(--water);background:var(--water-soft)}
 .tk-sels{padding:10px 10px 0;margin:0 -2px 12px;border-radius:12px;background:var(--panel-2);border:1px solid var(--edge-2)}
 .tk-sels .tk-f select,.tk-sels .tk-f input{background:var(--panel)}
-.tk-tag.today{background:var(--c-flood-bg);color:var(--c-flood);border-color:transparent}
+/* due date as a traffic light: past red, today green, future orange */
+.tk-tag.late{background:#D6342C;color:#fff;border-color:transparent}
+.tk-tag.today{background:#1C8A4E;color:#fff;border-color:transparent}
+.tk-tag.future{background:#E07B12;color:#fff;border-color:transparent}
 .tf-clear{grid-column:1/-1;padding:8px 12px;font-size:14px;border-color:var(--c-fault);color:var(--c-fault);background:var(--panel)}
 .tf-clear[hidden]{display:none}
 /* task update log */
