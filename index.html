@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;900&family=Rubik:wght@500;600;700&family=Assistant:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=2.12">
+<link rel="stylesheet" href="style.css?v=2.13">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0E7C86">
 <meta name="color-scheme" content="light dark">
@@ -112,7 +112,7 @@
       <img class="logo" src="icons/logo-header.png" alt="מבט&quot;י — מפעלי ביוב וטיהור ירושלים" width="101" height="137">
       <div class="mark">יומן אירועים ומשימות <span class="sub">מט"ש אוג</span></div>
       <div class="clock" id="clock" aria-live="off"><span class="c-hello" id="cHello" hidden></span><span class="c-day" id="cDay"></span><span class="c-date" id="cDate"></span><b class="c-time" id="cTime"></b></div>
-      <span class="ver" id="verChip" title="גרסה">v2.12</span>
+      <span class="ver" id="verChip" title="גרסה">v2.13</span>
       <button class="icon-btn inbox-btn" id="inboxBtn" aria-label="הודעות" title="הודעות" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm7-6V11a7 7 0 0 0-5.5-6.84V3.5a1.5 1.5 0 0 0-3 0v.66A7 7 0 0 0 5 11v5l-2 2v1h18v-1z" fill="currentColor"/></svg><span class="newcnt" id="inboxN" hidden></span></button>
       <button class="icon-btn" id="refreshBtn" aria-label="רענון" title="רענון — טעינה מחדש ובדיקת עדכון"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M20.5 3.5v5h-5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       <button class="icon-btn" id="themeBtn" aria-label="מצב תצוגה">☾</button>
@@ -397,7 +397,7 @@
 
     <div class="card" data-sg="general">
       <h3>גרסה</h3>
-      <p id="verLine">גרסה 2.12 · 01/10/2026</p>
+      <p id="verLine">גרסה 2.13 · 01/10/2026</p>
       <div class="row"><button class="btn" id="reloadApp">בדוק עדכון</button></div>
     </div>
 
@@ -468,6 +468,15 @@
   <div class="row"><button class="btn primary" id="inbClose">קראתי</button></div>
 </dialog>
 
+<button type="button" class="fb-btn" id="fbBtn" aria-label="שליחת משוב" title="משוב — צילום המסך והערה">💬</button>
+<dialog id="dlgFb" aria-labelledby="fbTitle">
+  <h3 id="fbTitle" tabindex="-1">משוב</h3>
+  <p class="fb-hint">צילום המסך מצורף. לחץ על התמונה כדי לסמן איפה הבעיה.</p>
+  <div class="fb-shot"><canvas id="fbCanvas" aria-label="צילום המסך — לחיצה מסמנת"></canvas></div>
+  <label class="tk-f"><span>מה רצית לומר?</span><textarea id="fbText" rows="3" placeholder="מה לא עובד / מה להוסיף / מה לשפר"></textarea></label>
+  <div class="row"><button class="btn primary" id="fbSend" type="button">שלח משוב</button><button class="btn ghost" id="fbUndo" type="button" hidden>בטל סימון אחרון</button><button class="btn ghost" id="fbCancel" type="button">ביטול</button></div>
+</dialog>
+
 <dialog id="dlgImg" aria-label="תמונה">
   <img id="imgView" alt="">
   <div class="row img-row"><span id="imgName"></span><a class="btn" id="imgDl" download>הורדה</a><button class="btn ghost" id="imgClose" type="button">סגור</button></div>
@@ -511,9 +520,9 @@
     <button class="btn ghost" id="wkClose" hidden>סגור</button></div>
 </dialog>
 
-<script src="firebase-config.js?v=2.12"></script>
-<script src="app.js?v=2.12"></script>
-<script src="cloud.js?v=2.12"></script>
+<script src="firebase-config.js?v=2.13"></script>
+<script src="app.js?v=2.13"></script>
+<script src="cloud.js?v=2.13"></script>
 <script>
 if("serviceWorker" in navigator){
   window.addEventListener("load",()=>{ navigator.serviceWorker.register("sw.js").catch(()=>{}); });
