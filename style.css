@@ -1267,10 +1267,18 @@ small.dept{font-size:12px;font-weight:700;color:var(--c-maint);background:var(--
   #viewTasks.rows .tk:not(.x) .tk-m{margin:0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 }
 /* "רשימה": the column template (shared by the rows and their header) and the header row */
-#viewTasks{--tkcols:minmax(160px,2.4fr) 70px 104px 70px 116px 66px minmax(90px,1fr) 126px minmax(100px,1.3fr)}
+#viewTasks{--tkcols:minmax(130px,2fr) 128px 68px 96px 68px 108px 64px minmax(96px,1fr) 118px minmax(60px,1fr)}
 .tk-head{display:none}
 @media (min-width:900px){
   #viewTasks.rows .tk-head{display:grid;grid-template-columns:var(--tkcols);gap:6px 8px;align-items:end;padding:0 17px 6px 13px;margin-bottom:6px;
     border-bottom:2px solid var(--edge);font-size:12.5px;font-weight:900;color:var(--ink-2)}
   #viewTasks.rows .tk-head span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 }
+/* equipment: by the title on cards / phones; its own column in "רשימה" on a wide screen */
+.tk-tags .sl-eq{display:none}
+@media (min-width:900px){
+  #viewTasks.rows .tk:not(.x) .tk-t .tk-eqtag{display:none}
+  #viewTasks.rows .tk:not(.x) .tk-tags .sl.sl-eq{display:flex}
+  #viewTasks.rows .tk:not(.x) .tk-tag.eqt{background:var(--panel-2);color:var(--ink-2);border:1px solid var(--edge)}
+}
+@media (min-width:900px){ #viewTasks.rows .tk:not(.x) .tk-t{display:block;white-space:normal;overflow:visible;text-overflow:clip;line-height:1.3} }

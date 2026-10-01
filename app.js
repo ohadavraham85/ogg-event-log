@@ -1686,7 +1686,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.07", APP_DATE="01/10/2026";
+const APP_VER="2.08", APP_DATE="01/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2239,7 +2239,7 @@ function renderTasks(){
     tkView==="mine" ? (myName() ? "אין משימות פתוחות שלך או של המחלקה שלך." : (window.cloudMe ? "המנהל עדיין לא הגדיר לך שם בצוות." : "בחר למעלה \"אני:\" כדי לראות את המשימות שלך.")) : tkView==="opened" ? "אין משימות פתוחות שפתחת." : tkView==="open" ? "אין משימות פתוחות." : "עדיין לא הושלמו משימות.")); return; }
   // "רשימה" on a wide screen: a header row naming the columns (hidden on cards / phones by CSS)
   { const h=mk("div","tk-head"); h.setAttribute("aria-hidden","true");
-    ["משימה","שיוך","מחלקה","עדיפות","סוג","סטטוס","נוספים","תאריכים","אחראי · מיקום · ציוד"].forEach(x=>h.appendChild(mk("span",null,x))); box.appendChild(h); }
+    ["משימה","ציוד","שיוך","מחלקה","עדיפות","סוג","סטטוס","נוספים","תאריכים","אחראי · מיקום"].forEach(x=>h.appendChild(mk("span",null,x))); box.appendChild(h); }
   rows.forEach(t=>{
     const pr=prioOf(t), ph=PRIO_HUE[pr];
     const c=mk("div","tk"+(tkOpen(t)?"":" done")+(tkRowOpen.has(t.id)?" x":"")); c.dataset.id=t.id;
@@ -2251,9 +2251,10 @@ function renderTasks(){
       (t.eq||[]).forEach(q=>{ const g=mk("span","tk-eqtag","⚙ "+q); g.title="ציוד"; tt.appendChild(g); });   // the equipment, right by the title
       c.appendChild(tt); }
     // tags sit in fixed slots, so in "רשימה" every kind lines up in its own column (in "אריחים" the slots just flow)
-    const tags=mk("div","tk-tags"), SL={}; ["who","dept","prio","type","stat","extra","due"].forEach(k=>{ SL[k]=mk("span","sl sl-"+k); tags.appendChild(SL[k]); });
+    const tags=mk("div","tk-tags"), SL={}; ["eq","who","dept","prio","type","stat","extra","due"].forEach(k=>{ SL[k]=mk("span","sl sl-"+k); tags.appendChild(SL[k]); });
     const tag=(txt,cls,hue,slot)=>{ const x=mk("span","tk-tag"+(cls?" "+cls:""),txt);
       if(hue){ x.style.background="var(--c-"+hue+"-bg)"; x.style.color="var(--c-"+hue+")"; x.style.borderColor="transparent"; } SL[slot||"extra"].appendChild(x); };
+    (t.eq||[]).forEach(q=>tag("⚙ "+q,"eqt",null,"eq"));          // equipment: its own column in "רשימה" (by the title on cards)
     if(tkOpen(t)){
       if(tkIsNew(t)){ tag("✨ חדשה","new",null,"who"); if(!$("#viewTasks").hidden) tkShownNew.add(t.id); }
       if(isMine(t)) tag((t.ppl||[]).includes(myName()) ? "שלי" : "המחלקה שלי","me",null,"who");
@@ -2272,7 +2273,7 @@ function renderTasks(){
       if(t.type) tag(t.type,"",hueOf(t.type),"type");
       if(t.eventId && events.some(e=>e.id===t.eventId)) tag("נרשמה ביומן");
     }
-    if(tags.querySelector(".tk-tag")) c.appendChild(tags);
+    if(tags.querySelector(".tk-tag:not(.eqt)") || $("#viewTasks").classList.contains("rows")) c.appendChild(tags);
     const pn=n=>{ const x=[deptOf(n),roleOf(n)].filter(Boolean).join(" · "); return x?n+" ("+x+")":n; };
     const meta=[(t.ppl||[]).length ? "👤 "+(t.ppl.length>1 ? "אחראי: "+pn(t.ppl[0])+" · משויכים: "+t.ppl.slice(1).join(", ") : pn(t.ppl[0])) : "", (t.loc||[]).length?"📍 "+t.loc.join(", "):"", (t.eq||[]).length?"⚙ "+t.eq.join(", "):""].filter(Boolean).join("   ");
     if(meta) c.appendChild(mk("div","tk-m",meta));
