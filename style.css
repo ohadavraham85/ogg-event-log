@@ -1342,7 +1342,7 @@ small.dept{font-size:12px;font-weight:700;color:var(--c-maint);background:var(--
 .fb-row.done{opacity:.6}
 .fb-row .row{gap:6px;flex-wrap:wrap}
 /* ===== phone view (html.lite): only what is used in the field ===== */
-html.lite #verChip, html.lite #refreshBtn, html.lite #themeBtn, html.lite .sync-chip, html.lite .clock .c-day, html.lite .clock .c-date{display:none}
+html.lite #verChip, html.lite #refreshBtn, html.lite #themeBtn, html.lite .sync-chip{display:none}
 html.lite .clock{padding:6px 10px}
 /* dashboard: the number tiles, the tasks card (counts + "דורשות טיפול עכשיו"); no charts, filters or team strip */
 html.lite #dRange, html.lite #dPpl, html.lite #dDept, html.lite .dlay-hint, html.lite #dTeam, html.lite #dScope, html.lite #dLayReset{display:none!important}
