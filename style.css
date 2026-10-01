@@ -1334,3 +1334,17 @@ small.dept{font-size:12px;font-weight:700;color:var(--c-maint);background:var(--
 .fb-m{font-size:12.5px;color:var(--ink-3)}
 .fb-row.done{opacity:.6}
 .fb-row .row{gap:6px;flex-wrap:wrap}
+/* ===== phone view (html.lite): only what is used in the field ===== */
+html.lite #verChip, html.lite #refreshBtn, html.lite #themeBtn, html.lite .sync-chip, html.lite .clock .c-day, html.lite .clock .c-date{display:none}
+html.lite .clock{padding:6px 10px}
+/* dashboard: the number tiles, the tasks card (counts + "דורשות טיפול עכשיו"); no charts, filters or team strip */
+html.lite #dRange, html.lite #dPpl, html.lite #dDept, html.lite .dlay-hint, html.lite #dTeam, html.lite #dScope, html.lite #dLayReset{display:none!important}
+html.lite #dCards .dcard:not([data-t="משימות"]){display:none}
+html.lite .dcard[data-t="משימות"] .donut, html.lite .dcard[data-t="משימות"] .hbars, html.lite .dt-h.lite-hide, html.lite .dcard details.tv{display:none}
+html.lite .kpi .ktr{display:none}
+/* lists: search, filter and the compact list — no sort, view switch or export */
+html.lite #viewList .sortwrap, html.lite #listView, html.lite #expView,
+html.lite #viewTasks .sortwrap, html.lite #tkListView, html.lite #tkExp{display:none!important}
+/* settings: no list management, files or team management */
+html.lite #sgNav [data-sg=lists], html.lite #sgNav [data-sg=files], html.lite .cm-admin, html.lite #listMgr{display:none!important}
+html.lite #viewData .card[data-sg="general"]:has(#badgeMode){display:none}

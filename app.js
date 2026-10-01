@@ -705,11 +705,26 @@ function renderList(reset){
   more.textContent = "הצג עוד "+Math.min(PAGE, rows.length-shown)+" מתוך "+(rows.length-shown);
 }
 $("#moreRows").onclick=()=>{ shown+=PAGE; renderList(false); };
+/* phone view ("lite"): on a narrow screen the app shows what is used in the field — record, follow, update —
+   and leaves out exports, charts, sorting, list management, files and team management (still there on a
+   computer, or here with "תצוגה מלאה" in settings → כללי). Chosen per device. */
+const LITE_MQ=matchMedia("(max-width:600px)");
+function liteFull(){ try{ return localStorage.getItem("ogg-view-full")==="1"; }catch(e){ return false; } }
+function isLite(){ return LITE_MQ.matches && !liteFull(); }
+function applyLite(){
+  const on=isLite(); document.documentElement.classList.toggle("lite",on);
+  const b=$("#liteToggle"); if(b) b.textContent = on ? "עבור לתצוגה מלאה" : "חזור לתצוגת טלפון";
+  if(typeof paintSettings==="function") paintSettings();
+  if(typeof applyListView==="function") applyListView();
+  if(on && $("#sgNav [aria-pressed=true]") && /lists|files/.test(($("#sgNav [aria-pressed=true]").dataset.sg||""))) { const g=$("#sgNav [data-sg=general]"); if(g) g.click(); }
+}
+document.documentElement.classList.toggle("lite",isLite());
+if(LITE_MQ.addEventListener) LITE_MQ.addEventListener("change",()=>{ applyLite(); renderAll(); renderTasks(); });
 /* list view: tiles (cards) or rows (one compact line per event; details open on "פרטים") */
 let listView="tiles";
 try{ listView=localStorage.getItem("ogg-list-view")==="rows"?"rows":"tiles"; }catch(e){}
 function applyListView(){
-  $("#viewList").classList.toggle("rows", listView==="rows");
+  $("#viewList").classList.toggle("rows", listView==="rows" || isLite());   // phone view: always the compact list
   document.querySelectorAll("#listView button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===listView)));
 }
 document.querySelectorAll("#listView button").forEach(b=>b.onclick=()=>{
@@ -849,7 +864,7 @@ function mk(tag,cls,text){ const e=document.createElement(tag); if(cls) e.classN
 // each card has its own accent (a thin coloured top line and title mark) so the board reads at a glance
 const D_ACC={"משימות":"power","סטטוס":"flood","אירועים פתוחים לפי ותק":"fault","פתוחים לפי סוג":"fault","פתוחים לפי מיקום":"maint","לפי מעורבים":"visit","לפי מחלקות":"power"};
 function dcard(title,sub,body,rows,head){
-  const c=mk("div","card dcard"), acc=D_ACC[title] || (/^אירועים לפי/.test(title) ? "water" : "");
+  const c=mk("div","card dcard"); c.dataset.t=title; const acc=D_ACC[title] || (/^אירועים לפי/.test(title) ? "water" : "");
   if(acc) c.style.setProperty("--acc", acc==="water" ? "var(--water)" : "var(--c-"+acc+")");
   c.appendChild(mk("h3",null,title));
   if(sub) c.appendChild(mk("p","dsub",sub));
@@ -990,7 +1005,7 @@ function dashTasks(cards, from){
     // by priority: one stacked bar + legend with counts (the legend carries the labels)
     const pc={}; open.forEach(t=>{ const p=prioOf(t); pc[p]=(pc[p]||0)+1; });
     const order=PRIOS.filter(p=>pc[p]);
-    body.append(mk("div","dt-h","פתוחות לפי עדיפות"),
+    body.append(mk("div","dt-h lite-hide","פתוחות לפי עדיפות"),
       donut(order.map(p=>({l:p, v:pc[p], color:"var(--pr"+PRIOS.indexOf(p)+")", go:()=>goTasks({f:{prio:p}})})), open.length, "פתוחות"));
     // by assignee
     const ac={}; open.forEach(t=>{ const who=(t.ppl||[])[0]||"ללא אחראי"; ac[who]=(ac[who]||0)+1; });
@@ -999,7 +1014,7 @@ function dashTasks(cards, from){
     const items=top.map(n=>({l:n, v:ac[n], go: n==="אחרים"||n==="ללא אחראי" ? ()=>goTasks({}) : ()=>goTasks({f:{ppl:n}})}));
     const hb=hbars(items, Math.max(...items.map(i=>i.v)), "one");
     hb.querySelectorAll(".hbar").forEach((r,i)=>tipOn(r, nf(items[i].v)+" משימות פתוחות", items[i].l));
-    body.append(mk("div","dt-h","פתוחות לפי אחראי"), hb);
+    body.append(mk("div","dt-h lite-hide","פתוחות לפי אחראי"), hb);
     // needs attention now
     const hot=open.filter(t=>(t.due && t.due<=today) || prioOf(t)==="דחופה")
       .sort((x,y)=>tkSortKey(x).localeCompare(tkSortKey(y))).slice(0,5);
@@ -1396,10 +1411,10 @@ function paintSettings(){
   const team=!!$("#cloudCard"), mgr=isManager();
   $("#sgNav [data-sg=team]").hidden=!team;
   $("#sgNav [data-sg=lists]").hidden=!mgr; $("#sgNav [data-sg=files]").hidden=!mgr;
-  if(!mgr && (sgCur==="lists"||sgCur==="files")) sgCur = team ? "team" : "general";
+  if((!mgr || isLite()) && (sgCur==="lists"||sgCur==="files")) sgCur = team ? "team" : "general";   // phone view: no lists / files topics
   if(sgCur==="team" && !team) sgCur = mgr ? "lists" : "general";
   document.querySelectorAll("#sgNav button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.sg===sgCur)));
-  document.querySelectorAll("#viewData > .card").forEach(c=>{ c.hidden = (c.dataset.sg||"general")!==sgCur || c.dataset.off==="1"; });
+  document.querySelectorAll("#viewData > .card").forEach(c=>{ c.hidden = (c.dataset.sg||"general")!==sgCur || c.dataset.off==="1" || (c.id==="liteCard" && !LITE_MQ.matches); });
 }
 document.querySelectorAll("#sgNav button").forEach(b=>b.onclick=()=>{ sgCur=b.dataset.sg; try{ localStorage.setItem("ogg-settings-topic",sgCur); }catch(e){} paintSettings(); window.scrollTo({top:0}); });
 window.paintSettings=paintSettings;
@@ -1743,6 +1758,7 @@ function wkLast(){
                                : "החלון נפתח לבד בכל יום ראשון עד שמבצעים את שני השלבים.";
 }
 function weeklyCheck(){
+  if(isLite()) return;                                  // the weekly summary + backup is done on a computer
   if($("#dlgWeek").open || !$("#splash").hidden || !events.length) return;
   if(CLOUD_ON){
     let role=null; try{ role=localStorage.getItem("ogg-cloud-role"); }catch(e){}
@@ -1815,7 +1831,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.14", APP_DATE="01/10/2026";
+const APP_VER="2.15", APP_DATE="01/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2622,7 +2638,10 @@ $("#tdOk").onclick=()=>{
   if(nx) toast("הושלמה ונרשמה ביומן · נפתחה המשימה הבאה ליעד "+dmy(nx.due).slice(0,5),{label:"הצג",fn:()=>goTask(nx.id)});
   else toast("המשימה הושלמה ונרשמה ביומן",{label:"הצג",fn:()=>{ $("#sortBy").value="edit"; goList({ppl:""}); }});
 };
-$("#tabTasks").onclick=()=>{ renderTasks(); show("Tasks"); };
+let tkLiteSet=false;
+$("#tabTasks").onclick=()=>{
+  if(isLite() && !tkLiteSet && myName()){ tkView="mine"; paintTkSeg(); }   // phone view opens on "המשימות שלי" (once per visit)
+  tkLiteSet=true; renderTasks(); show("Tasks"); };
 /* ================= calendar: events that happened + tasks (due / completed), month view ================= */
 let calY, calM, calSel=null, calMd="all", calLeg="";   // calLeg: legend colour picked → only that kind
 calMd="ev";                                             // set by the list the calendar is opened from
@@ -2817,6 +2836,10 @@ addEventListener("resize",closeSS);
 ["#tkPpl","#tkLoc","#tkEq","#tfPpl","#tfLoc"].forEach(id=>enhanceSelect($(id)));
 
 /* ================= boot ================= */
-load(); loadTasks(); if(!CLOUD_ON) window.nosAfterSync(); setNow(); renderAll(); renderTasks(); renderDash(); show(REFRESH_VIEW||"Dash");
+load(); loadTasks(); if(!CLOUD_ON) window.nosAfterSync(); setNow(); renderAll(); renderTasks(); renderDash(); show(REFRESH_VIEW||"Dash"); applyLite();
+$("#liteToggle").onclick=()=>{ try{ localStorage.setItem("ogg-view-full", isLite() ? "1" : "0"); }catch(e){} applyLite(); renderAll(); renderTasks();
+  toast(isLite() ? "תצוגת טלפון" : "תצוגה מלאה — אפשר לחזור מכאן"); };
+$("#liteTheme").onclick=()=>$("#themeBtn").click();
+$("#liteReload").onclick=()=>$("#refreshBtn").click();
 setTimeout(weeklyCheck,1500);
 if(DEEP_OPEN) goList({stat:OPEN_ANY});

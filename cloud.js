@@ -474,8 +474,9 @@
       up.appendChild(b); card.appendChild(up);
     }
     if(role==="admin"){
-      card.appendChild(mk("h3","cloud-h","צוות"));
-      card.appendChild(mk("p",null,"רק המיילים ברשימה יכולים להיכנס, לראות ולרשום."));
+      const adm=mk("div","cm-admin"); card.appendChild(adm);   // team management — hidden in the phone view
+      adm.appendChild(mk("h3","cloud-h","צוות"));
+      adm.appendChild(mk("p",null,"רק המיילים ברשימה יכולים להיכנס, לראות ולרשום."));
       const add=mk("div","row cloud-add"); const inp=mk("input","txt"); inp.type="email"; inp.placeholder="מייל של איש צוות"; inp.dir="ltr"; inp.style.flex="1";
       const nameIn=mk("input","txt"); nameIn.placeholder="שם (כמו ברשימת המעורבים)"; nameIn.setAttribute("list","dlPpl"); nameIn.style.flex="1";
       const sel=mk("select","dsel"); [["member","איש צוות"],["admin","מנהל"]].forEach(([v,l])=>{ const o=mk("option",null,l); o.value=v; sel.appendChild(o); });
@@ -486,8 +487,8 @@
         try{ await F.setDoc(F.doc(db,"members",em),{role:sel.value,added:F.serverTimestamp(),by:me,...(name?{name}:{})}); inp.value=""; nameIn.value=""; toast("נוסף לצוות — שלח לו הזמנה"); showInvite(em); }
         catch(e){ toast("ההוספה נכשלה"); }
       };
-      card.appendChild(mk("p","hint","השם מחבר את איש הצוות למשימות: משימה שהאחראי בה הוא השם הזה תופיע אצלו ב\"שלי\" ויקבל עליה התראה."));
-      add.append(inp,nameIn,sel,b); card.appendChild(add);
+      adm.appendChild(mk("p","hint","השם מחבר את איש הצוות למשימות: משימה שהאחראי בה הוא השם הזה תופיע אצלו ב\"שלי\" ויקבל עליה התראה."));
+      add.append(inp,nameIn,sel,b); adm.appendChild(add);
       // several at once: one per line — "email", "email name", "name <email>" or "email, name" (from Excel / WhatsApp / a mail)
       const bulk=mk("details","cloud-bulk"); bulk.appendChild(mk("summary",null,"הוספת כמה אנשי צוות בבת אחת"));
       const ta=mk("textarea","txt"); ta.rows=6; ta.dir="auto";
@@ -517,12 +518,12 @@
         }catch(e){ toast("ההוספה נכשלה"); }
         bb.disabled=false;
       };
-      brow.append(bsel,bb); bulk.append(ta,brow,bres); card.appendChild(bulk);
-      const inv=mk("div","cloud-invite"); inv.id="cloudInvite"; inv.hidden=true; card.appendChild(inv);
-      const list=mk("div","cloud-members"); list.id="cloudMembers"; card.appendChild(list);
+      brow.append(bsel,bb); bulk.append(ta,brow,bres); adm.appendChild(bulk);
+      const inv=mk("div","cloud-invite"); inv.id="cloudInvite"; inv.hidden=true; adm.appendChild(inv);
+      const list=mk("div","cloud-members"); list.id="cloudMembers"; adm.appendChild(list);
       paintMembers();
-      const fh=mk("h3","cloud-h","📣 משובים"); fh.id="cloudFbH"; card.appendChild(fh);
-      const fb=mk("div","cloud-fb"); fb.id="cloudFb"; card.appendChild(fb); paintFeedback();
+      const fh=mk("h3","cloud-h","📣 משובים"); fh.id="cloudFbH"; adm.appendChild(fh);
+      const fb=mk("div","cloud-fb"); fb.id="cloudFb"; adm.appendChild(fb); paintFeedback();
     }
   }
   let members=[];
