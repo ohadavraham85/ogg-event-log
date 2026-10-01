@@ -1282,3 +1282,20 @@ small.dept{font-size:12px;font-weight:700;color:var(--c-maint);background:var(--
   #viewTasks.rows .tk:not(.x) .tk-tag.eqt{background:var(--panel-2);color:var(--ink-2);border:1px solid var(--edge)}
 }
 @media (min-width:900px){ #viewTasks.rows .tk:not(.x) .tk-t{display:block;white-space:normal;overflow:visible;text-overflow:clip;line-height:1.3} }
+/* donut charts (dashboard) */
+.donut{display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin:6px 0 4px}
+.dn-fig{position:relative;width:150px;height:150px;flex:none}
+.dn-svg{width:100%;height:100%;display:block;overflow:visible}
+.dn-seg{transition:stroke-width .15s}
+.dn-seg:hover{stroke-width:19}
+.dn-mid{position:absolute;inset:0;display:grid;place-content:center;text-align:center;pointer-events:none}
+.dn-mid b{font-size:26px;font-weight:900;line-height:1;color:var(--ink);font-variant-numeric:tabular-nums}
+.dn-mid span{font-size:12px;color:var(--ink-2);font-weight:700;margin-top:3px}
+.dn-lg{flex:0 1 280px;min-width:160px;display:grid;gap:4px;margin:0}
+.dn-lg .li{display:flex;align-items:center;gap:7px;justify-content:flex-start;width:100%;text-align:start}
+.dn-lg .li span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dn-lg .li i{width:12px;height:12px;border-radius:3px;flex:none}
+.dn-lg .li em{min-width:38px;text-align:end}
+@keyframes dnIn{from{opacity:0;transform:rotate(-70deg) scale(.7)}to{opacity:1;transform:none}}
+.anim .dn-svg{animation:dnIn .8s cubic-bezier(.2,.8,.2,1) .15s both}
+@media (prefers-reduced-motion:reduce){ .anim .dn-svg{animation:none} }

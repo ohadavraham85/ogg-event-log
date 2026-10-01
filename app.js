@@ -824,6 +824,29 @@ function dcard(title,sub,body,rows,head){
   det.appendChild(tb); c.appendChild(det);
   return c;
 }
+/* donut — part of a whole at a glance (≤6 slices; the rest folds into "אחר"): a thin surface gap between slices,
+   the total in the middle, hover for the value, a tap filters; the legend carries every label, count and %. */
+function donut(items, centerNum, centerLabel){
+  items=items.filter(i=>i.v>0);
+  const tot=items.reduce((s,i)=>s+i.v,0)||1, R=40, C=2*Math.PI*R, gap=items.length>1?1.6:0, NS="http://www.w3.org/2000/svg";
+  const wrap=mk("div","donut"), fig=mk("div","dn-fig"), svg=document.createElementNS(NS,"svg");
+  svg.setAttribute("viewBox","0 0 100 100"); svg.setAttribute("class","dn-svg"); svg.setAttribute("aria-hidden","true");
+  let off=0;
+  items.forEach(it=>{ const len=it.v/tot*C, dl=Math.max(0.01,len-gap);
+    const c=document.createElementNS(NS,"circle"); [["cx",50],["cy",50],["r",R],["fill","none"],["stroke-width",15],
+      ["stroke-dasharray",dl+" "+(C-dl)],["stroke-dashoffset",String(-off-gap/2)],["transform","rotate(-90 50 50)"],["class","dn-seg"]].forEach(([k,v])=>c.setAttribute(k,v));
+    c.style.stroke=it.color;
+    if(it.go){ c.addEventListener("click",it.go); c.style.cursor="pointer"; }
+    tipOn(c, nf(it.v)+" · "+Math.round(100*it.v/tot)+"%", it.l);
+    svg.appendChild(c); off+=len; });
+  const mid=mk("div","dn-mid"); mid.append(mk("b",null,nf(centerNum)), mk("span",null,centerLabel));
+  fig.append(svg,mid);
+  const lg=mk("div","legend dn-lg");
+  items.forEach(it=>{ const li=mk(it.go?"button":"span","li"); if(it.go){ li.type="button"; li.onclick=it.go; }
+    const sw=mk("i"); sw.style.background=it.color;
+    li.append(sw, mk("span",null,it.l), mk("b",null,nf(it.v)), mk("em",null,Math.round(100*it.v/tot)+"%")); lg.appendChild(li); });
+  wrap.append(fig,lg); return wrap;
+}
 /* horizontal bars: label · bar · value at the tip */
 function hbars(items, max, cls){
   const box=mk("div","hbars");
@@ -930,14 +953,9 @@ function dashTasks(cards, from){
   if(open.length){
     // by priority: one stacked bar + legend with counts (the legend carries the labels)
     const pc={}; open.forEach(t=>{ const p=prioOf(t); pc[p]=(pc[p]||0)+1; });
-    const order=PRIOS.filter(p=>pc[p]), bar=mk("div","sbar"), lg=mk("div","legend");
-    order.forEach(p=>{
-      const cls="pr-"+PRIOS.indexOf(p), go=()=>goTasks({f:{prio:p}});
-      const seg=mk("button","seg-s "+cls); seg.type="button"; seg.style.flexGrow=pc[p]; seg.setAttribute("aria-label",p+": "+pc[p]);
-      seg.onclick=go; tipOn(seg, nf(pc[p])+" משימות", "עדיפות "+p); bar.appendChild(seg);
-      const li=mk("button","li"); li.type="button"; li.onclick=go; li.append(mk("i",cls), mk("span",null,p), mk("b",null,nf(pc[p]))); lg.appendChild(li);
-    });
-    body.append(mk("div","dt-h","פתוחות לפי עדיפות"), bar, lg);
+    const order=PRIOS.filter(p=>pc[p]);
+    body.append(mk("div","dt-h","פתוחות לפי עדיפות"),
+      donut(order.map(p=>({l:p, v:pc[p], color:"var(--pr"+PRIOS.indexOf(p)+")", go:()=>goTasks({f:{prio:p}})})), open.length, "פתוחות"));
     // by assignee
     const ac={}; open.forEach(t=>{ const who=(t.ppl||[])[0]||"ללא אחראי"; ac[who]=(ac[who]||0)+1; });
     const names=Object.keys(ac).sort((x,y)=>ac[y]-ac[x]), top=names.slice(0,8);
@@ -1030,18 +1048,7 @@ function renderDash0(){
   /* status: one stacked bar + legend (legend carries every value) */
   const sc={}; rows.forEach(e=>{ const s=(e.stat||[])[0]||"פתוח"; sc[s]=(sc[s]||0)+1; });
   const stats=STAT_ORDER.filter(s=>sc[s]).concat(Object.keys(sc).filter(s=>!STAT_ORDER.includes(s)));
-  const sb=mk("div"); const bar=mk("div","sbar"); const lg=mk("div","legend");
-  stats.forEach(s=>{
-    const pct=Math.round(100*sc[s]/rows.length);
-    const seg=mk("button","seg-s "+(STAT_CLS[s]||"s-other")); seg.type="button";
-    seg.style.flexGrow=sc[s]; seg.setAttribute("aria-label",s+": "+nf(sc[s]));
-    seg.onclick=()=>goList({stat:s,from}); tipOn(seg, nf(sc[s])+" · "+pct+"%", s);
-    bar.appendChild(seg);
-    const li=mk("button","li"); li.type="button"; li.onclick=seg.onclick;
-    li.append(mk("i",STAT_CLS[s]||"s-other"), mk("span",null,s), mk("b",null,nf(sc[s])), mk("em",null,pct+"%"));
-    lg.appendChild(li);
-  });
-  sb.append(bar,lg);
+  const sb=donut(stats.map(s=>({l:s, v:sc[s], color: STAT_CLS[s] ? "var(--"+STAT_CLS[s]+")" : "var(--other)", go:()=>goList({stat:s,from})})), rows.length, "אירועים");
   cards.appendChild(dcard("סטטוס", null, sb, stats.map(s=>[s,sc[s],Math.round(100*sc[s]/rows.length)+"%"]), ["סטטוס","אירועים","אחוז"]));
 
   /* open events by age (ordinal ramp: older = darker) */
@@ -1127,7 +1134,11 @@ function renderDash0(){
     const max=Math.max(...items.map(i=>i.v));
     cards.appendChild(dcard(title, null, hbars(items,max,"one"), all.map(v=>[v,c[v]]), [title.replace("פתוחים לפי ",""),"פתוחים"]));
   };
-  topBars("type","פתוחים לפי סוג","type");
+  { const c={}; open.forEach(e=>(e.type||[]).forEach(v=>{ c[v]=(c[v]||0)+1; }));
+    const all=Object.keys(c).sort((a,b)=>c[b]-c[a]), top=all.slice(0,5), rest=all.slice(5).reduce((s,v)=>s+c[v],0);
+    const items=top.map(v=>({l:v, v:c[v], color:"var(--c-"+hueOf(v)+")", go:()=>goList({stat:OPEN_ANY,type:v,from})}));
+    if(rest) items.push({l:"אחר ("+all.slice(5).length+")", v:rest, color:"var(--other)"});
+    if(items.length) cards.appendChild(dcard("פתוחים לפי סוג", null, donut(items, open.length, "פתוחים"), all.map(v=>[v,c[v]]), ["סוג","פתוחים"])); }
   topBars("loc","פתוחים לפי מיקום","loc");
 
   /* by department: open / closed events and open tasks per department (tap = show only that department) */
@@ -1686,7 +1697,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.08", APP_DATE="01/10/2026";
+const APP_VER="2.09", APP_DATE="01/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
