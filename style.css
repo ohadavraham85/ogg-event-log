@@ -1250,3 +1250,8 @@ small.dept{font-size:12px;font-weight:700;color:var(--c-maint);background:var(--
 .tk-f.tk-title-f input{font-size:19px;font-weight:800;padding:12px 14px;border:2px solid var(--water);background:var(--panel)}
 .tk-f.tk-title-f input::placeholder{font-weight:600;color:var(--ink-3)}
 .tk-tag.new{background:var(--c-flood-bg);color:var(--c-flood);border-color:transparent;font-weight:900}
+/* task: equipment tag by the title */
+.tk-eqtag{display:inline-block;margin-inline-start:8px;vertical-align:2px;font-size:12.5px;font-weight:800;color:var(--ink-2);
+  background:var(--panel-2);border:1px solid var(--edge);border-radius:8px;padding:1px 8px;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+#viewTasks.rows .tk:not(.x) .tk-t{display:flex;align-items:center;gap:0;flex-wrap:nowrap}
+#viewTasks.rows .tk:not(.x) .tk-eqtag{flex:none}

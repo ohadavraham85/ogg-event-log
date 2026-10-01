@@ -1686,7 +1686,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.03", APP_DATE="30/09/2026";
+const APP_VER="2.04", APP_DATE="01/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2243,7 +2243,9 @@ function renderTasks(){
     c.addEventListener("click",ev=>{ if(tkLV!=="rows" || ev.target.closest("button,input,textarea,select,a,label,.tk-log,.tk-check,.tk-files")) return;
       tkRowOpen.has(t.id) ? tkRowOpen.delete(t.id) : tkRowOpen.add(t.id); c.classList.toggle("x"); }); c.style.borderInlineStartColor = tkOpen(t) ? "var(--c-"+ph+")" : "";
     if(tkOpen(t) && pr==="דחופה") c.style.background="color-mix(in srgb,var(--c-fault-bg) 55%,var(--panel))";
-    { const tt=mk("div","tk-t"); if(t.no) tt.appendChild(mk("span","sn","#"+t.no)); tt.append(t.title||"(ללא כותרת)"); c.appendChild(tt); }
+    { const tt=mk("div","tk-t"); if(t.no) tt.appendChild(mk("span","sn","#"+t.no)); tt.append(t.title||"(ללא כותרת)");
+      (t.eq||[]).forEach(q=>{ const g=mk("span","tk-eqtag","⚙ "+q); g.title="ציוד"; tt.appendChild(g); });   // the equipment, right by the title
+      c.appendChild(tt); }
     const tags=mk("div","tk-tags"), tag=(txt,cls,hue)=>{ const x=mk("span","tk-tag"+(cls?" "+cls:""),txt);
       if(hue){ x.style.background="var(--c-"+hue+"-bg)"; x.style.color="var(--c-"+hue+")"; x.style.borderColor="transparent"; } tags.appendChild(x); };
     if(tkOpen(t)){
