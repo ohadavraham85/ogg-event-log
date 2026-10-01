@@ -1342,6 +1342,24 @@ html.lite #dRange, html.lite #dPpl, html.lite #dDept, html.lite .dlay-hint, html
 html.lite #dCards .dcard:not([data-t="משימות"]){display:none}
 html.lite .dcard[data-t="משימות"] .donut, html.lite .dcard[data-t="משימות"] .hbars, html.lite .dt-h.lite-hide, html.lite .dcard details.tv{display:none}
 html.lite .kpi .ktr{display:none}
+/* dashboard, phone: tasks first, then one compact row of event numbers */
+html.lite #viewDash:not([hidden]){display:flex;flex-direction:column}
+html.lite #viewDash .dsh-head{display:none}
+html.lite #dCards{order:1}
+html.lite #dKpis{order:2;grid-template-columns:repeat(3,1fr);gap:7px;margin:0 0 12px}
+html.lite #dKpis .kpi{grid-column:auto;padding:8px 10px;border-radius:11px;gap:0}
+html.lite #dKpis .kpi.hero::before, html.lite #dKpis .kpi.hero::after{display:none}
+html.lite #dKpis .k-reg, html.lite #dKpis .kgo, html.lite #dKpis .ki{display:none}
+html.lite #dKpis .kpi .kl{font-size:11.5px;line-height:1.25}
+html.lite #dKpis .kpi b, html.lite #dKpis .kpi.hero b{font-size:22px}
+html.lite .dcard[data-t="משימות"] .dsub, html.lite .dcard[data-t="משימות"] h3{display:none}
+html.lite .dcard[data-t="משימות"]{padding-top:10px}
+html.lite .dt-tiles{grid-template-columns:repeat(4,1fr);gap:6px;margin:0 0 8px}
+html.lite .dt-tile{padding:7px 8px;border-radius:10px}
+html.lite .dt-tile b{font-size:20px}
+html.lite .dt-tile span{font-size:11.5px}
+html.lite .dt-tile:nth-child(5){display:none}
+html.lite .dt-row:nth-child(n+6){display:none}
 /* lists: search, filter and the compact list — no sort, view switch or export */
 html.lite #viewList .sortwrap, html.lite #listView, html.lite #expView,
 html.lite #viewTasks .sortwrap, html.lite #tkListView, html.lite #tkExp, html.lite .cal-open{display:none!important}
