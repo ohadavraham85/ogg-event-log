@@ -716,6 +716,7 @@ function applyLite(){
   const b=$("#liteToggle"); if(b) b.textContent = on ? "עבור לתצוגה מלאה" : "חזור לתצוגת טלפון";
   if(typeof paintSettings==="function") paintSettings();
   if(typeof applyListView==="function") applyListView();
+  if(on && curView==="Cal") show("Dash");
   if(on && $("#sgNav [aria-pressed=true]") && /lists|files/.test(($("#sgNav [aria-pressed=true]").dataset.sg||""))) { const g=$("#sgNav [data-sg=general]"); if(g) g.click(); }
 }
 document.documentElement.classList.toggle("lite",isLite());
@@ -1382,6 +1383,7 @@ if(!("setAppBadge" in navigator)) $("#badgeNote").textContent="הדפדפן הז
 
 /* ================= tabs / theme ================= */
 function show(w){
+  if(w==="Cal" && isLite()) w="Dash";                // no calendar in the phone view
   if($("#dTip")) $("#dTip").hidden=true;
   const prev=curView; curView=w;
   if(prev==="List" && w!=="List" && UNSEEN.size){ UNSEEN.clear(); saveUnseen(); }   // seen once you leave the list
@@ -1831,7 +1833,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.15", APP_DATE="01/10/2026";
+const APP_VER="2.16", APP_DATE="01/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){

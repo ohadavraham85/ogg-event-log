@@ -1344,7 +1344,7 @@ html.lite .dcard[data-t="משימות"] .donut, html.lite .dcard[data-t="משי�
 html.lite .kpi .ktr{display:none}
 /* lists: search, filter and the compact list — no sort, view switch or export */
 html.lite #viewList .sortwrap, html.lite #listView, html.lite #expView,
-html.lite #viewTasks .sortwrap, html.lite #tkListView, html.lite #tkExp{display:none!important}
+html.lite #viewTasks .sortwrap, html.lite #tkListView, html.lite #tkExp, html.lite .cal-open{display:none!important}
 /* settings: no list management, files or team management */
 html.lite #sgNav [data-sg=lists], html.lite #sgNav [data-sg=files], html.lite .cm-admin, html.lite #listMgr{display:none!important}
 html.lite #viewData .card[data-sg="general"]:has(#badgeMode){display:none}
