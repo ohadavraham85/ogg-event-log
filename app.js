@@ -1686,7 +1686,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.05", APP_DATE="01/10/2026";
+const APP_VER="2.06", APP_DATE="01/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -1781,6 +1781,7 @@ const PRIO_HUE={"דחופה":"fault","גבוהה":"flood","רגילה":"maint","
 const prioOf=t=>PRIOS.includes(t.prio) ? t.prio : (t.urgent ? "דחופה" : "רגילה");   // older tasks: urgent flag
 function loadTasks(){ try{ tasks=JSON.parse(localStorage.getItem(LST)||"[]"); if(!Array.isArray(tasks)) tasks=[]; }catch(e){ tasks=[]; } }
 function saveTasks(){
+  if(ensureNos()) persist();                      // a new task gets its number right away (events too, if any were waiting)
   try{ localStorage.setItem(LST, JSON.stringify(tasks)); }catch(e){ toast("הדפדפן חסם שמירה מקומית"); }
   if(window.cloudPushTasks) window.cloudPushTasks();
   writeFile();
@@ -1850,7 +1851,7 @@ function openedByMe(t){
 window.openedByMe=openedByMe;
 /* "new" task: one I haven't seen yet (per person, on this device) — it stays at the top of the list, marked.
    Seen = it was on the screen in the task list and I left the list (like "חדש" on events).
-   Tasks I opened myself are never new to me; on the first use, what is already there counts as seen. */
+   A task I just opened is new too (it stays on top until I leave the list); on the first use, what is already there counts as seen. */
 const tkSeenKey=()=>"ogg-tk-seen-"+((window.cloudMe && window.cloudMe()) || "local");
 let tkSeen=null, tkShownNew=new Set();
 function tkSeenLoad(){ const k=tkSeenKey(); if(tkSeen && tkSeen.k===k) return tkSeen;
@@ -1859,7 +1860,7 @@ function tkSeenLoad(){ const k=tkSeenKey(); if(tkSeen && tkSeen.k===k) return tk
   tkSeen={k, since:d.since, ids:new Set(d.ids)}; if(!localStorage.getItem(k)) tkSeenSave(); return tkSeen; }
 function tkSeenSave(){ const S=tkSeen; if(!S) return;
   const live=new Set(tasks.map(t=>t.id)); try{ localStorage.setItem(S.k, JSON.stringify({since:S.since, ids:[...S.ids].filter(id=>live.has(id))})); }catch(e){} }
-function tkIsNew(t){ if(!tkOpen(t) || openedByMe(t)) return false; const S=tkSeenLoad();
+function tkIsNew(t){ if(!tkOpen(t)) return false; const S=tkSeenLoad();
   return !S.ids.has(t.id) && String(t.created||"")>S.since; }
 document.addEventListener("visibilitychange",()=>{ if(document.hidden && curView==="Tasks") tkMarkSeen(); });   // left the app from the list
 function tkMarkSeen(){ if(!tkShownNew.size) return; const S=tkSeenLoad(); tkShownNew.forEach(id=>S.ids.add(id)); tkShownNew.clear(); tkSeenSave(); }
