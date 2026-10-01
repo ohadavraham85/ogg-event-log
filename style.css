@@ -696,10 +696,10 @@ html.sp-open,html.sp-open body{overflow:hidden}
 .tk{background:var(--panel);border:1px solid var(--edge);border-radius:14px;padding:12px 14px;margin-bottom:10px;
   box-shadow:var(--shadow);border-inline-start:5px solid var(--water)}
 .tk.urgent{border-inline-start-color:var(--c-fault)}
-.tk.tl-late,.tk.tl-today,.tk.tl-future{border-width:2px;border-inline-start-width:6px}
-.tk.tl-late{border-color:#D6342C}
-.tk.tl-today{border-color:#1C8A4E}
-.tk.tl-future{border-color:#E07B12}
+.tk.tl-late,.tk.tl-today,.tk.tl-future{border-inline-start-width:6px}
+.tk.tl-late{border-inline-start-color:#D6342C}
+.tk.tl-today{border-inline-start-color:#1C8A4E}
+.tk.tl-future{border-inline-start-color:#E07B12}
 .tk.done{border-inline-start-color:var(--edge);opacity:.9}
 .tk-t{font-weight:800;font-size:16.5px;line-height:1.35;overflow-wrap:anywhere}
 .tk-tags{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 2px}
