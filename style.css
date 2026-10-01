@@ -1239,7 +1239,7 @@ small.dept{font-size:12px;font-weight:700;color:var(--c-maint);background:var(--
 :root[data-theme="dark"] .kpi.hero{background:linear-gradient(135deg,color-mix(in srgb,var(--water) 55%,#000),color-mix(in srgb,var(--water) 30%,#000))}
 /* serial number (#123) on events and tasks */
 .sn{display:inline-block;font-size:12px;font-weight:900;color:var(--ink-2);background:var(--panel-2);border:1px solid var(--edge);border-radius:7px;padding:1px 6px;font-variant-numeric:tabular-nums;direction:ltr;unicode-bidi:isolate;white-space:nowrap}
-.tk-t .sn{margin-inline-end:7px;vertical-align:2px}
+.tk-t .sn{margin-left:9px;vertical-align:2px}   /* .sn is ltr inside rtl text, so the gap is set physically, toward the title */
 /* files on a task */
 .tk-files{margin-top:10px;border-top:1px dashed var(--edge);padding-top:8px}
 .tk-files.none{border-top:none;padding-top:0;margin-top:4px}

@@ -1833,7 +1833,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.23", APP_DATE="01/10/2026";
+const APP_VER="2.24", APP_DATE="01/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2475,7 +2475,7 @@ function renderTasks(){
       if(t.eventId && events.some(e=>e.id===t.eventId)) tag("נרשמה ביומן");
     }
     if(tags.querySelector(".tk-tag:not(.eqt)") || $("#viewTasks").classList.contains("rows")) c.appendChild(tags);
-    const pn=n=>{ const x=[deptOf(n),roleOf(n)].filter(Boolean).join(" · "); return x?n+" ("+x+")":n; };
+    const pn=n=>n;   // the worker's name only — department and role are in their own columns
     const meta=[(t.ppl||[]).length ? "👤 "+(t.ppl.length>1 ? "אחראי: "+pn(t.ppl[0])+" · משויכים: "+t.ppl.slice(1).join(", ") : pn(t.ppl[0])) : "", (t.loc||[]).length?"📍 "+t.loc.join(", "):"", (t.eq||[]).length?"⚙ "+t.eq.join(", "):""].filter(Boolean).join("   ");
     if(meta) c.appendChild(mk("div","tk-m",meta));
     if(t.desc) c.appendChild(mk("div","tk-d",t.desc));
