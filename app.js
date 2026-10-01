@@ -345,9 +345,15 @@ function openFixes(fixes){
   $("#dlgFix").showModal();
 }
 function renderMgr(){
-  const box=$("#listMgr"); box.textContent="";
+  const box=$("#listMgr");
+  // redrawn after every change (retire / restore / merge…): keep each list where it was scrolled, and the page too
+  const keep={}; box.querySelectorAll(".mgr-list").forEach(l=>{ keep[l.dataset.k]=l.scrollTop; }); const wy=window.scrollY;
+  box.textContent="";
+  requestAnimationFrame(()=>{ box.querySelectorAll(".mgr-list").forEach(l=>{ if(keep[l.dataset.k]) l.scrollTop=keep[l.dataset.k]; });
+    if(Math.abs(window.scrollY-wy)>2) window.scrollTo(0,wy); });
   MGR_KEYS.forEach(([k,label])=>{
-    const cnt=useCount(k), active=coreFirst(lists[k].slice().sort((x,y)=>(cnt[y]||0)-(cnt[x]||0)||x.localeCompare(y,"he")), k);
+    // alphabetical (א-ב, numbers and Latin in order too); in people the ⭐ core staff stay first
+    const cnt=useCount(k), active=coreFirst(lists[k].slice().sort((x,y)=>x.localeCompare(y,"he",{numeric:true})), k);
     const retired=(lists["_hide_"+k]||[]).filter(v=>cnt[v]||lists["_custom_"+k].includes(v)||SEED[k].includes(v)).sort((x,y)=>x.localeCompare(y,"he"));
     const det=mk("details","mgr"); det.open=mgrOpen.has(k); det.ontoggle=()=>{ det.open?mgrOpen.add(k):mgrOpen.delete(k); };
     const sum=mk("summary"), cn=mk("span","mgr-n");
@@ -382,7 +388,7 @@ function renderMgr(){
     // search
     const q=mk("input","txt mgr-q"); q.type="search"; q.placeholder="חיפוש…"; q.value=mgrQ[k]||"";
     det.appendChild(q);
-    const list=mk("div","mgr-list"); det.appendChild(list);
+    const list=mk("div","mgr-list"); list.dataset.k=k; det.appendChild(list);
     const paint=()=>{
       list.textContent=""; const f=(mgrQ[k]||"").trim();
       const row=(v,isRet)=>{
@@ -1809,7 +1815,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.13", APP_DATE="01/10/2026";
+const APP_VER="2.14", APP_DATE="01/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
