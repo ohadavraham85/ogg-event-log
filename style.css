@@ -1259,10 +1259,18 @@ small.dept{font-size:12px;font-weight:700;color:var(--c-maint);background:var(--
 .tk-tags .sl{display:contents}
 @media (min-width:900px){
   #viewTasks.rows .tk:not(.x){display:grid;align-items:center;gap:6px 8px;
-    grid-template-columns:minmax(160px,2.4fr) 70px 104px 70px 116px 66px minmax(90px,1fr) 126px minmax(100px,1.3fr)}
+    grid-template-columns:var(--tkcols)}
   #viewTasks.rows .tk:not(.x) .tk-tags{display:contents}
   #viewTasks.rows .tk:not(.x) .tk-tags .sl{display:flex;gap:4px;min-width:0;flex-wrap:wrap;align-content:center}
   #viewTasks.rows .tk:not(.x) .tk-tags .sl .tk-tag{flex:none;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   #viewTasks.rows .tk:not(.x) .tk-t{min-width:0;overflow:hidden}
   #viewTasks.rows .tk:not(.x) .tk-m{margin:0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+}
+/* "רשימה": the column template (shared by the rows and their header) and the header row */
+#viewTasks{--tkcols:minmax(160px,2.4fr) 70px 104px 70px 116px 66px minmax(90px,1fr) 126px minmax(100px,1.3fr)}
+.tk-head{display:none}
+@media (min-width:900px){
+  #viewTasks.rows .tk-head{display:grid;grid-template-columns:var(--tkcols);gap:6px 8px;align-items:end;padding:0 17px 6px 13px;margin-bottom:6px;
+    border-bottom:2px solid var(--edge);font-size:12.5px;font-weight:900;color:var(--ink-2)}
+  #viewTasks.rows .tk-head span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 }

@@ -1686,7 +1686,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.06", APP_DATE="01/10/2026";
+const APP_VER="2.07", APP_DATE="01/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2237,6 +2237,9 @@ function renderTasks(){
   rows.length=0; rows.push(...shown); tkLastRows=shown;
   if(!rows.length){ box.appendChild(mk("div","tk-empty", Object.values(tkF).some(Boolean) ? "אין משימות שמתאימות לסינון." :
     tkView==="mine" ? (myName() ? "אין משימות פתוחות שלך או של המחלקה שלך." : (window.cloudMe ? "המנהל עדיין לא הגדיר לך שם בצוות." : "בחר למעלה \"אני:\" כדי לראות את המשימות שלך.")) : tkView==="opened" ? "אין משימות פתוחות שפתחת." : tkView==="open" ? "אין משימות פתוחות." : "עדיין לא הושלמו משימות.")); return; }
+  // "רשימה" on a wide screen: a header row naming the columns (hidden on cards / phones by CSS)
+  { const h=mk("div","tk-head"); h.setAttribute("aria-hidden","true");
+    ["משימה","שיוך","מחלקה","עדיפות","סוג","סטטוס","נוספים","תאריכים","אחראי · מיקום · ציוד"].forEach(x=>h.appendChild(mk("span",null,x))); box.appendChild(h); }
   rows.forEach(t=>{
     const pr=prioOf(t), ph=PRIO_HUE[pr];
     const c=mk("div","tk"+(tkOpen(t)?"":" done")+(tkRowOpen.has(t.id)?" x":"")); c.dataset.id=t.id;
