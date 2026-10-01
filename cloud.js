@@ -132,11 +132,27 @@
     const tSince=Math.max(0,(+get(K_SYNC_T)||0)-5*60*1000);
     unsubTasks=F.onSnapshot(F.query(F.collection(db,"meta"), F.where("_upd",">",F.Timestamp.fromMillis(tSince))), {includeMetadataChanges:true}, applyTasks, ()=>{});   // metadata too: know when the server answered even if nothing changed
     cloudPush(); cloudPushTasks();                         // anything changed while signed out / offline
+    // presence: who is here now / when last seen (meta/seen-<mail>, refreshed every few minutes while the app is open)
+    unsubSeen=F.onSnapshot(F.query(F.collection(db,"meta"), F.where("kind","==","seen")), snap=>{
+      snap.docs.forEach(d=>{ const x=d.data({serverTimestamps:"estimate"}); if(x.email && x.at && x.at.toMillis) seen[x.email]=x.at.toMillis(); });
+      paintMembers(); if(window.paintTeamStrip) window.paintTeamStrip();
+    }, ()=>{});
+    beat();
   }
+  let unsubSeen=null, lastBeat=0; const seen={};
+  window.teamSeen=()=>seen; window.teamMembers=()=>members;
+  function beat(force){
+    if(!started || !me || document.hidden) return;
+    if(!force && Date.now()-lastBeat<60e3) return; lastBeat=Date.now();
+    F.setDoc(F.doc(db,"meta","seen-"+me),{kind:"seen",email:me,at:F.serverTimestamp(),_upd:F.serverTimestamp(),_by:me}).catch(()=>{});
+  }
+  setInterval(()=>beat(true), 5*60e3);
+  document.addEventListener("visibilitychange",()=>{ if(!document.hidden) beat(); });
+  setInterval(()=>{ paintMembers(); if(window.paintTeamStrip) window.paintTeamStrip(); }, 60e3);   // "לפני X דק׳" stays current
   function stopSync(){
     initialDone=false;
     members=[]; window.TEAM_NAMES=[];
-    [unsubEv,unsubLists,unsubMembers,unsubTasks].forEach(u=>{ if(u) u(); }); unsubEv=unsubLists=unsubMembers=unsubTasks=null; started=false;
+    [unsubEv,unsubLists,unsubMembers,unsubTasks,unsubSeen].forEach(u=>{ if(u) u(); }); unsubEv=unsubLists=unsubMembers=unsubTasks=unsubSeen=null; started=false;
   }
   function applyEvents(snap){
     const ch=snap.docChanges();
@@ -459,7 +475,7 @@
     unsubMembers=F.onSnapshot(F.collection(db,"members"), s=>{
       members=s.docs.map(d=>({email:d.id,...d.data()})).sort((a,b)=>(a.name||a.email).localeCompare(b.name||b.email));
       window.TEAM_NAMES=members.map(m=>m.name).filter(Boolean);
-      paintMembers(); paintMyName(); if(typeof renderTasks==="function") renderTasks();
+      paintMembers(); paintMyName(); if(typeof renderTasks==="function") renderTasks(); if(window.paintTeamStrip) window.paintTeamStrip();
     }, ()=>{});
   }
   window.cloudMe=()=>me||"";
@@ -485,11 +501,24 @@
                        : (role==="admin" ? "עדיין לא הוגדר לך שם — לחץ \"שם\" ליד המייל שלך ברשימת הצוות, כדי לקבל משימות והתראות."
                                           : "מנהל היומן עדיין לא הגדיר את השם שלך — בלי שם לא תקבל התראה על משימות שהוקצו לך.");
   }
+  /* where a member stands: connected now / last seen / joined / invited, not in yet / not invited yet */
+  function memberState(m){
+    const t = m.email===me ? Date.now() : seen[m.email];
+    if(t && Date.now()-t<7*60e3) return {k:"on", t:"מחובר עכשיו"};
+    if(t) return {k:"was", t:"התחבר "+(window.agoHe ? agoHe(t) : new Date(t).toLocaleString("he-IL"))};
+    if(tasks.some(x=>(x.log||[]).some(l=>l && l.mail===m.email) || x.openedMail===m.email)) return {k:"was", t:"הצטרף (עוד לא נראה מאז העדכון)"};
+    if(m.invitedAt && m.invitedAt.toMillis) return {k:"inv", t:"הוזמן "+new Date(m.invitedAt.toMillis()).toLocaleDateString("he-IL")+" · עוד לא נכנס"};
+    return {k:"new", t:"טרם הוזמן"};
+  }
+  window.memberState=memberState;
   function paintMembers(){
     const box=$("#cloudMembers"); if(!box) return; box.textContent="";
-    members.forEach(m=>{
+    const S=members.map(memberState), cnt=k=>S.filter(x=>x.k===k).length;
+    box.appendChild(mk("p","cm-sum","🟢 "+cnt("on")+" מחוברים עכשיו · "+(cnt("on")+cnt("was"))+" הצטרפו · "+cnt("inv")+" הוזמנו ועוד לא נכנסו · "+cnt("new")+" טרם הוזמנו"));
+    members.forEach((m,i)=>{
       const r=mk("div","listrow"), who=mk("div","cm-who");
       who.appendChild(mk("b",null,m.name||"(בלי שם)")); who.appendChild(mk("span","cm-mail",m.email));
+      who.appendChild(mk("span","cm-st st-"+S[i].k,S[i].t));
       r.appendChild(who); r.appendChild(mk("span",null,m.role==="admin"?"מנהל":"איש צוות"));
       const nb=mk("button","btn mini","שם"); nb.type="button";
       nb.onclick=async()=>{
@@ -551,7 +580,9 @@
     const lk=mk("a","ci-link",T.url); lk.href=T.url; lk.target="_blank"; lk.rel="noopener"; lk.dir="ltr"; box.appendChild(lk);
     box.appendChild(mk("div","ci-text",T.text));
     const row=mk("div","row");
-    const btn=(label,fn,cls)=>{ const b=mk("button","btn"+(cls?" "+cls:""),label); b.type="button"; b.onclick=fn; row.appendChild(b); };
+    // pressing any of the send buttons marks the member as invited (shown in the team list)
+    const sent=()=>{ F.setDoc(F.doc(db,"members",em),{invitedAt:F.serverTimestamp()},{merge:true}).catch(()=>{}); };
+    const btn=(label,fn,cls)=>{ const b=mk("button","btn"+(cls?" "+cls:""),label); b.type="button"; b.onclick=()=>{ sent(); fn(); }; row.appendChild(b); };
     btn("וואטסאפ",()=>window.open("https://wa.me/?text="+encodeURIComponent(T.text),"_blank","noopener"),"primary");
     btn("מייל",()=>{ location.href="mailto:"+em+"?subject="+encodeURIComponent(T.subject)+"&body="+encodeURIComponent(T.text); });
     if(navigator.share) btn("שתף",async()=>{ try{ await navigator.share({title:T.subject,text:T.text}); }catch(e){} });

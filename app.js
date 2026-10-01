@@ -1013,6 +1013,7 @@ function renderDash0(){
   const open = rows.filter(isOpen);
   const closed = rows.length-open.length;
   const faults = open.filter(e=>(e.type||[]).includes("תקלה")).length;
+  window.paintTeamStrip();
   $("#dScope").textContent = (from? "מ-"+dmy(from)+" עד היום" : "כל התקופה")+(dDept? " · מחלקת "+dDept : "")+(dPpl? " · "+dPpl : "")+" · "+nf(rows.length)+" אירועים";
 
   /* KPI row */
@@ -1200,6 +1201,26 @@ function renderDash0(){
 }
 $("#dPpl").onchange=()=>{ dPpl=$("#dPpl").value; dAnim=true; renderDash(); };
 $("#dDept").onchange=()=>{ dDept=$("#dDept").value; try{ localStorage.setItem("ogg-dash-dept",dDept); }catch(e){} dAnim=true; renderDash(); };
+/* "לפני 5 דק׳" — how long ago, in short Hebrew */
+function agoHe(t){ const d=(Date.now()-t)/1000;
+  if(d<90) return "עכשיו"; if(d<3600) return "לפני "+Math.round(d/60)+" דק׳"; if(d<86400) return "לפני "+Math.round(d/3600)+" שע׳";
+  const x=new Date(t), y=new Date(); y.setDate(y.getDate()-1);
+  if(x.toDateString()===y.toDateString()) return "אתמול "+String(x.getHours()).padStart(2,"0")+":"+String(x.getMinutes()).padStart(2,"0");
+  if(d<7*86400) return "לפני "+Math.round(d/86400)+" ימים"; return "ב-"+x.toLocaleDateString("he-IL"); }
+window.agoHe=agoHe;
+/* the team at a glance (team log, on the dashboard): who is connected now, and when the others were last here */
+window.paintTeamStrip=function(){
+  const box=$("#dTeam"); if(!box) return;
+  const M=window.teamMembers ? window.teamMembers() : []; if(!CLOUD_ON || !M.length){ box.hidden=true; return; }
+  const st=M.map(m=>({m, s:window.memberState(m), t:(window.teamSeen()[m.email]||0)}))
+    .sort((a,b)=>(a.s.k==="on"?0:1)-(b.s.k==="on"?0:1) || b.t-a.t || (a.m.name||a.m.email).localeCompare(b.m.name||b.m.email,"he"));
+  box.textContent=""; box.hidden=false;
+  const on=st.filter(x=>x.s.k==="on").length;
+  box.appendChild(mk("span","dt-lbl","👥 הצוות · "+on+" מחוברים"));
+  st.forEach(({m,s})=>{ const c=mk("span","dt-p st-"+s.k); c.title=(m.name||m.email)+" — "+s.t;
+    c.append(mk("i"), mk("b",null,m.name||m.email.split("@")[0]), mk("small",null, s.k==="on" ? "מחובר" : s.k==="was" ? s.t.replace(/^התחבר /,"").replace(/^הצטרף.*/,"הצטרף") : s.k==="inv" ? "הוזמן" : "טרם הוזמן"));
+    box.appendChild(c); });
+};
 /* numbers count up when the dashboard opens (skipped when the phone asks for less motion) */
 function countUp(el, to){
   if(matchMedia("(prefers-reduced-motion: reduce)").matches) return;
@@ -1697,7 +1718,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.10", APP_DATE="01/10/2026";
+const APP_VER="2.11", APP_DATE="01/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){

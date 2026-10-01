@@ -1299,3 +1299,21 @@ small.dept{font-size:12px;font-weight:700;color:var(--c-maint);background:var(--
 @keyframes dnIn{from{opacity:0;transform:rotate(-70deg) scale(.7)}to{opacity:1;transform:none}}
 .anim .dn-svg{animation:dnIn .8s cubic-bezier(.2,.8,.2,1) .15s both}
 @media (prefers-reduced-motion:reduce){ .anim .dn-svg{animation:none} }
+/* team presence: the dashboard strip and the status in the team list */
+.dteam{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:6px 0 8px}
+.dteam[hidden]{display:none}
+.dt-lbl{font-size:13px;font-weight:900;color:var(--ink-2);margin-inline-end:4px}
+.dt-p{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border:1px solid var(--edge);border-radius:99px;background:var(--panel);font-size:13px}
+.dt-p i{width:9px;height:9px;border-radius:50%;background:var(--ink-3);flex:none}
+.dt-p b{font-weight:800;color:var(--ink)}
+.dt-p small{color:var(--ink-3);font-size:11.5px}
+.dt-p.st-on{border-color:var(--c-visit);background:var(--c-visit-bg)}
+.dt-p.st-on i{background:#22c55e;box-shadow:0 0 0 3px color-mix(in srgb,#22c55e 30%,transparent);animation:pulseOn 2s infinite}
+.dt-p.st-inv i{background:var(--c-flood)} .dt-p.st-new i{background:transparent;border:1.5px dashed var(--ink-3)}
+.dt-p.st-inv,.dt-p.st-new{opacity:.8}
+@keyframes pulseOn{50%{box-shadow:0 0 0 6px transparent}}
+@media (prefers-reduced-motion:reduce){ .dt-p.st-on i{animation:none} }
+.cm-sum{font-size:13px;font-weight:800;color:var(--ink-2);margin:6px 0 8px}
+.cm-st{display:block;font-size:12px;font-weight:800;margin-top:2px}
+.cm-st.st-on{color:var(--c-visit)} .cm-st.st-on::before{content:"● "}
+.cm-st.st-was{color:var(--ink-2)} .cm-st.st-inv{color:var(--c-flood)} .cm-st.st-new{color:var(--ink-3)}
