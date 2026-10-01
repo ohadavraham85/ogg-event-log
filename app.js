@@ -1833,7 +1833,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.20", APP_DATE="01/10/2026";
+const APP_VER="2.21", APP_DATE="01/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2844,5 +2844,18 @@ $("#liteToggle").onclick=()=>{ try{ localStorage.setItem("ogg-view-full", isLite
   toast(isLite() ? "תצוגת טלפון" : "תצוגה מלאה — אפשר לחזור מכאן"); };
 $("#liteTheme").onclick=()=>$("#themeBtn").click();
 $("#liteReload").onclick=()=>$("#refreshBtn").click();
+// a short vibration on every tap of a button (phones). Android: navigator.vibrate; iPhone (Safari 18+): toggling a hidden switch gives a tick
+const HAP_KEY="ogg-haptic";
+function hapOn(){ try{ return localStorage.getItem(HAP_KEY)!=="0"; }catch(e){ return true; } }
+let hapSw=null;
+function haptic(){
+  if(!hapOn() || !matchMedia("(pointer:coarse)").matches) return;
+  if(navigator.vibrate){ try{ navigator.vibrate(12); }catch(e){} return; }
+  if(!hapSw){ hapSw=mk("label"); hapSw.setAttribute("aria-hidden","true"); hapSw.style.cssText="position:fixed;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none;inset-inline-start:-9px;top:0";
+    const i=document.createElement("input"); i.type="checkbox"; i.setAttribute("switch",""); i.tabIndex=-1; hapSw.appendChild(i); document.body.appendChild(hapSw); }
+  hapSw.click();
+}
+document.addEventListener("click",ev=>{ if(ev.isTrusted && ev.target.closest && ev.target.closest("button,.btn,[role=tab],summary,.seg button,.dt-tile,.kpi,.tk-tag,input[type=checkbox],input[type=radio]") && !(hapSw && hapSw.contains(ev.target))) haptic(); },true);
+if($("#hapOn")){ $("#hapOn").checked=hapOn(); $("#hapOn").onchange=e=>{ try{ localStorage.setItem(HAP_KEY,e.target.checked?"1":"0"); }catch(_){} if(e.target.checked) haptic(); }; }
 setTimeout(weeklyCheck,1500);
 if(DEEP_OPEN) goList({stat:OPEN_ANY});

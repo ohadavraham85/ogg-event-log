@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;900&family=Rubik:wght@500;600;700&family=Assistant:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=2.20">
+<link rel="stylesheet" href="style.css?v=2.21">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0E7C86">
 <meta name="color-scheme" content="light dark">
@@ -112,7 +112,7 @@
       <img class="logo" src="icons/logo-header.png" alt="מבט&quot;י — מפעלי ביוב וטיהור ירושלים" width="101" height="137">
       <div class="mark">יומן אירועים ומשימות <span class="sub">מט"ש אוג</span></div>
       <div class="clock" id="clock" aria-live="off"><span class="c-hello" id="cHello" hidden></span><span class="c-day" id="cDay"></span><span class="c-date" id="cDate"></span><b class="c-time" id="cTime"></b></div>
-      <span class="ver" id="verChip" title="גרסה">v2.20</span>
+      <span class="ver" id="verChip" title="גרסה">v2.21</span>
       <button class="icon-btn inbox-btn" id="inboxBtn" aria-label="הודעות" title="הודעות" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm7-6V11a7 7 0 0 0-5.5-6.84V3.5a1.5 1.5 0 0 0-3 0v.66A7 7 0 0 0 5 11v5l-2 2v1h18v-1z" fill="currentColor"/></svg><span class="newcnt" id="inboxN" hidden></span></button>
       <button class="icon-btn" id="refreshBtn" aria-label="רענון" title="רענון — טעינה מחדש ובדיקת עדכון"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M20.5 3.5v5h-5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       <button class="icon-btn" id="themeBtn" aria-label="מצב תצוגה">☾</button>
@@ -284,6 +284,7 @@
     <div class="card tk-form" id="tkForm" hidden>
       <h3 id="tkFormTitle">משימה חדשה</h3>
       <label class="tk-f tk-title-f"><span>כותרת המשימה <i class="req">*</i></span><input id="tkTitle" maxlength="200" autocomplete="off" placeholder="מה צריך לעשות — בקצרה"></label>
+      <div class="tk-f tk-depts-f"><span>הקצאה למחלקות (אפשר כמה) — משתמש או מחלקה <i class="req">*</i></span><div class="tk-depts" id="tkDepts"></div></div>
       <div class="tk-grid tk-sels">
         <label class="tk-f"><span>סוג <i class="req">*</i></span><select id="tkType"></select></label>
         <label class="tk-f"><span>עדיפות <i class="req">*</i></span><select id="tkPrio" class="prio-sel"></select></label>
@@ -299,7 +300,6 @@
         <div class="tk-f tk-ppl-f"><span>הקצאה למשתמשים (הראשון = אחראי ★) <i class="req">*</i></span><select id="tkPpl" aria-label="הוסף משתמש למשימה"></select><div class="pchips" id="tkPplChips" hidden></div></div>
         <label class="tk-f"><span>מיקום <i class="req">*</i></span><select id="tkLoc"></select></label>
         <label class="tk-f"><span>ציוד <i class="req">*</i></span><select id="tkEq"></select></label>
-        <div class="tk-f tk-depts-f"><span>הקצאה למחלקות (אפשר כמה) — משתמש או מחלקה <i class="req">*</i></span><div class="tk-depts" id="tkDepts"></div></div>
       </div>
       <label class="tk-f"><span>פרטים</span><textarea id="tkDesc" rows="3"></textarea></label>
       <div class="tk-f" id="tkCkWrap"><span>רשימת בדיקה (לא חובה)</span><div class="tk-check tk-ck-form" id="tkCk"></div></div>
@@ -345,6 +345,7 @@
       <p>בטלפון מוצג רק מה שצריך בשטח: רישום, מעקב ועדכון. ייצוא, גרפים, ניהול רשימות, קבצים וניהול הצוות — במחשב, או כאן בתצוגה מלאה.</p>
       <div class="row"><button class="btn" id="liteToggle" type="button">עבור לתצוגה מלאה</button>
         <button class="btn" id="liteTheme" type="button">☾ בהיר / כהה</button><button class="btn" id="liteReload" type="button">↻ רענון ובדיקת עדכון</button></div>
+      <label class="tk-chk"><input type="checkbox" id="hapOn"> רטט קל בלחיצה על כפתור</label>
     </div>
     <div class="card" data-sg="general">
       <h3>ערכת צבעים</h3>
@@ -403,7 +404,7 @@
 
     <div class="card" data-sg="general">
       <h3>גרסה</h3>
-      <p id="verLine">גרסה 2.20 · 01/10/2026</p>
+      <p id="verLine">גרסה 2.21 · 01/10/2026</p>
       <div class="row"><button class="btn" id="reloadApp">בדוק עדכון</button></div>
     </div>
 
@@ -526,9 +527,9 @@
     <button class="btn ghost" id="wkClose" hidden>סגור</button></div>
 </dialog>
 
-<script src="firebase-config.js?v=2.20"></script>
-<script src="app.js?v=2.20"></script>
-<script src="cloud.js?v=2.20"></script>
+<script src="firebase-config.js?v=2.21"></script>
+<script src="app.js?v=2.21"></script>
+<script src="cloud.js?v=2.21"></script>
 <script>
 if("serviceWorker" in navigator){
   window.addEventListener("load",()=>{ navigator.serviceWorker.register("sw.js").catch(()=>{}); });
