@@ -1833,7 +1833,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.25", APP_DATE="01/10/2026";
+const APP_VER="2.26", APP_DATE="01/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2168,6 +2168,21 @@ function colorSelect(el, hue){                            // a chosen value gets
   el.style.borderColor = hue ? "var(--c-"+hue+")" : ""; el.style.fontWeight = hue ? "800" : "";
 }
 function paintFormColors(){ colorSelect($("#tkPrio"), PRIO_HUE[$("#tkPrio").value]); colorSelect($("#tkType"), $("#tkType").value ? hueOf($("#tkType").value) : ""); }
+// (tkInDept: a task belongs to a department if it was assigned to it, or to someone in it — defined with the calendar)
+// managers: a row of departments above the list; it opens on the manager's own department
+let tkDeptInit=false;
+function paintDeptSeg(){
+  const box=$("#tkDeptSeg"), ds=allDepts(), on=isManager() && ds.length>0;
+  box.hidden=!on; if(!on) return;
+  if(!tkDeptInit && myDept() && ds.includes(myDept())){ tkDeptInit=true; tkF.dept=myDept(); }
+  const base=tkVis().filter(t=> tkView==="done" ? !tkOpen(t) : tkOpen(t) && (tkView!=="mine" || isMine(t)) && (tkView!=="opened" || openedByMe(t)));
+  box.textContent="";
+  [["", "כל המחלקות", base.length]].concat(ds.map(d=>[d, d, base.filter(t=>tkInDept(t,d)).length])).forEach(([v,label,n])=>{
+    const b=mk("button"); b.type="button"; b.setAttribute("aria-pressed",String(tkF.dept===v));
+    b.append(label+" "); b.appendChild(mk("span","seg-n",nf(n)));
+    b.onclick=()=>{ tkF.dept=v; renderTasks(); }; box.appendChild(b);
+  });
+}
 function renderTkFilters(){
   fillSelect($("#tfPpl"), pplValues(), tkF.ppl, "כל האחראים");
   fillSelect($("#tfDept"), allDepts(), tkF.dept, "כל המחלקות"); $("#tfDept").hidden=!allDepts().length;
@@ -2178,7 +2193,8 @@ function renderTkFilters(){
   colorSelect($("#tfPrio"), PRIO_HUE[tkF.prio]); colorSelect($("#tfType"), tkF.type ? hueOf(tkF.type) : "");
   ["#tfPpl","#tfLoc","#tfType"].forEach(id=>$(id).classList.toggle("on",!!$(id).value));
   // like the events list: search + "סינון" (a panel), the badge counts the filters that are on
-  const nOn=["ppl","loc","type","prio","dept","late"].filter(k=>tkF[k]).length;
+  paintDeptSeg(); $("#tfDept").hidden = $("#tfDept").hidden || !$("#tkDeptSeg").hidden;   // managers pick the department in the row above
+  const nOn=["ppl","loc","type","prio",$("#tkDeptSeg").hidden?"dept":"","late"].filter(k=>k && tkF[k]).length;
   $("#tfBadge").textContent = nOn ? String(nOn) : "";
   $("#tfLate").setAttribute("aria-pressed",String(!!tkF.late));
   if($("#tq").value!==tkF.q) $("#tq").value=tkF.q;
@@ -2426,7 +2442,7 @@ function renderTasks(){
   const today=ymd(new Date());
   const pass=t=>(!tkF.ppl || (t.ppl||[]).includes(tkF.ppl)) && (!tkF.loc || (t.loc||[]).includes(tkF.loc))
              && (!tkF.type || t.type===tkF.type) && (!tkF.prio || prioOf(t)===tkF.prio)
-             && (!tkF.late || (t.due && t.due<today)) && (!tkF.dept || (t.depts||[]).includes(tkF.dept))
+             && (!tkF.late || (t.due && t.due<today)) && (!tkF.dept || tkInDept(t,tkF.dept))
              && (!tkF.q || tkText(t).includes(tkF.q.trim().toLowerCase()));
   const rows = (tkView!=="done"
     ? tkVis().filter(t=>tkOpen(t) && (tkView!=="mine" || isMine(t)) && (tkView!=="opened" || openedByMe(t))).sort((a,b)=>{
