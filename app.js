@@ -1686,7 +1686,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.04", APP_DATE="01/10/2026";
+const APP_VER="2.05", APP_DATE="01/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2246,27 +2246,29 @@ function renderTasks(){
     { const tt=mk("div","tk-t"); if(t.no) tt.appendChild(mk("span","sn","#"+t.no)); tt.append(t.title||"(ללא כותרת)");
       (t.eq||[]).forEach(q=>{ const g=mk("span","tk-eqtag","⚙ "+q); g.title="ציוד"; tt.appendChild(g); });   // the equipment, right by the title
       c.appendChild(tt); }
-    const tags=mk("div","tk-tags"), tag=(txt,cls,hue)=>{ const x=mk("span","tk-tag"+(cls?" "+cls:""),txt);
-      if(hue){ x.style.background="var(--c-"+hue+"-bg)"; x.style.color="var(--c-"+hue+")"; x.style.borderColor="transparent"; } tags.appendChild(x); };
+    // tags sit in fixed slots, so in "רשימה" every kind lines up in its own column (in "אריחים" the slots just flow)
+    const tags=mk("div","tk-tags"), SL={}; ["who","dept","prio","type","stat","extra","due"].forEach(k=>{ SL[k]=mk("span","sl sl-"+k); tags.appendChild(SL[k]); });
+    const tag=(txt,cls,hue,slot)=>{ const x=mk("span","tk-tag"+(cls?" "+cls:""),txt);
+      if(hue){ x.style.background="var(--c-"+hue+"-bg)"; x.style.color="var(--c-"+hue+")"; x.style.borderColor="transparent"; } SL[slot||"extra"].appendChild(x); };
     if(tkOpen(t)){
-      if(tkIsNew(t)){ tag("✨ חדשה","new"); if(!$("#viewTasks").hidden) tkShownNew.add(t.id); }
-      if(isMine(t)) tag((t.ppl||[]).includes(myName()) ? "שלי" : "המחלקה שלי","me");
-      else if(openedByMe(t)) tag("פתחתי","me");
-      (t.depts||[]).forEach(d=>tag("🏢 "+d,"dept"));
-      if(pr!=="רגילה") tag(pr,"",ph);
-      if(t.type) tag(t.type,"",hueOf(t.type));
-      if(t.status==="בטיפול") tag("בטיפול","w");
+      if(tkIsNew(t)){ tag("✨ חדשה","new",null,"who"); if(!$("#viewTasks").hidden) tkShownNew.add(t.id); }
+      if(isMine(t)) tag((t.ppl||[]).includes(myName()) ? "שלי" : "המחלקה שלי","me",null,"who");
+      else if(openedByMe(t)) tag("פתחתי","me",null,"who");
+      (t.depts||[]).forEach(d=>tag("🏢 "+d,"dept",null,"dept"));
+      if(pr!=="רגילה") tag(pr,"",ph,"prio");
+      if(t.type) tag(t.type,"",hueOf(t.type),"type");
+      if(t.status==="בטיפול") tag("בטיפול","w",null,"stat");
       if(t.rep) tag("🔁 "+repLabel(t.rep),"rep");
       { const nf_=(t.files||[]).filter(x=>x&&!x.del).length; if(nf_) tag("📎 "+nf_); }
       { const ci=(t.check||[]).filter(x=>x && !x.del); if(ci.length) tag("☑ "+ci.filter(x=>x.done).length+"/"+ci.length, ci.every(x=>x.done)?"ok":""); }
-      if(t.start && t.start>today) tag("מתחילה "+dmy(t.start).slice(0,5));
-      if(t.due) tag((t.due<today?"באיחור · ":t.due===today?"היום · ":"יעד ")+dmy(t.due).slice(0,5), t.due<today?"late":t.due===today?"today":"");
+      if(t.start && t.start>today) tag("מתחילה "+dmy(t.start).slice(0,5),"",null,"due");
+      if(t.due) tag((t.due<today?"באיחור · ":t.due===today?"היום · ":"יעד ")+dmy(t.due).slice(0,5), t.due<today?"late":t.due===today?"today":"", null, "due");
     } else {
-      tag("הושלמה "+(t.doneAt?fmtWhen(t.doneAt).slice(0,10):""),"ok");
-      if(t.type) tag(t.type,"",hueOf(t.type));
+      tag("הושלמה "+(t.doneAt?fmtWhen(t.doneAt).slice(0,10):""),"ok",null,"due");
+      if(t.type) tag(t.type,"",hueOf(t.type),"type");
       if(t.eventId && events.some(e=>e.id===t.eventId)) tag("נרשמה ביומן");
     }
-    if(tags.childElementCount) c.appendChild(tags);
+    if(tags.querySelector(".tk-tag")) c.appendChild(tags);
     const pn=n=>{ const x=[deptOf(n),roleOf(n)].filter(Boolean).join(" · "); return x?n+" ("+x+")":n; };
     const meta=[(t.ppl||[]).length ? "👤 "+(t.ppl.length>1 ? "אחראי: "+pn(t.ppl[0])+" · משויכים: "+t.ppl.slice(1).join(", ") : pn(t.ppl[0])) : "", (t.loc||[]).length?"📍 "+t.loc.join(", "):"", (t.eq||[]).length?"⚙ "+t.eq.join(", "):""].filter(Boolean).join("   ");
     if(meta) c.appendChild(mk("div","tk-m",meta));

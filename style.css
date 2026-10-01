@@ -1255,3 +1255,14 @@ small.dept{font-size:12px;font-weight:700;color:var(--c-maint);background:var(--
   background:var(--panel-2);border:1px solid var(--edge);border-radius:8px;padding:1px 8px;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
 #viewTasks.rows .tk:not(.x) .tk-t{display:flex;align-items:center;gap:0;flex-wrap:nowrap}
 #viewTasks.rows .tk:not(.x) .tk-eqtag{flex:none}
+/* task tags in fixed slots: cards — they flow; "רשימה" on a wide screen — one column per kind, aligned row to row */
+.tk-tags .sl{display:contents}
+@media (min-width:900px){
+  #viewTasks.rows .tk:not(.x){display:grid;align-items:center;gap:6px 8px;
+    grid-template-columns:minmax(160px,2.4fr) 70px 104px 70px 116px 66px minmax(90px,1fr) 126px minmax(100px,1.3fr)}
+  #viewTasks.rows .tk:not(.x) .tk-tags{display:contents}
+  #viewTasks.rows .tk:not(.x) .tk-tags .sl{display:flex;gap:4px;min-width:0;flex-wrap:wrap;align-content:center}
+  #viewTasks.rows .tk:not(.x) .tk-tags .sl .tk-tag{flex:none;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #viewTasks.rows .tk:not(.x) .tk-t{min-width:0;overflow:hidden}
+  #viewTasks.rows .tk:not(.x) .tk-m{margin:0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+}
