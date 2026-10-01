@@ -1856,7 +1856,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.31", APP_DATE="01/10/2026";
+const APP_VER="2.32", APP_DATE="01/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -3031,7 +3031,7 @@ function tourAuto(){                           // the first time on this device:
 function openFlow(which){
   const d=$("#dlgFlow"); if(which) flowTab(which); if(!d.open) d.showModal();
 }
-function flowTab(w){ document.querySelectorAll("#dlgFlow [data-fl]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.fl===w))); $("#flowEv").hidden=w!=="ev"; $("#flowTk").hidden=w!=="tk"; }
+function flowTab(w){ document.querySelectorAll("#dlgFlow [data-fl]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.fl===w))); $("#flowEv").hidden=w!=="ev"; $("#flowTk").hidden=w!=="tk"; $(".fl-legend").hidden=w!=="tk"; }
 document.querySelectorAll("#dlgFlow [data-fl]").forEach(b=>b.onclick=()=>flowTab(b.dataset.fl));
 $("#helpBtn").onclick=()=>openFlow();
 $("#flClose").onclick=()=>$("#dlgFlow").close();

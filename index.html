@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;900&family=Rubik:wght@500;600;700&family=Assistant:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=2.31">
+<link rel="stylesheet" href="style.css?v=2.32">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0E7C86">
 <meta name="color-scheme" content="light dark">
@@ -112,7 +112,7 @@
       <img class="logo" src="icons/logo-header.png" alt="מבט&quot;י — מפעלי ביוב וטיהור ירושלים" width="101" height="137">
       <div class="mark">יומן אירועים ומשימות <span class="sub">מט"ש אוג</span></div>
       <div class="clock" id="clock" aria-live="off"><span class="c-hello" id="cHello" hidden></span><span class="c-day" id="cDay"></span><span class="c-date" id="cDate"></span><b class="c-time" id="cTime"></b></div>
-      <span class="ver" id="verChip" title="גרסה">v2.31</span>
+      <span class="ver" id="verChip" title="גרסה">v2.32</span>
       <button class="icon-btn inbox-btn" id="inboxBtn" aria-label="הודעות" title="הודעות" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm7-6V11a7 7 0 0 0-5.5-6.84V3.5a1.5 1.5 0 0 0-3 0v.66A7 7 0 0 0 5 11v5l-2 2v1h18v-1z" fill="currentColor"/></svg><span class="newcnt" id="inboxN" hidden></span></button>
       <button class="icon-btn" id="refreshBtn" aria-label="רענון" title="רענון — טעינה מחדש ובדיקת עדכון"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M20.5 3.5v5h-5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       <button class="icon-btn" id="themeBtn" aria-label="מצב תצוגה">☾</button>
@@ -412,7 +412,7 @@
 
     <div class="card" data-sg="general">
       <h3>גרסה</h3>
-      <p id="verLine">גרסה 2.31 · 01/10/2026</p>
+      <p id="verLine">גרסה 2.32 · 01/10/2026</p>
       <div class="row"><button class="btn" id="reloadApp">בדוק עדכון</button></div>
     </div>
 
@@ -479,9 +479,25 @@
 <dialog id="dlgFlow" aria-labelledby="flTitle">
   <h3 id="flTitle" tabindex="-1">איך זה עובד</h3>
   <div class="row fl-top"><button class="btn primary" id="tourStart" type="button">▶ הדרכה צעד אחר צעד</button></div>
-  <div class="seg fl-seg" role="group" aria-label="איזה תהליך"><button type="button" data-fl="ev" aria-pressed="true">רישום אירוע</button><button type="button" data-fl="tk" aria-pressed="false">משימה</button></div>
-  <p class="hint fl-hint">★ = שדה חובה. לחיצה על "הדרכה" מראה את הכפתורים עצמם על המסך.</p>
-  <div class="flow" id="flowEv">
+  <div class="seg fl-seg" role="group" aria-label="איזה תהליך"><button type="button" data-fl="tk" aria-pressed="true">ממשימה לאירוע</button><button type="button" data-fl="ev" aria-pressed="false">רישום אירוע ישיר</button></div>
+  <div class="fl-legend"><span class="fl-who fl-mgr">מנהל / מי שפתח</span><span class="fl-who fl-wkr">האחראי במשימה</span><span class="fl-who fl-sys">המערכת — לבד</span></div>
+  <ol class="tline" id="flowTk">
+    <li class="tl-st"><span class="tl-pill">משימה חדשה</span></li>
+    <li class="fl-mgr"><b>1 · פותחים משימה</b><span>משימות ← ＋ חדש: כותרת, הקצאה למחלקה או לעובדים (הראשון — האחראי ★), עדיפות ותאריך יעד ← שמור</span></li>
+    <li class="fl-sys"><b>2 · המשימה נשלחת</b><span>מקבלת מספר (#). כל מי שהוקצה — והמחלקה — מקבל הודעה 🔔, והמשימה מופיעה אצלו ב"המשימות שלי" מסומנת ✨ חדשה</span></li>
+    <li class="fl-wkr"><b>3 · האחראי מקבל</b><span>פותח את ההודעה או את "המשימות שלי" ורואה מה צריך, איפה ועד מתי</span></li>
+    <li class="tl-st"><span class="tl-pill w">בטיפול</span></li>
+    <li class="fl-wkr"><b>4 · מתחילים לעבוד</b><span>לוחצים "בטיפול" — מי שפתח את המשימה מקבל הודעה</span></li>
+    <li class="fl-wkr"><b>5 · מתעדים תוך כדי</b><span>"+ עדכון" לכל התקדמות · ☑ סימון ברשימת הבדיקה · 📷 צילום או קובץ. כל עדכון מגיע כהודעה למי שפתח</span></li>
+    <li class="fl-sys"><b>המערכת עוקבת אחרי היעד</b><span class="fl-lights"><span class="fl-l fut">בהמשך — כתום</span><span class="fl-l today">היום — ירוק</span><span class="fl-l late">עבר היעד — אדום, ונספרת ב"באיחור"</span></span></li>
+    <li class="fl-wkr"><b>6 · ✓ סיים ורשום ביומן</b><span>בחלון שנפתח: מה בוצע, סוג האירוע ומתי ← אישור</span></li>
+    <li class="tl-st"><span class="tl-pill ok">הושלמה</span></li>
+    <li class="fl-sys"><b>7 · נוצר אירוע ביומן</b><span>אירוע סגור, עם מספר משלו: הכותרת והפרטים מהמשימה, "פעולה שננקטה" = מה בוצע, ונסגר על ידי + מתי. המשימה עוברת ל"הושלמו"</span></li>
+    <li class="fl-sys fl-rep"><b>משימה מחזורית?</b><span>אם כן — נפתחת לבד המשימה הבאה עם התאריכים של הסבב הבא, וחוזרים לשלב 2</span></li>
+    <li class="tl-st"><span class="tl-pill ev">אירוע ביומן</span></li>
+    <li class="fl-final"><b>מעכשיו זה חלק מהיומן</b><span>מופיע בלשונית אירועים, נספר בדשבורד, נכנס לסיכום השבועי ולייצוא</span></li>
+  </ol>
+  <div class="flow" id="flowEv" hidden>
     <div class="fl-n fl-start">קרה משהו בשטח — תקלה, אחזקה, ביקור…</div>
     <div class="fl-a"></div>
     <div class="fl-n"><b>אירועים ← ＋ חדש</b><span>נפתח טופס רישום</span></div>
@@ -501,30 +517,6 @@
     <div class="fl-n"><b>שמור</b><span>האירוע מקבל מספר סידורי (#), נשמר ביומן ומגיע לכל הצוות</span></div>
     <div class="fl-a"></div>
     <div class="fl-n fl-end"><b>אירוע פתוח שטופל ← "סגור אירוע"</b><span>נרשם מי סגר ומתי. אפשר תמיד "פתח מחדש"</span></div>
-  </div>
-  <div class="flow" id="flowTk" hidden>
-    <div class="fl-n fl-start">יש עבודה לביצוע</div>
-    <div class="fl-a"></div>
-    <div class="fl-n"><b>משימות ← ＋ חדש</b></div>
-    <div class="fl-a"></div>
-    <div class="fl-n"><b>כותרת המשימה ★</b><span>בקצרה — מה צריך לעשות</span></div>
-    <div class="fl-a"></div>
-    <div class="fl-n"><b>הקצאה ★ — למחלקות ו/או לעובדים</b><span>העובד הראשון שנבחר הוא האחראי ★</span></div>
-    <div class="fl-a"></div>
-    <div class="fl-n"><b>סוג · עדיפות · התחלה · יעד</b><span>מחזוריות (יומית, שבועית…), מיקום, ציוד, רשימת בדיקה</span></div>
-    <div class="fl-a"></div>
-    <div class="fl-n"><b>שמור</b><span>המשימה מקבלת מספר, ומי שהוקצה מקבל הודעה 🔔</span></div>
-    <div class="fl-a"></div>
-    <div class="fl-n"><b>ביצוע</b><span>"בטיפול" · "+ עדכון" · סימון ברשימת הבדיקה · 📷 צילום או קובץ</span></div>
-    <div class="fl-lights"><span class="fl-l late">יעד עבר — אדום</span><span class="fl-l today">היום — ירוק</span><span class="fl-l fut">עתיד — כתום</span></div>
-    <div class="fl-a"></div>
-    <div class="fl-n"><b>✓ סיים ורשום ביומן</b><span>כותבים מה בוצע — נוצר אירוע סגור ביומן, עם מי סגר ומתי</span></div>
-    <div class="fl-a"></div>
-    <div class="fl-d" data-q="משימה מחזורית?"><span>משימה מחזורית?</span></div>
-    <div class="fl-split">
-      <div class="fl-br"><em class="fl-yes">כן</em><div class="fl-n fl-ok"><b>נפתחת לבד המשימה הבאה</b><span>עם התאריכים של הסבב הבא</span></div></div>
-      <div class="fl-br"><em class="fl-no">לא</em><div class="fl-n fl-end"><b>המשימה עוברת ל"הושלמו"</b></div></div>
-    </div>
   </div>
   <div class="row"><button class="btn" id="flClose" type="button">סגור</button></div>
 </dialog>
@@ -588,9 +580,9 @@
     <button class="btn ghost" id="wkClose" hidden>סגור</button></div>
 </dialog>
 
-<script src="firebase-config.js?v=2.31"></script>
-<script src="app.js?v=2.31"></script>
-<script src="cloud.js?v=2.31"></script>
+<script src="firebase-config.js?v=2.32"></script>
+<script src="app.js?v=2.32"></script>
+<script src="cloud.js?v=2.32"></script>
 <script>
 if("serviceWorker" in navigator){
   window.addEventListener("load",()=>{ navigator.serviceWorker.register("sw.js").catch(()=>{}); });
