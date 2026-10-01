@@ -498,6 +498,29 @@
       };
       r.appendChild(nb);
       if(m.email!==me){
+        // change the e-mail: the member moves to the new address with the same name and role (the old one can no longer sign in);
+        // their own chosen name and "opened by" / update-log marks on tasks move with them
+        const eb=mk("button","btn mini","מייל"); eb.type="button";
+        eb.onclick=async()=>{
+          const v=(prompt("מייל חדש עבור "+(m.name||m.email)+":", m.email)||"").trim().toLowerCase(); if(!v || v===m.email) return;
+          if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)){ toast("מייל לא תקין"); return; }
+          if(members.some(x=>x.email===v)){ toast("המייל הזה כבר ברשימת הצוות"); return; }
+          if(!confirm("להחליף את המייל של "+(m.name||"איש הצוות")+"?\n"+m.email+"  ←  "+v+"\n\nהכניסה תהיה רק עם המייל החדש (צריך לשלוח לו הזמנה מחדש).")) return;
+          try{
+            const data={}; Object.keys(m).forEach(k=>{ if(k!=="email") data[k]=m[k]; });
+            await F.setDoc(F.doc(db,"members",v), Object.assign(data,{movedFrom:m.email, by:me}));
+            try{ const sn=await F.getDoc(F.doc(db,"meta","me-"+m.email));
+              if(sn.exists() && sn.data().name) await F.setDoc(F.doc(db,"meta","me-"+v),{name:sn.data().name,_upd:F.serverTimestamp(),_by:me}); }catch(e){}
+            await F.deleteDoc(F.doc(db,"members",m.email));
+            let n=0; tasks.forEach(t=>{ let ch=false;
+              if(t.openedMail===m.email){ t.openedMail=v; ch=true; }
+              (t.log||[]).forEach(l=>{ if(l && l.mail===m.email){ l.mail=v; ch=true; } });
+              if(ch) n++; });
+            if(n) saveTasks();
+            toast("המייל עודכן — שלח לו הזמנה למייל החדש"); showInvite(v);
+          }catch(e){ toast("ההחלפה נכשלה: "+(e.code||e.message||"")); }
+        };
+        r.appendChild(eb);
         const iv=mk("button","btn mini","הזמן"); iv.type="button"; iv.onclick=()=>showInvite(m.email); r.appendChild(iv);
         const x=mk("button","btn mini","הסר"); x.type="button";
         x.onclick=async()=>{ if(!await confirmDel("להסיר מהצוות?", (m.name?m.name+" · ":"")+m.email+"\nלא יוכל יותר להיכנס ליומן.")) return; try{ await F.deleteDoc(F.doc(db,"members",m.email)); }catch(e){ toast("ההסרה נכשלה"); } };
