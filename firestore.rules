@@ -1,6 +1,7 @@
 // Firestore security rules for the team log. Paste into Firebase console → Firestore → Rules → Publish.
 // Replace OWNER_EMAIL with the owner's e-mail (lower case) before publishing — keep it out of the repo.
 // Access: only signed-in users with a verified e-mail who are the owner or listed in /members.
+// Every write is stamped with the server time (_upd) and the writer (_by), so a change can't be made in someone else's name.
 rules_version = '2';
 service cloud.firestore {
   match /databases/{db}/documents {
@@ -9,35 +10,45 @@ service cloud.firestore {
     function isOwner()  { return signedIn() && myEmail() == "OWNER_EMAIL"; }
     function isMember() { return signedIn() && (isOwner() || exists(/databases/$(db)/documents/members/$(myEmail()))); }
     function isAdmin()  { return isOwner() || (isMember() && get(/databases/$(db)/documents/members/$(myEmail())).data.role == "admin"); }
+    function stamped()  { return request.resource.data._upd == request.time && request.resource.data._by == myEmail(); }
+    // deleting is "_del: true" (no hard deletes of shared data); only an admin deletes, and only an admin brings one back
+    function delOk()    { return request.resource.data.get('_del', false) != true || isAdmin(); }
+    function undelOk()  { return resource.data.get('_del', false) != true || isAdmin(); }
 
+    // the team list and roles: everyone in the team reads it, only an admin changes it
     match /members/{email} {
       allow read: if isMember();
       allow write: if isAdmin();
     }
     match /events/{id} {
       allow read: if isMember();
-      // every write is stamped with the server time and the writer; no hard deletes (soft delete via _del)
-      // deleting (setting _del) is for admins only
-      allow create, update: if isMember()
-        && request.resource.data.id == id
-        && request.resource.data._upd == request.time
-        && request.resource.data._by == myEmail()
-        && (request.resource.data.get('_del', false) != true || isAdmin());
+      allow create: if isMember() && request.resource.data.id == id && stamped() && delOk();
+      allow update: if isMember() && request.resource.data.id == id && stamped() && delOk() && undelOk();
       allow delete: if false;
     }
-    // files attached to tasks (one document each): team members read and add; only an admin removes
+    // files attached to tasks (one document each): team members read and add; only the one who added it (or an admin) replaces it
     match /files/{id} {
       allow read: if isMember();
-      allow create, update: if isMember()
-        && request.resource.data._upd == request.time
-        && request.resource.data._by == myEmail();
+      allow create: if isMember() && stamped();
+      allow update: if isMember() && stamped() && (resource.data._by == myEmail() || isAdmin());
       allow delete: if isAdmin();
     }
+    // feedback (💬) with a screenshot: anyone in the team sends; only managers read, mark and delete
+    match /feedback/{id} {
+      allow create: if isMember() && stamped() && (request.resource.data.mail == myEmail() || isAdmin());
+      allow read, update, delete: if isAdmin();
+    }
+    // meta: lists (meta/lists), tasks (task-<id>), "who am I" (me-<mail>), presence (seen-<mail>);
+    // older feedback (fb-<id>) is only read and moved out by a manager
     match /meta/{doc} {
       allow read: if isMember();
-      // tasks (task-<id>): only an admin may mark one deleted; no hard deletes of shared data
-      allow create, update: if isMember()
-        && (!doc.matches('task-.*') || request.resource.data.get('_del', false) != true || isAdmin());
+      allow create, update: if isMember() && stamped() && (
+           doc == 'lists'
+        || (doc.matches('task-.*') && delOk() && (request.method == 'create' || undelOk()))
+        || ((doc == 'me-' + myEmail() || doc == 'seen-' + myEmail()))
+        || (doc.matches('me-.*') && isAdmin())
+        || (doc.matches('fb-.*') && isAdmin())
+      );
       allow delete: if isAdmin();
     }
   }

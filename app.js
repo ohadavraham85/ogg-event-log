@@ -1797,10 +1797,12 @@ setInterval(weeklyCheck,5*60e3);
 document.addEventListener("visibilitychange",()=>{ if(!document.hidden) setTimeout(weeklyCheck,800); });
 wkLast();
 
+// a CSV cell: quoted, and a value that starts like a formula (= + - @) gets a leading ' so Excel shows it as text instead of running it
+function csvEsc(v){ let s=String(v==null?"":v); if(/^[=+\-@\t\r]/.test(s)) s="'"+s; return '"'+s.replace(/"/g,'""')+'"'; }
 function exportCsv(rows, filtered){
   rows = rows && rows.length ? rows : events;
   const head=["מס'","תאריך","סוג","כותרת","מיקום","ציוד","תיאור אירוע","פעולה שננקטה","מעורבים","סטטוס","נסגר על ידי","מקור"];
-  const esc=v=>'"'+String(v==null?"":v).replace(/"/g,'""')+'"';
+  const esc=csvEsc;
   const body=rows.map(e=>[e.no||"",fmtWhen(e.when),(e.type||[]).join("; "),e.title||"",(e.loc||[]).join("; "),
     (e.eq||[]).join("; "),e.desc,e.act,(e.ppl||[]).join("; "),(e.stat||[]).join("; "),e.closedBy||"",
     e.src||"רישום ידני"].map(esc).join(","));
@@ -1856,7 +1858,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.32", APP_DATE="01/10/2026";
+const APP_VER="2.33", APP_DATE="01/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2335,19 +2337,24 @@ async function fileRec(m){
   if(!rec && window.cloudGetFile){ rec=await window.cloudGetFile(m.id); if(rec){ rec.up=true; try{ await fPut(m.id,rec); }catch(e){} } }
   return rec;
 }
+// files come from other devices, so the type is never taken on trust: only pictures, PDF and plain text keep theirs —
+// anything else (HTML, SVG, scripts…) becomes a plain download, so a file can't run inside the app
+function safeType(t){ t=String(t||"").toLowerCase().split(";")[0].trim();
+  return /^image\/(jpeg|png|gif|webp|heic|heif|bmp)$/.test(t) ? t : t==="application/pdf" ? t : /^text\/(plain|csv)$/.test(t) ? "text/plain" : "application/octet-stream"; }
 function dataToBlob(d){ const i=d.indexOf(","), meta=d.slice(5,i), bin=atob(d.slice(i+1)), u=new Uint8Array(bin.length);
-  for(let k=0;k<bin.length;k++) u[k]=bin.charCodeAt(k); return new Blob([u],{type:meta.split(";")[0]||"application/octet-stream"}); }
+  for(let k=0;k<bin.length;k++) u[k]=bin.charCodeAt(k); return new Blob([u],{type:safeType(meta)}); }
 async function openFile(m){
   const rec=await fileRec(m);
   if(!rec){ toast(CLOUD_ON ? "הקובץ עדיין לא זמין — הוא שמור רק במכשיר שהוסיף אותו" : "הקובץ לא נמצא במכשיר הזה"); return; }
   const url=URL.createObjectURL(dataToBlob(rec.data));
-  if(/^image\//.test(m.type)){
+  const ty=safeType(rec.data.slice(5,rec.data.indexOf(",")));
+  if(/^image\//.test(ty)){
     $("#imgView").src=url; $("#imgView").alt=m.name; $("#imgName").textContent=m.name+" · "+kb(m.size)+(m.by?" · "+m.by:"")+(m.at?" · "+fmtWhen(m.at):"");
     $("#imgDl").href=url; $("#imgDl").download=m.name; $("#dlgImg").showModal();
     $("#dlgImg").addEventListener("close",()=>setTimeout(()=>URL.revokeObjectURL(url),500),{once:true});
   } else {
     const a=document.createElement("a"); a.href=url; a.download=m.name;
-    if(/pdf|^text\//.test(m.type)){ a.target="_blank"; a.removeAttribute("download"); }
+    if(ty==="application/pdf" || ty==="text/plain"){ a.target="_blank"; a.rel="noopener"; a.removeAttribute("download"); }
     document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),60000);
   }
 }
@@ -2360,7 +2367,7 @@ function renderFiles(t, c){
   const grid=mk("div","tk-fgrid");
   fs.forEach(m=>{
     const b=mk("button","tk-file"+(m.thumb?" img":"")); b.type="button"; b.title=m.name+" · "+kb(m.size||0)+(m.by?" · "+m.by:"");
-    if(m.thumb){ const im=mk("img"); im.src=m.thumb; im.alt=m.name; im.loading="lazy"; b.appendChild(im); }
+    if(m.thumb && /^data:image\/(jpeg|png|webp);base64,/.test(m.thumb)){ const im=mk("img"); im.src=m.thumb; im.alt=m.name; im.loading="lazy"; b.appendChild(im); }
     else b.append(mk("span","tf-ic",fIcon(m)), mk("span","tf-n",m.name));
     b.onclick=()=>openFile(m);
     if(open && isManager()){ const d=mk("span","tf-del","✕"); d.setAttribute("role","button"); d.setAttribute("aria-label","הסר את "+m.name);
@@ -2443,7 +2450,7 @@ paintTkLV();
 function exportTasksCsv(rows){
   rows = rows && rows.length ? rows : tasks;
   const head=["מס'","קבצים","כותרת","סטטוס","עדיפות","סוג","אחראי","משויכים","מחלקות","מיקום","ציוד","תאריך התחלה","תאריך יעד","מחזוריות","רשימת בדיקה","תיאור","עדכונים","נפתחה","הושלמה","נסגרה על ידי","מה בוצע"];
-  const esc=v=>'"'+String(v==null?"":v).replace(/"/g,'""')+'"';
+  const esc=csvEsc;
   const body=rows.map(t=>{ const ck=(t.check||[]).filter(x=>x&&!x.del);
     return [t.no||"", (t.files||[]).filter(x=>x&&!x.del).map(x=>x.name).join("; "), t.title||"", t.status||"", prioOf(t), t.type||"", (t.ppl||[])[0]||"", (t.ppl||[]).slice(1).join("; "), (t.depts||[]).join("; "),
       (t.loc||[]).join("; "), (t.eq||[]).join("; "), dmy(t.start||""), dmy(t.due||""), t.rep?repLabel(t.rep):"",

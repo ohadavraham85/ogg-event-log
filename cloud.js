@@ -148,26 +148,35 @@
     }, ()=>{});
     beat(); watchFeedback();
   }
-  /* feedback (💬): one document each, meta/fb-<id>; managers get a message and the "משובים" list */
+  /* feedback (💬): one document each in its own collection "feedback" (feedback/<id>), which only managers can read —
+     the screenshot can show anything that was on the sender's screen. Older ones were kept in meta/fb-<id>, where every
+     team member could read them; a manager's device moves them over (copy, then delete) when it sees them. */
+  const okImg=v=>typeof v==="string" && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(v) ? v : "";
   window.cloudSendFeedback=async rec=>{ if(!started || !me) return false;
-    try{ await F.setDoc(F.doc(db,"meta","fb-"+rec.id), Object.assign({kind:"fb", mail:me, handled:false}, rec, {_upd:F.serverTimestamp(), _by:me})); return true; }catch(e){ return false; } };
-  let fbList=[], unsubFb=null;
+    try{ await F.setDoc(F.doc(db,"feedback",rec.id), Object.assign({kind:"fb", mail:me, handled:false}, rec, {_upd:F.serverTimestamp(), _by:me})); return true; }catch(e){ return false; } };
+  let fbList=[], fbNew=[], fbOld=[], unsubFb=null, unsubFbOld=null;
+  function fbMerge(){
+    fbList=fbNew.concat(fbOld).sort((a,b)=>String(b.at||"").localeCompare(String(a.at||"")));
+    const open_=fbList.filter(f=>!f.handled && f.mail!==me);
+    if(open_.length && typeof inboxAdd==="function")
+      inboxAdd(open_.map(f=>({id:"fb:fb-"+f.docId.replace(/^fb-/,""), fb:f.docId, kind:"fb", title:"משוב מ"+(f.by || String(f.mail||"").split("@")[0]), text:f.text||"(סימון על צילום המסך)", by:f.by||"", at:f.at})), false);
+    paintFeedback();
+  }
   function watchFeedback(){
     if(unsubFb || get(K_ROLE)!=="admin") return;
-    unsubFb=F.onSnapshot(F.query(F.collection(db,"meta"), F.where("kind","==","fb")), snap=>{
-      fbList=snap.docs.map(d=>({docId:d.id, ...d.data()})).sort((a,b)=>String(b.at||"").localeCompare(String(a.at||"")));
-      const open_=fbList.filter(f=>!f.handled && f.mail!==me);
-      if(open_.length && typeof inboxAdd==="function")
-        inboxAdd(open_.map(f=>({id:"fb:"+f.docId, fb:f.docId, kind:"fb", title:"משוב מ"+(f.by || String(f.mail||"").split("@")[0]), text:f.text||"(סימון על צילום המסך)", by:f.by||"", at:f.at})), false);
-      paintFeedback();
+    unsubFb=F.onSnapshot(F.collection(db,"feedback"), snap=>{ fbNew=snap.docs.map(d=>({docId:d.id, col:"feedback", ...d.data()})); fbMerge(); }, ()=>{});
+    unsubFbOld=F.onSnapshot(F.query(F.collection(db,"meta"), F.where("kind","==","fb")), snap=>{
+      fbOld=snap.docs.map(d=>({docId:d.id, col:"meta", ...d.data()})); fbMerge();
+      snap.docs.forEach(async d=>{ const x=d.data(), id=d.id.replace(/^fb-/,"");          // move to the managers-only collection
+        try{ await F.setDoc(F.doc(db,"feedback",id), Object.assign({}, x, {_upd:F.serverTimestamp(), _by:me, movedBy:me})); await F.deleteDoc(d.ref); }catch(e){} });
     }, ()=>{});
   }
   function fbShow(f){
-    $("#imgView").src=f.img||""; $("#imgView").alt="צילום מסך";
+    $("#imgView").src=okImg(f.img); $("#imgView").alt="צילום מסך";
     $("#imgName").textContent=(f.text?"“"+f.text+"” — ":"")+(f.by||f.mail||"")+" · "+(f.at?fmtWhen(f.at):"")+(f.view?" · "+f.view:"")+(f.ver?" · v"+f.ver:"")+(f.screen?" · "+f.screen:"");
-    $("#imgDl").href=f.img||""; $("#imgDl").download="משוב.jpg"; $("#dlgImg").showModal();
+    $("#imgDl").href=okImg(f.img) || "#"; $("#imgDl").download="משוב.jpg"; $("#dlgImg").showModal();
   }
-  window.openFeedback=id=>{ const f=fbList.find(x=>x.docId===id); if(f) fbShow(f); else toast("המשוב לא נמצא"); };
+  window.openFeedback=id=>{ const k=String(id||"").replace(/^fb-/,""), f=fbList.find(x=>x.docId.replace(/^fb-/,"")===k); if(f) fbShow(f); else toast("המשוב לא נמצא"); };
   function paintFeedback(){
     const box=$("#cloudFb"); if(!box) return; box.textContent="";
     const n=fbList.filter(f=>!f.handled).length;
@@ -175,15 +184,15 @@
     if(!fbList.length){ box.appendChild(mk("p","hint","עדיין אין משובים. כל אחד בצוות יכול לשלוח משוב מהכפתור 💬 בפינה — עם צילום המסך.")); return; }
     fbList.forEach(f=>{
       const r=mk("div","fb-row"+(f.handled?" done":""));
-      if(f.img){ const im=mk("img"); im.src=f.img; im.alt="צילום מסך"; im.loading="lazy"; im.onclick=()=>fbShow(f); r.appendChild(im); }
+      if(okImg(f.img)){ const im=mk("img"); im.src=okImg(f.img); im.alt="צילום מסך"; im.loading="lazy"; im.onclick=()=>fbShow(f); r.appendChild(im); }
       const body=mk("div","fb-b"); body.appendChild(mk("b",null,f.text||"(סימון על צילום המסך)"));
       body.appendChild(mk("span","fb-m",[f.by||String(f.mail||"").split("@")[0], f.at?fmtWhen(f.at):"", f.view, f.ver?"v"+f.ver:""].filter(Boolean).join(" · ")));
       const acts=mk("div","row");
       const op=mk("button","btn mini","פתח"); op.type="button"; op.onclick=()=>fbShow(f);
       const hd=mk("button","btn mini",f.handled?"החזר לפתוח":"✓ טופל"); hd.type="button";
-      hd.onclick=async()=>{ try{ await F.setDoc(F.doc(db,"meta",f.docId),{handled:!f.handled,_upd:F.serverTimestamp(),_by:me},{merge:true}); }catch(e){ toast("השמירה נכשלה"); } };
+      hd.onclick=async()=>{ try{ await F.setDoc(F.doc(db,f.col,f.docId),{handled:!f.handled,_upd:F.serverTimestamp(),_by:me},{merge:true}); }catch(e){ toast("השמירה נכשלה"); } };
       const dl=mk("button","btn mini ghost","מחק"); dl.type="button";
-      dl.onclick=async()=>{ if(!await confirmDel("למחוק את המשוב?", (f.text||"")+"\n"+(f.by||f.mail||""))) return; try{ await F.deleteDoc(F.doc(db,"meta",f.docId)); }catch(e){ toast("המחיקה נכשלה"); } };
+      dl.onclick=async()=>{ if(!await confirmDel("למחוק את המשוב?", (f.text||"")+"\n"+(f.by||f.mail||""))) return; try{ await F.deleteDoc(F.doc(db,f.col,f.docId)); }catch(e){ toast("המחיקה נכשלה"); } };
       acts.append(op,hd,dl); body.appendChild(acts); r.appendChild(body); box.appendChild(r);
     });
   }
@@ -200,7 +209,7 @@
   function stopSync(){
     initialDone=false;
     members=[]; window.TEAM_NAMES=[];
-    [unsubEv,unsubLists,unsubMembers,unsubTasks,unsubSeen,unsubFb].forEach(u=>{ if(u) u(); }); unsubEv=unsubLists=unsubMembers=unsubTasks=unsubSeen=unsubFb=null; started=false;
+    [unsubEv,unsubLists,unsubMembers,unsubTasks,unsubSeen,unsubFb,unsubFbOld].forEach(u=>{ if(u) u(); }); unsubEv=unsubLists=unsubMembers=unsubTasks=unsubSeen=unsubFb=unsubFbOld=null; started=false;
   }
   function applyEvents(snap){
     const ch=snap.docChanges();
