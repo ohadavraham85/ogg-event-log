@@ -558,6 +558,9 @@ $("#clearBtn").onclick = ()=>{ resetForm(); toast("הטופס נוקה"); };
 
 /* ================= list view ================= */
 const PAGE=60; let shown=PAGE, lastRows=[];
+// events list: months folded by their arrow (kept on this device)
+const evColl=new Set((()=>{ try{ const a=JSON.parse(localStorage.getItem("ogg-ev-coll")||"[]"); return Array.isArray(a)?a:[]; }catch(e){ return []; } })());
+function saveEvColl(){ try{ localStorage.setItem("ogg-ev-coll",JSON.stringify([...evColl])); }catch(e){} }
 
 function activeFilters(){
   return ["#fType","#fLoc","#fEq","#fPpl","#fStat","#fSrc","#fFrom","#fTo"]
@@ -619,19 +622,32 @@ function renderList(reset){
     box.appendChild(d); $("#moreRows").hidden=true; return;
   }
 
-  const slice=rows.slice(0,shown);
+  // by date: a month heading per month, each with an arrow that folds it; the arrow by the count folds them all
   let group=null;
-  const sortMode=$("#sortBy").value;
-  slice.forEach(e=>{
-    if(sortMode==="when-desc"||sortMode==="when-asc"){
-      const g=(e.when||"").slice(0,7);
+  const sortMode=$("#sortBy").value, byDate = sortMode==="when-desc"||sortMode==="when-asc";
+  const mon=e=>(e.when||"").slice(0,7), mCnt={};
+  if(byDate) rows.forEach(e=>{ const g=mon(e); mCnt[g]=(mCnt[g]||0)+1; });
+  const vis = byDate ? rows.filter(e=>!evColl.has(mon(e))) : rows;
+  const slice=vis.slice(0,shown), inSlice=new Set(slice), cut = vis.length>shown ? rows.indexOf(slice[slice.length-1]) : rows.length;
+  const ca=$("#evCollAll"); ca.hidden=!byDate;
+  if(byDate){ const all=Object.keys(mCnt).every(g=>evColl.has(g)); ca.textContent = all ? "◂ פתח הכל" : "▾ מזער הכל"; ca.setAttribute("aria-expanded",String(!all)); }
+  rows.forEach((e,i)=>{
+    if(byDate){
+      const g=mon(e), folded=evColl.has(g);
       if(g!==group){
         group=g;
-        const h=document.createElement("div"); h.className="daygap";
-        h.textContent = g ? g.slice(5)+"/"+g.slice(0,4) : "ללא תאריך";
-        box.appendChild(h);
+        if(folded ? i<=cut : inSlice.has(e)){
+          const h=mk("button","daygap"+(folded?" folded":"")); h.type="button"; h.setAttribute("aria-expanded",String(!folded));
+          h.appendChild(mk("span","dg-arr",folded?"◂":"▾"));
+          h.append(g ? g.slice(5)+"/"+g.slice(0,4) : "ללא תאריך");
+          h.appendChild(mk("span","dg-n",nf(mCnt[g])+" אירועים"));
+          h.onclick=()=>{ folded ? evColl.delete(g) : evColl.add(g); saveEvColl(); renderList(false); };
+          box.appendChild(h);
+        }
       }
+      if(folded) return;
     }
+    if(!inSlice.has(e)) return;
     const t=(e.type||[])[0]||"";
     const d=document.createElement("article"); d.className="ev"+(UNSEEN.has(e.id)?" is-new":"");
     d.style.borderInlineStartColor="var(--c-"+hueOf(t)+")";
@@ -701,9 +717,14 @@ function renderList(reset){
     if(top) d.appendChild(top); d.append(b,det,acts); box.appendChild(d);
   });
   const more=$("#moreRows");
-  more.hidden = rows.length<=shown;
-  more.textContent = "הצג עוד "+Math.min(PAGE, rows.length-shown)+" מתוך "+(rows.length-shown);
+  more.hidden = vis.length<=shown;
+  more.textContent = "הצג עוד "+Math.min(PAGE, vis.length-shown)+" מתוך "+(vis.length-shown);
 }
+$("#evCollAll").onclick=()=>{
+  const ms=[...new Set(lastRows.map(e=>(e.when||"").slice(0,7)))], all=ms.every(g=>evColl.has(g));
+  if(all) evColl.clear(); else ms.forEach(g=>evColl.add(g));
+  saveEvColl(); renderList();
+};
 $("#moreRows").onclick=()=>{ shown+=PAGE; renderList(false); };
 /* phone view ("lite"): on a narrow screen the app shows what is used in the field — record, follow, update —
    and leaves out exports, charts, sorting, list management, files and team management (still there on a
@@ -1833,7 +1854,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.26", APP_DATE="01/10/2026";
+const APP_VER="2.27", APP_DATE="01/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){

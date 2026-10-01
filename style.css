@@ -244,6 +244,15 @@ textarea{min-height:118px;resize:vertical;line-height:1.5}
 .daygap{font-size:14px;font-weight:900;color:var(--water);margin:20px 2px 9px;
   border-bottom:3px solid color-mix(in srgb,var(--water) 35%,transparent);padding-bottom:6px;
   font-variant-numeric:tabular-nums;letter-spacing:.02em}
+/* month headings fold (events list) */
+button.daygap{display:flex;align-items:center;gap:8px;width:100%;background:none;border:0;border-bottom:3px solid color-mix(in srgb,var(--water) 35%,transparent);
+  font-family:inherit;text-align:start;cursor:pointer;border-radius:0}
+button.daygap:hover{border-bottom-color:var(--water)}
+.dg-arr{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:7px;background:color-mix(in srgb,var(--water) 14%,transparent);font-size:12px;flex:none}
+.dg-n{margin-inline-start:auto;font-size:12.5px;font-weight:700;color:var(--ink-2)}
+button.daygap.folded{margin-top:8px;opacity:.85}
+.ev-coll{padding:5px 10px}
+.ev-coll[hidden]{display:none}
 .ev{background:var(--panel);border:1px solid var(--edge);border-radius:14px;padding:13px 15px;
   margin-bottom:11px;box-shadow:var(--shadow);border-inline-start:7px solid var(--c-gen)}
 .ev .top{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px}
