@@ -1043,7 +1043,10 @@ small.dept{font-size:12px;font-weight:700;color:var(--c-maint);background:var(--
 .tk-f.bad .dchip{border-color:var(--c-fault)}
 .tk-tag.dept{background:var(--c-maint-bg);color:var(--c-maint);border-color:transparent}
 #tkSeg{flex-wrap:wrap}
-.tk-dseg{flex-wrap:wrap;width:max-content;max-width:100%;margin:0 0 10px}
+.tk-dseg{flex-wrap:wrap;max-width:100%}
+/* tasks heading: the title, then the department row and the view row side by side on one line */
+#viewTasks > .dsh-head{justify-content:flex-start}
+#viewTasks > .dsh-head h2{margin-inline-end:auto}
 .tk-dseg[hidden]{display:none}
 .ci-link{display:block;direction:ltr;text-align:left;font-size:13px;font-weight:700;color:var(--water);background:var(--panel);
   border:1px dashed var(--water);border-radius:8px;padding:7px 10px;margin-bottom:8px;overflow-wrap:anywhere}
