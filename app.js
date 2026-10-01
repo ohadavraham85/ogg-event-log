@@ -1027,16 +1027,18 @@ function dashTasks(cards, from){
     // by priority: one stacked bar + legend with counts (the legend carries the labels)
     const pc={}; open.forEach(t=>{ const p=prioOf(t); pc[p]=(pc[p]||0)+1; });
     const order=PRIOS.filter(p=>pc[p]);
-    body.append(mk("div","dt-h lite-hide","פתוחות לפי עדיפות"),
-      donut(order.map(p=>({l:p, v:pc[p], color:"var(--pr"+PRIOS.indexOf(p)+")", go:()=>goTasks({f:{prio:p}})})), open.length, "פתוחות"));
+    // same colours as the priority tags: urgent red, high orange, normal blue, low grey
+    const pBox=mk("div","dn-one"); pBox.append(mk("div","dt-h lite-hide","פתוחות לפי עדיפות"),
+      donut(order.map(p=>({l:p, v:pc[p], color:"var(--c-"+PRIO_HUE[p]+")", go:()=>goTasks({f:{prio:p}})})), open.length, "פתוחות"));
     // by assignee
     const ac={}; open.forEach(t=>{ const who=(t.ppl||[])[0]||"ללא אחראי"; ac[who]=(ac[who]||0)+1; });
     const names=Object.keys(ac).sort((x,y)=>ac[y]-ac[x]), top=names.slice(0,8);
     if(names.length>8){ const rest=names.slice(8).reduce((s,n)=>s+ac[n],0); top.push("אחרים"); ac["אחרים"]=rest; }
     const items=top.map(n=>({l:n, v:ac[n], go: n==="אחרים"||n==="ללא אחראי" ? ()=>goTasks({}) : ()=>goTasks({f:{ppl:n}})}));
-    const hb=hbars(items, Math.max(...items.map(i=>i.v)), "one");
-    hb.querySelectorAll(".hbar").forEach((r,i)=>tipOn(r, nf(items[i].v)+" משימות פתוחות", items[i].l));
-    body.append(mk("div","dt-h lite-hide","פתוחות לפי אחראי"), hb);
+    const PAL=["#1B6FB8","#1C8A4E","#E07B12","#7A3FB5","#0E9AA7","#C2185B","#8D6E63","#9E9D24","#5C6B7A"];
+    items.forEach((it,i)=>it.color= it.l==="ללא אחראי"||it.l==="אחרים" ? "var(--edge)" : PAL[i%PAL.length]);
+    const aBox=mk("div","dn-one"); aBox.append(mk("div","dt-h lite-hide","פתוחות לפי אחראי"), donut(items, open.length, "פתוחות"));
+    const pair=mk("div","dn-pair"); pair.append(pBox,aBox); body.appendChild(pair);   // both as pies, side by side on a wide screen
     // needs attention now
     const hot=open.filter(t=>(t.due && t.due<=today) || prioOf(t)==="דחופה")
       .sort((x,y)=>tkSortKey(x).localeCompare(tkSortKey(y))).slice(0,5);
@@ -1854,7 +1856,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.28", APP_DATE="01/10/2026";
+const APP_VER="2.29", APP_DATE="01/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){

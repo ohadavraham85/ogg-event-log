@@ -1321,6 +1321,8 @@ small.dept{font-size:12px;font-weight:700;color:var(--c-maint);background:var(--
   #viewTasks.rows .tk:not(.x) .tk-tt{white-space:normal;overflow:visible} }
 /* donut charts (dashboard) */
 .donut{display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin:6px 0 4px}
+.dn-pair{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:4px 28px}
+.dn-one{min-width:0}
 .dn-fig{position:relative;width:150px;height:150px;flex:none}
 .dn-svg{width:100%;height:100%;display:block;overflow:visible}
 .dn-seg{transition:stroke-width .15s}
@@ -1377,7 +1379,7 @@ html.lite .clock{padding:6px 10px}
 /* dashboard: the number tiles, the tasks card (counts + "דורשות טיפול עכשיו"); no charts, filters or team strip */
 html.lite #dRange, html.lite #dPpl, html.lite #dDept, html.lite .dlay-hint, html.lite #dTeam, html.lite #dScope, html.lite #dLayReset{display:none!important}
 html.lite #dCards .dcard:not([data-t="משימות"]){display:none}
-html.lite .dcard[data-t="משימות"] .donut, html.lite .dcard[data-t="משימות"] .hbars, html.lite .dt-h.lite-hide, html.lite .dcard details.tv{display:none}
+html.lite .dcard[data-t="משימות"] .donut, html.lite .dcard[data-t="משימות"] .dn-pair, html.lite .dcard[data-t="משימות"] .hbars, html.lite .dt-h.lite-hide, html.lite .dcard details.tv{display:none}
 html.lite .kpi .ktr{display:none}
 /* dashboard, phone: tasks first, then one compact row of event numbers */
 html.lite #viewDash:not([hidden]){display:flex;flex-direction:column}
