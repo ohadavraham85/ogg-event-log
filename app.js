@@ -1856,7 +1856,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.30", APP_DATE="01/10/2026";
+const APP_VER="2.31", APP_DATE="01/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2949,5 +2949,94 @@ function haptic(){
 }
 document.addEventListener("click",ev=>{ if(ev.isTrusted && ev.target.closest && ev.target.closest("button,.btn,[role=tab],summary,.seg button,.dt-tile,.kpi,.tk-tag,input[type=checkbox],input[type=radio]") && !(hapSw && hapSw.contains(ev.target))) haptic(); },true);
 if($("#hapOn")){ $("#hapOn").checked=hapOn(); $("#hapOn").onchange=e=>{ try{ localStorage.setItem(HAP_KEY,e.target.checked?"1":"0"); }catch(_){} if(e.target.checked) haptic(); }; }
+/* ===== help: a guided tour of the controls in working order, and a flow chart of the process =====
+   The tour opens by itself the first time on a device (after the opening screen and any message window),
+   and any time from "?" in the header or settings → כללי. Steps adapt to phone/desktop and to the user's role;
+   a step whose control is not on screen is skipped. */
+const TOUR_KEY="ogg-tour-done";
+function tourSteps(){
+  const lite=isLite(), mgr=isManager(), tab=id=>()=>{ const b=$(id); if(b && b.getAttribute("aria-selected")!=="true") b.click(); };
+  return [
+    {sel:".tabs", title:"שלוש לשוניות", text:"משימות — עבודה שצריך לבצע. דשבורד — תמונת מצב. אירועים — היומן של מה שקרה בשטח."},
+    {sel: lite ? '.dcard[data-t="משימות"]' : "#dKpis", pre:tab("#tabDash"), title:"דשבורד", text: lite ? "המשימות שלך ושל המחלקה, ומתחת — האירועים הפתוחים. לחיצה על מספר פותחת את הרשימה שלו." : "המספרים של היומן. לחיצה על כרטיס פותחת את האירועים שמאחוריו."},
+    {sel:"#fabNew", pre:tab("#tabList"), title:"רישום אירוע", text:"קרה משהו? ＋ חדש. בוחרים מתי, סוג ומיקום, כותבים מה קרה (אפשר להכתיב 🎙) ושומרים. אירוע שלא טופל נשאר פתוח."},
+    {sel:"#viewList .toolbar", title:"חיפוש וסינון", text:"מחפשים מילה בתיאור, בפעולה או בציוד. \"סינון\" — לפי סוג, מיקום, סטטוס, תאריכים."},
+    {sel:"#evCollAll", title:"חודשים", text:"האירועים מסודרים לפי חודשים. החץ ליד חודש ממזער אותו, וכאן — את כולם."},
+    {sel:"#listBox .ev", title:"אירוע ברשימה", text:"\"פרטים\" מציג הכל. \"סגור אירוע\" כשהטיפול הסתיים — נרשם מי סגר ומתי. אפשר גם לפתוח מחדש."},
+    {sel:"#tkSeg", pre:tab("#tabTasks"), title:"משימות", text:"המשימות שלי — מה שהוקצה לך ולמחלקה שלך. שפתחתי — מה שאתה פתחת. פתוחות / הושלמו — הכל."},
+    mgr && {sel:"#tkDeptSeg", title:"לפי מחלקה", text:"כמנהל — בוחרים מחלקה כדי לראות רק את המשימות שלה. הרשימה נפתחת על המחלקה שלך."},
+    {sel:"#tkNewBtn", title:"משימה חדשה", text:"כותרת, הקצאה למחלקה או לעובדים (הראשון — האחראי), סוג, עדיפות ותאריכים. מי שהוקצה מקבל הודעה."},
+    {sel:"#tkList .tk", title:"משימה", text:"הפס בצד מראה את היעד: אדום — באיחור, ירוק — היום, כתום — בהמשך. \"+ עדכון\" מוסיף התקדמות, ו\"סיים ורשום ביומן\" סוגר אותה ורושם אירוע סגור ביומן."},
+    {sel:"#inboxBtn", title:"הודעות", text:"🔔 כאן מגיעות הקצאות ועדכונים במשימות שלך. החלקה ימינה מעבירה הודעה לארכיון."},
+    {sel:"#fbBtn", title:"משוב", text:"משהו לא עובד או חסר? 💬 מצלם את המסך, מסמנים עליו ושולחים למנהל."},
+    {sel:"#setBtn", title:"הגדרות", text: lite ? "בטלפון מוצג רק מה שצריך בשטח. ⚙ ← כללי ← \"עבור לתצוגה מלאה\" מציג הכל." : "ערכת צבעים, צוות וחשבון"+(mgr?", ניהול רשימות, גיבוי":"")+"."},
+    {sel:"#helpBtn", title:"זהו!", text:"ההדרכה ותרשים התהליך נמצאים תמיד כאן, ב-?.", end:true}
+  ].filter(s=>{ if(!s) return false;             // controls that are off for this user (not just on another tab) are left out, so the count is right
+    let x=document.querySelector(s.sel); if(!x) return true;
+    for(; x; x=x.parentElement) if(x.hidden && x.tagName!=="SECTION") return false;
+    return true; });
+}
+let tour=null;
+function tourEl(){
+  if($("#tourLayer")) return;
+  const L=mk("div"); L.id="tourLayer"; L.hidden=true;
+  const hole=mk("div","tour-hole"); hole.id="tourHole";
+  const box=mk("div","tour-box"); box.id="tourBox"; box.setAttribute("role","dialog"); box.setAttribute("aria-live","polite");
+  box.innerHTML='<div class="tour-n" id="tourN"></div><h4 id="tourT"></h4><p id="tourX"></p><div class="tour-btns"><button type="button" class="btn primary" id="tourNext"></button><button type="button" class="btn" id="tourPrev">הקודם</button><button type="button" class="btn ghost" id="tourSkip">דלג</button></div>';
+  L.append(hole,box); document.body.appendChild(L);
+  $("#tourNext").onclick=()=>tourGo(1); $("#tourPrev").onclick=()=>tourGo(-1); $("#tourSkip").onclick=tourEnd;
+  L.addEventListener("click",e=>{ if(e.target===L) tourGo(1); });
+  addEventListener("resize",()=>{ if(tour) tourPlace(); });
+  document.addEventListener("keydown",e=>{ if(!tour) return; if(e.key==="Escape") tourEnd(); else if(e.key==="ArrowLeft") tourGo(1); else if(e.key==="ArrowRight") tourGo(-1); });
+}
+function tourVisible(sel){ const el=document.querySelector(sel); if(!el) return null; const r=el.getBoundingClientRect(); return r.width>0 && r.height>0 && getComputedStyle(el).visibility!=="hidden" ? el : null; }
+function tourStart(){
+  document.querySelectorAll("dialog[open]").forEach(d=>d.close());
+  if(!$("#viewData").hidden) show("Dash");
+  tourEl(); tour={steps:tourSteps(), i:-1}; $("#tourLayer").hidden=false; document.documentElement.classList.add("touring"); tourGo(1);
+}
+function tourGo(d){
+  if(!tour) return; let i=tour.i;
+  for(;;){ i+=d; if(i<0) return; if(i>=tour.steps.length){ tourEnd(); return; }
+    const s=tour.steps[i]; if(s.pre) s.pre(); if(tourVisible(s.sel)) break; }
+  tour.i=i; const s=tour.steps[i], n=tour.steps.length;
+  $("#tourN").textContent=(i+1)+" / "+n; $("#tourT").textContent=s.title; $("#tourX").textContent=s.text;
+  $("#tourPrev").hidden = i===0; $("#tourNext").textContent = s.end ? "סיום" : "הבא ←";
+  if(s.end && !$("#tourFlow")){ const f=mk("button","btn","תרשים התהליך"); f.type="button"; f.id="tourFlow"; f.onclick=()=>{ tourEnd(); openFlow(); }; $("#tourBox .tour-btns").appendChild(f); }
+  if($("#tourFlow")) $("#tourFlow").hidden=!s.end;
+  const el=tourVisible(s.sel); el.scrollIntoView({block:"center",behavior:"instant"});
+  requestAnimationFrame(tourPlace);
+}
+function tourPlace(){
+  if(!tour) return; const el=tourVisible(tour.steps[tour.i].sel); if(!el) return;
+  const r=el.getBoundingClientRect(), pad=6, hole=$("#tourHole"), box=$("#tourBox"), vw=innerWidth, vh=innerHeight;
+  const top=Math.max(4,r.top-pad), left=Math.max(4,r.left-pad), w=Math.min(vw-8,r.width+pad*2), h=Math.min(vh-8,r.height+pad*2);
+  Object.assign(hole.style,{top:top+"px",left:left+"px",width:w+"px",height:h+"px"});
+  const bw=Math.min(340,vw-24); box.style.width=bw+"px";
+  const bh=box.offsetHeight, below=top+h+12, above=top-12-bh;
+  let y = below+bh<=vh-8 ? below : above>=8 ? above : Math.max(8,vh-bh-8);
+  let x = Math.min(Math.max(12, r.left+r.width/2-bw/2), vw-bw-12);
+  Object.assign(box.style,{top:y+"px",left:x+"px"});
+}
+function tourEnd(){
+  tour=null; const L=$("#tourLayer"); if(L) L.hidden=true; document.documentElement.classList.remove("touring");
+  try{ localStorage.setItem(TOUR_KEY,"1"); }catch(e){}
+}
+function tourAuto(){                           // the first time on this device: once the opening screen and any message window are gone
+  try{ if(localStorage.getItem(TOUR_KEY)) return; }catch(e){ return; }
+  let n=0; const t=setInterval(()=>{ n++;
+    const sp=$("#splash"), busy=(sp && !sp.hidden) || document.querySelector("dialog[open]");
+    if(!busy){ clearInterval(t); tourStart(); } else if(n>120) clearInterval(t); },1000);
+}
+function openFlow(which){
+  const d=$("#dlgFlow"); if(which) flowTab(which); if(!d.open) d.showModal();
+}
+function flowTab(w){ document.querySelectorAll("#dlgFlow [data-fl]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.fl===w))); $("#flowEv").hidden=w!=="ev"; $("#flowTk").hidden=w!=="tk"; }
+document.querySelectorAll("#dlgFlow [data-fl]").forEach(b=>b.onclick=()=>flowTab(b.dataset.fl));
+$("#helpBtn").onclick=()=>openFlow();
+$("#flClose").onclick=()=>$("#dlgFlow").close();
+$("#tourStart").onclick=()=>{ $("#dlgFlow").close(); tourStart(); };
+$("#tourStart2").onclick=tourStart; $("#flowOpen2").onclick=()=>openFlow();
+setTimeout(tourAuto,1500);
 setTimeout(weeklyCheck,1500);
 if(DEEP_OPEN) goList({stat:OPEN_ANY});
