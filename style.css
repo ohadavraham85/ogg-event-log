@@ -1506,26 +1506,17 @@ html.lite #viewData .card[data-sg="general"]:has(#badgeMode){display:none}
 html.lite #viewDash .ticker{order:0}
 html.lite .tk-live{padding:0 9px;font-size:12px}
 html.lite .tk-it{padding:8px 11px}
-/* ===== personal area ===== */
-.me-btn{position:relative}
-.me-btn[aria-pressed="true"]{border-color:var(--water);color:var(--water)}
-.me-btn .newcnt{top:-6px;inset-inline-end:-6px;min-width:19px;height:19px;font-size:11px;padding:0 5px;background:var(--ink-2)}
-.me-btn .newcnt.hot{background:var(--c-fault)}
-.c-hello{cursor:pointer}
-.me-hint{margin:0 2px 12px;line-height:1.55}
-.me-warn{margin:0 2px 12px;color:var(--c-flood);font-weight:700}
-.me-warn[hidden]{display:none}
-.me-add{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:12px;margin-bottom:12px}
-.me-add #meText{flex:1 1 220px;min-width:0;font:inherit;font-size:16px;padding:10px 12px;border:1px solid var(--edge);border-radius:10px;background:var(--panel);color:var(--ink)}
-.me-add #meDue{flex:0 1 160px;min-width:0;font:inherit;font-size:15px;padding:9px 10px;border:1px solid var(--edge);border-radius:10px;background:var(--panel);color:var(--ink)}
-.me-list{display:grid;gap:7px;margin-bottom:12px}
-.me-it{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--edge);border-radius:12px;padding:10px 12px;min-width:0}
-.me-it input{width:22px;height:22px;flex:none;accent-color:var(--water);cursor:pointer}
-.me-tx{flex:1;min-width:0;overflow-wrap:anywhere;font-size:15px;font-weight:700}
-.me-it.done .me-tx{text-decoration:line-through;color:var(--ink-3);font-weight:600}
-.me-it .tk-tag{flex:none}
-.me-del{flex:none;width:30px;height:30px;border-radius:99px;border:0;background:none;color:var(--ink-3);font:inherit;cursor:pointer}
-.me-del:hover{background:var(--panel-2);color:var(--c-fault)}
-.me-done summary{cursor:pointer;font-weight:800;color:var(--ink-2);margin:4px 2px 10px}
-.me-done[hidden]{display:none}
 #listBox .ev.flash{outline:3px solid var(--water);outline-offset:2px}
+/* personal (🔒) tasks in the board and the form */
+.tk-scope{margin:0 0 10px;width:max-content;max-width:100%;flex-wrap:wrap}
+.tk-scope[hidden]{display:none}
+.tk-scope-hint{margin:-2px 2px 12px;font-size:13px}
+.tk-scope-hint[hidden]{display:none}
+#tkForm.priv .tk-depts-f, #tkForm.priv .tk-ppl-f, #tkForm.priv .tk-rep-f,
+#tkForm.priv .tk-f:has(#tkType), #tkForm.priv .tk-f:has(#tkLoc), #tkForm.priv .tk-f:has(#tkEq){display:none}
+#tkForm.priv .tk-f:has(#tkPrio) .req, #tkForm.priv .tk-f:has(#tkStart) .req, #tkForm.priv .tk-f:has(#tkDue) .req{display:none}
+#tkForm.priv{border-color:color-mix(in srgb,#7A3FB5 45%,var(--edge))}
+.tk.priv{background:color-mix(in srgb,#7A3FB5 5%,var(--panel));border-style:dashed}
+.tk.priv:not([class*="tl-"]){border-inline-start-color:#7A3FB5}
+.priv-sn{background:color-mix(in srgb,#7A3FB5 14%,var(--panel));border-color:transparent}
+.tk-tag.privt{background:color-mix(in srgb,#7A3FB5 16%,var(--panel));color:#7A3FB5;font-weight:800}

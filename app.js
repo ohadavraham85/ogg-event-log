@@ -1414,11 +1414,10 @@ function show(w){
   if($("#newCnt")) paintNewCount();
   // the calendar opens from the events or the tasks list, and that tab stays lit; settings is the gear in the header
   const lit = w==="Cal" ? (calMd==="tk" ? "Tasks" : "List") : w;
-  ["New","List","Dash","Data","Tasks","Cal","Me"].forEach(v=>{
+  ["New","List","Dash","Data","Tasks","Cal"].forEach(v=>{
     $("#view"+v).hidden=(v!==w);
     const tb=$("#tab"+v); if(tb) tb.setAttribute("aria-selected",String(v===lit));
   });
-  $("#meBtn").setAttribute("aria-pressed",String(w==="Me"));
   $("#setBtn").setAttribute("aria-pressed",String(w==="Data"));
   $("#savebar").style.display = w==="New"?"block":"none";
   document.querySelector(".wrap").style.paddingBottom = w==="New"?"130px":"40px";
@@ -1859,7 +1858,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.34", APP_DATE="01/10/2026";
+const APP_VER="2.35", APP_DATE="01/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2033,7 +2032,7 @@ function tkSeenLoad(){ const k=tkSeenKey(); if(tkSeen && tkSeen.k===k) return tk
   tkSeen={k, since:d.since, ids:new Set(d.ids)}; if(!localStorage.getItem(k)) tkSeenSave(); return tkSeen; }
 function tkSeenSave(){ const S=tkSeen; if(!S) return;
   const live=new Set(tasks.map(t=>t.id)); try{ localStorage.setItem(S.k, JSON.stringify({since:S.since, ids:[...S.ids].filter(id=>live.has(id))})); }catch(e){} }
-function tkIsNew(t){ if(!tkOpen(t)) return false; const S=tkSeenLoad();
+function tkIsNew(t){ if(t.priv || !tkOpen(t)) return false; const S=tkSeenLoad();
   return !S.ids.has(t.id) && String(t.created||"")>S.since; }
 document.addEventListener("visibilitychange",()=>{ if(document.hidden && curView==="Tasks") tkMarkSeen(); });   // left the app from the list
 function tkMarkSeen(){ if(!tkShownNew.size) return; const S=tkSeenLoad(); tkShownNew.forEach(id=>S.ids.add(id)); tkShownNew.clear(); tkSeenSave(); }
@@ -2043,7 +2042,8 @@ function paintTaskCount(){
   $("#tkCnt").title = n+" פתוחות מתוך "+V.length+" משימות"; $("#tkCnt").dir="ltr";
   const m=V.filter(t=>tkOpen(t)&&isMine(t)).length, el=$("#tkMine"), o=V.filter(t=>tkOpen(t)&&openedByMe(t)).length;
   el.textContent = m ? String(m) : ""; el.title = m ? m+" משימות פתוחות שלך" : ""; el.hidden=!m;
-  const segN={open:n, done:V.length-n, mine:m, opened:o};
+  const P=typeof privTasks==="function" ? privTasks() : [], po=P.filter(tkOpen).length;          // my personal (🔒) tasks count in my views
+  const segN={open:n+po, done:V.length-n+P.length-po, mine:m+po, opened:o+po};
   document.querySelectorAll("#tkSeg button").forEach(b=>{
     const base={open:"פתוחות",done:"הושלמו",mine:"המשימות שלי",opened:"שפתחתי"}[b.dataset.v];
     b.textContent=""; b.append(base+" "); b.appendChild(mk("span","seg-n",nf(segN[b.dataset.v]||0))); });
@@ -2481,13 +2481,22 @@ function renderTasks(){
         return na ? String(b.created).localeCompare(String(a.created)) : tkCmp()(a,b); })
     : tkVis().filter(t=>!tkOpen(t)).sort((a,b)=>String(b.doneAt||"").localeCompare(String(a.doneAt||"")))), shown=rows.filter(pass);
   $("#tkResCount").textContent = shown.length===rows.length ? nf(rows.length)+" משימות" : nf(shown.length)+" מתוך "+nf(rows.length);
-  rows.length=0; rows.push(...shown); tkLastRows=shown;
+  { // personal tasks (🔒) join the board; filters that only team tasks have (person, place, type, department) leave them out
+    const pv=privTasks().filter(t=> tkView==="done" ? !tkOpen(t) : tkOpen(t));
+    const pPass=t=>!tkF.ppl && !tkF.loc && !tkF.type && !tkF.dept && (!tkF.prio || prioOf(t)===tkF.prio) && (!tkF.late || (t.due && t.due<today))
+      && (!tkF.q || [t.title,t.desc].concat(t.check.map(x=>x.text)).join(" ").toLowerCase().includes(tkF.q.trim().toLowerCase()));
+    if(pv.length){ const cmp = tkView==="done" ? (a,b)=>String(b.doneAt||"").localeCompare(String(a.doneAt||"")) : (a,b)=>{ const na=tkIsNew(a), nb=tkIsNew(b); if(na!==nb) return na ? -1 : 1; return tkCmp()(a,b); };
+      rows.push(...pv); shown.push(...pv.filter(pPass)); shown.sort(cmp);
+      $("#tkResCount").textContent = shown.length===rows.length ? nf(rows.length)+" משימות" : nf(shown.length)+" מתוך "+nf(rows.length); }
+  }
+  rows.length=0; rows.push(...shown); tkLastRows=shown.filter(t=>!t.priv);
   if(!rows.length){ box.appendChild(mk("div","tk-empty", Object.values(tkF).some(Boolean) ? "אין משימות שמתאימות לסינון." :
     tkView==="mine" ? (myName() ? "אין משימות פתוחות שלך או של המחלקה שלך." : (window.cloudMe ? "המנהל עדיין לא הגדיר לך שם בצוות." : "בחר למעלה \"אני:\" כדי לראות את המשימות שלך.")) : tkView==="opened" ? "אין משימות פתוחות שפתחת." : tkView==="open" ? "אין משימות פתוחות." : "עדיין לא הושלמו משימות.")); return; }
   // "רשימה" on a wide screen: a header row naming the columns (hidden on cards / phones by CSS)
   { const h=mk("div","tk-head"); h.setAttribute("aria-hidden","true");
     ["משימה","ציוד","שיוך","מחלקה","עדיפות","סוג","סטטוס","נוספים","תאריכים","אחראי · מיקום"].forEach(x=>h.appendChild(mk("span",null,x))); box.appendChild(h); }
   rows.forEach(t=>{
+    if(t.priv){ box.appendChild(privCard(t, today)); return; }
     const pr=prioOf(t), ph=PRIO_HUE[pr];
     const c=mk("div","tk"+(tkOpen(t)?"":" done")+(tkRowOpen.has(t.id)?" x":"")); c.dataset.id=t.id;
     // "רשימה": one compact line per task; a tap opens it in full (and closes it again)
@@ -2544,8 +2553,16 @@ function renderTasks(){
     c.appendChild(acts); box.appendChild(c);
   });
 }
+let tkScope="team", tkEditPriv=null;
+function setScope(s){ tkScope=s; $("#tkForm").classList.toggle("priv", s==="me"); $("#tkScopeHint").hidden = s!=="me";
+  document.querySelectorAll("#tkScope [data-s]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.s===s)));
+  document.querySelectorAll("#tkForm .tk-f.bad").forEach(x=>x.classList.remove("bad"));
+  $("#tkSave").textContent = s==="me" ? "שמור משימה אישית" : "שמור משימה"; }
+document.querySelectorAll("#tkScope [data-s]").forEach(b=>b.onclick=()=>setScope(b.dataset.s));
 function openTaskForm(id){
-  const t=id ? tasks.find(x=>x.id===id) : null; tkEdit=t ? t.id : null;
+  const pt = id && String(id).startsWith("p:") ? privTasks().find(x=>x.id===id) : null;
+  tkEditPriv = pt ? pt.pid : null;
+  const t=!pt && id ? tasks.find(x=>x.id===id) : null; tkEdit=t ? t.id : null;
   const types=lists.type||[], defType=types.includes("אחזקה") ? "אחזקה" : (types[0]||"");
   fillSelect($("#tkType"), byUse("type"), t ? (t.type||"") : defType, "— בחר סוג —");
   fillSelect($("#tkPrio"), PRIOS, t ? prioOf(t) : "רגילה");
@@ -2557,11 +2574,14 @@ function openTaskForm(id){
   $("#tkCkWrap").hidden=!!t; paintFormCk([]);          // new task: its checklist (an existing one is edited on the task itself)
   document.querySelectorAll("#tkForm .tk-f.bad").forEach(x=>x.classList.remove("bad"));
   paintFormColors();
-  $("#tkFormTitle").textContent = t ? "עריכת משימה" : "משימה חדשה";
+  $("#tkFormTitle").textContent = pt ? "עריכת משימה אישית 🔒" : t ? "עריכת משימה" : "משימה חדשה";
   $("#tkTitle").value=t?t.title||"":""; $("#tkDesc").value=t?t.desc||"":"";
   $("#tkDue").value=t?t.due||"":"";
+  $("#tkScope").hidden = !!(t || pt);                  // a task stays what it was (team or personal)
+  setScope(pt ? "me" : "team");
+  if(pt){ $("#tkTitle").value=pt.title; $("#tkDesc").value=pt.desc; $("#tkDue").value=pt.due; fillSelect($("#tkPrio"), PRIOS, pt.prio); paintFormColors(); $("#tkCkWrap").hidden=true; }
   setRep(t && t.rep); repAuto=false;
-  $("#tkStart").value=t ? (t.start || String(t.created||"").slice(0,10) || ymd(new Date())) : ymd(new Date());
+  $("#tkStart").value=pt ? (pt.start||"") : t ? (t.start || String(t.created||"").slice(0,10) || ymd(new Date())) : ymd(new Date());
   $("#tkDue").min=$("#tkStart").value;
   $("#tkForm").hidden=false; $("#tkNewBtn").hidden=true;
   // open with the title in view, just below the sticky header; a new task starts in the title
@@ -2635,11 +2655,24 @@ function paintDeptChips(sel){
       if(tkDeptSel.length) $("#tkPpl").closest(".tk-f").classList.remove("bad"), box.closest(".tk-f").classList.remove("bad"); };
     box.appendChild(b); });
 }
-function closeTaskForm(){ $("#tkForm").hidden=true; $("#tkNewBtn").hidden=false; tkEdit=null; }
+function closeTaskForm(){ $("#tkForm").hidden=true; $("#tkNewBtn").hidden=false; tkEdit=null; tkEditPriv=null; }
 const one=v=>v && v!=="__other" ? [v] : [];
 $("#tkNewBtn").onclick=()=>openTaskForm(null);
 $("#tkCancel").onclick=closeTaskForm;
 $("#tkSave").onclick=()=>{
+  if(tkScope==="me"){                              // personal: only a title is needed; nothing assigned, no message, no log
+    const title=$("#tkTitle").value.trim();
+    if(!title){ $("#tkTitle").closest(".tk-f").classList.add("bad"); toast("חסר: כותרת המשימה"); $("#tkTitle").focus(); return; }
+    const st=$("#tkStart").value||"", du=$("#tkDue").value||"";
+    if(st && du && st>du){ $("#tkDue").closest(".tk-f").classList.add("bad"); toast("תאריך היעד לפני תאריך ההתחלה"); return; }
+    const data={title:title.slice(0,300), desc:$("#tkDesc").value.trim(), prio:$("#tkPrio").value||"רגילה", start:st, due:du};
+    if(tkEditPriv){ meSet(tkEditPriv, data); closeTaskForm(); toast("המשימה האישית עודכנה"); return; }
+    const pend=($("#tkCk input")||{}).value; if(pend && pend.trim() && !tkCkSel.includes(pend.trim())) tkCkSel.push(pend.trim());
+    const now=new Date().toISOString(), a=meGet();
+    a.unshift(Object.assign({id:newId(), done:false, at:nowLocal(), created:now, upd:now, check:tkCkSel.map(text=>({id:newId(), text, done:false}))}, data));
+    closeTaskForm(); if(tkView==="done"){ tkView="mine"; paintTkSeg(); } mePut(a);
+    toast(window.cloudMineState==="denied" ? "נשמרה 🔒 — כרגע רק במכשיר הזה" : "המשימה האישית נשמרה 🔒 — רק אתה רואה אותה"); return;
+  }
   // all fields are required: type, priority, assignee, due date, location, equipment, and what to do
   // assignment: a person, one or more departments, or both — at least one of them
   const need=[["#tkType","סוג"],["#tkPrio","עדיפות"],["#tkStart","תאריך התחלה"],["#tkPpl","אחראי או מחלקה"],["#tkDue","תאריך יעד"],["#tkLoc","מיקום"],["#tkEq","ציוד"],["#tkTitle","כותרת המשימה"]];
@@ -2974,10 +3007,9 @@ function tourSteps(){
     {sel:"#listBox .ev", title:"אירוע ברשימה", text:"\"פרטים\" מציג הכל. \"סגור אירוע\" כשהטיפול הסתיים — נרשם מי סגר ומתי. אפשר גם לפתוח מחדש."},
     {sel:"#tkSeg", pre:tab("#tabTasks"), title:"משימות", text:"המשימות שלי — מה שהוקצה לך ולמחלקה שלך. שפתחתי — מה שאתה פתחת. פתוחות / הושלמו — הכל."},
     mgr && {sel:"#tkDeptSeg", title:"לפי מחלקה", text:"כמנהל — בוחרים מחלקה כדי לראות רק את המשימות שלה. הרשימה נפתחת על המחלקה שלך."},
-    {sel:"#tkNewBtn", title:"משימה חדשה", text:"כותרת, הקצאה למחלקה או לעובדים (הראשון — האחראי), סוג, עדיפות ותאריכים. מי שהוקצה מקבל הודעה."},
+    {sel:"#tkNewBtn", title:"משימה חדשה", text:"כותרת, הקצאה למחלקה או לעובדים (הראשון — האחראי), סוג, עדיפות ותאריכים. מי שהוקצה מקבל הודעה. בחירה ב\"🔒 אישית\" — משימה לעצמך שרק אתה רואה, בלי הקצאה ובלי רישום ביומן."},
     {sel:"#tkList .tk", title:"משימה", text:"הפס בצד מראה את היעד: אדום — באיחור, ירוק — היום, כתום — בהמשך. \"+ עדכון\" מוסיף התקדמות, ו\"סיים ורשום ביומן\" סוגר אותה ורושם אירוע סגור ביומן."},
     {sel:"#inboxBtn", title:"הודעות", text:"🔔 כאן מגיעות הקצאות ועדכונים במשימות שלך. החלקה ימינה מעבירה הודעה לארכיון."},
-    {sel:"#meBtn", title:"האזור האישי", text:"מטלות לעצמך — רק אתה רואה אותן. הן לא מנוהלות ולא נרשמות ביומן."},
     {sel:"#fbBtn", title:"משוב", text:"משהו לא עובד או חסר? 💬 מצלם את המסך, מסמנים עליו ושולחים למנהל."},
     {sel:"#setBtn", title:"הגדרות", text: lite ? "בטלפון מוצג רק מה שצריך בשטח. ⚙ ← כללי ← \"עבור לתצוגה מלאה\" מציג הכל." : "ערכת צבעים, צוות וחשבון"+(mgr?", ניהול רשימות, גיבוי":"")+"."},
     {sel:"#helpBtn", title:"זהו!", text:"ההדרכה ותרשים התהליך נמצאים תמיד כאן, ב-?.", end:true}
@@ -3105,38 +3137,50 @@ window.meApply=remote=>{                          // merge my other devices' cop
   if(!changed) paintMe2();
 };
 function meSet(id, patch){ const a=meGet(), x=a.find(m=>m.id===id); if(!x) return; Object.assign(x, patch, {upd:new Date().toISOString()}); mePut(a); }
-function paintMe2(){
-  const open_=meGet().filter(x=>!x.del && !x.done), today=ymd(new Date());
-  const n=$("#meN"), due=open_.filter(x=>x.due && x.due<=today).length;
-  n.textContent = open_.length>99 ? "99+" : String(open_.length); n.hidden=!open_.length; n.classList.toggle("hot", !!due);
-  if($("#viewMe").hidden) return;
-  const w=$("#meWarn"); w.hidden = window.cloudMineState!=="denied";
-  w.textContent="המטלות נשמרות כרגע רק במכשיר הזה — כדי שיעברו גם למכשירים האחרים שלך, המנהל צריך לפרסם את כללי האבטחה המעודכנים.";
-  const all=meGet().filter(x=>!x.del), op=all.filter(x=>!x.done).sort((a,b)=>String(a.due||"9").localeCompare(String(b.due||"9")) || String(b.at).localeCompare(String(a.at))),
-        dn=all.filter(x=>x.done).sort((a,b)=>String(b.doneAt||"").localeCompare(String(a.doneAt||"")));
-  const row=x=>{ const r=mk("div","me-it"+(x.done?" done":""));
-    const c=mk("input"); c.type="checkbox"; c.checked=!!x.done; c.setAttribute("aria-label", x.done?"החזר לפתוחות":"סמן שבוצע");
-    c.onchange=()=>meSet(x.id, {done:c.checked, doneAt:c.checked?nowLocal():""});
-    const tx=mk("span","me-tx",x.text); tx.title="לחיצה כפולה — עריכה";
-    tx.ondblclick=()=>{ const v=prompt("עריכת המטלה",x.text); if(v!=null && v.trim()) meSet(x.id,{text:v.trim().slice(0,300)}); };
-    r.append(c,tx);
-    if(x.due){ const st = x.done ? "" : x.due<today ? "late" : x.due===today ? "today" : "future";
-      r.appendChild(mk("span","tk-tag "+st,(st==="late"?"באיחור · ":st==="today"?"היום · ":"עד ")+dmy(x.due).slice(0,5))); }
-    const del=mk("button","me-del","✕"); del.type="button"; del.setAttribute("aria-label","מחק"); del.title="מחק";
-    del.onclick=()=>meSet(x.id,{del:true}); r.appendChild(del); return r; };
-  const L=$("#meList"); L.textContent="";
-  if(!op.length) L.appendChild(mk("div","tk-empty", dn.length ? "הכל בוצע 👍" : "עדיין אין מטלות. כתוב למעלה מה לזכור ולחץ \"הוסף\"."));
-  op.forEach(x=>L.appendChild(row(x)));
-  $("#meDoneBox").hidden=!dn.length; $("#meDoneSum").textContent="בוצעו ("+dn.length+")";
-  const D=$("#meDone"); D.textContent=""; dn.forEach(x=>D.appendChild(row(x)));
+/* personal tasks live in the tasks board, marked 🔒 (only their owner sees them; never assigned, never written to the log) */
+function privTasks(){
+  return meGet().filter(x=>!x.del).map(x=>({priv:true, id:"p:"+x.id, pid:x.id, title:x.title||x.text||"", desc:x.desc||"", prio:x.prio||"רגילה",
+    start:x.start||"", due:x.due||"", check:(x.check||[]).filter(c=>c && !c.del), status:x.done?"הושלמה":"פתוחה", doneAt:x.doneAt||"",
+    created:x.created||x.upd||"", upd:x.upd||""}));
 }
+function paintMe2(){ if(typeof renderTasks==="function") renderTasks(); }
 window.paintMe2=paintMe2;
-$("#meForm").onsubmit=ev=>{ ev.preventDefault(); const t=$("#meText").value.trim(); if(!t) return;
-  const a=meGet(); a.unshift({id:newId(), text:t.slice(0,300), due:$("#meDue").value||"", done:false, at:nowLocal(), upd:new Date().toISOString()});
-  $("#meText").value=""; $("#meDue").value=""; mePut(a); $("#meText").focus(); };
-$("#meClear").onclick=()=>{ const a=meGet(), u=new Date().toISOString(); a.forEach(x=>{ if(x.done && !x.del){ x.del=true; x.upd=u; } }); mePut(a); };
-$("#meBtn").onclick=()=>{ show("Me"); paintMe2(); window.scrollTo({top:0}); };
-if($("#cHello")){ $("#cHello").style.cursor="pointer"; $("#cHello").title="האזור האישי שלי"; $("#cHello").onclick=()=>$("#meBtn").click(); }
-paintMe2();
+function privCard(t, today){
+  const c=mk("div","tk priv"+(tkOpen(t)?"":" done")+(tkRowOpen.has(t.id)?" x":"")); c.dataset.id=t.id;
+  c.addEventListener("click",ev=>{ if(tkLV!=="rows" || ev.target.closest("button,input,textarea,select,a,label,.tk-check")) return;
+    tkRowOpen.has(t.id) ? tkRowOpen.delete(t.id) : tkRowOpen.add(t.id); c.classList.toggle("x"); });
+  if(tkOpen(t) && t.due) c.classList.add(t.due<today?"tl-late":t.due===today?"tl-today":"tl-future");
+  const tt=mk("div","tk-t"), lk=mk("span","sn priv-sn","🔒"); lk.title="משימה אישית — רק אתה רואה אותה"; tt.append(lk, mk("span","tk-tt",t.title||"(ללא כותרת)")); c.appendChild(tt);
+  const tags=mk("div","tk-tags"), SL={}; ["eq","who","dept","prio","type","stat","extra","due"].forEach(k=>{ SL[k]=mk("span","sl sl-"+k); tags.appendChild(SL[k]); });
+  const tag=(txt,cls,hue,slot)=>{ const x=mk("span","tk-tag"+(cls?" "+cls:""),txt); if(hue){ x.style.background="var(--c-"+hue+"-bg)"; x.style.color="var(--c-"+hue+")"; } SL[slot||"extra"].appendChild(x); };
+  tag("אישית","privt",null,"who");
+  if(tkOpen(t)){
+    const pr=prioOf(t); if(pr!=="רגילה") tag(pr,"",PRIO_HUE[pr],"prio");
+    if(t.check.length) tag("☑ "+t.check.filter(x=>x.done).length+"/"+t.check.length, t.check.every(x=>x.done)?"ok":"");
+    if(t.start && t.start>today) tag("מתחילה "+dmy(t.start).slice(0,5),"",null,"due");
+    if(t.due) tag((t.due<today?"באיחור · ":t.due===today?"היום · ":"יעד ")+dmy(t.due).slice(0,5), t.due<today?"late":t.due===today?"today":"future", null, "due");
+  } else tag("בוצעה"+(t.doneAt?" "+fmtWhen(t.doneAt).slice(0,5):""),"ok",null,"due");
+  c.appendChild(tags);
+  c.appendChild(mk("div","tk-m","רק לי · לא נרשם ביומן"));
+  if(t.desc) c.appendChild(mk("p","tk-d",t.desc));
+  const upd=patch=>meSet(t.pid, patch);
+  if(t.check.length){
+    const box=mk("div","tk-check"), done=t.check.filter(x=>x.done).length;
+    box.appendChild(mk("div","tk-check-h","רשימת בדיקה ("+done+" מתוך "+t.check.length+")"));
+    t.check.forEach(it=>{ const r=mk("div","ck"+(it.done?" done":"")), b=mk("button","ck-box"); b.type="button"; b.setAttribute("role","checkbox"); b.setAttribute("aria-checked",String(!!it.done)); b.setAttribute("aria-label",it.text);
+      b.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12.5l4 4 8-9" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      b.onclick=()=>{ const x=meGet().find(m=>m.id===t.pid); if(!x) return; (x.check||[]).forEach(cc=>{ if(cc.id===it.id) cc.done=!cc.done; }); upd({check:x.check}); };
+      const tx=mk("span","ck-t",it.text); tx.onclick=()=>b.click(); r.append(b,tx); box.appendChild(r); });
+    c.appendChild(box);
+  }
+  const acts=mk("div","tk-acts row");
+  if(tkOpen(t)){ const ok=mk("button","btn primary","✓ בוצע"); ok.type="button"; ok.onclick=()=>{ upd({done:true, doneAt:nowLocal()}); toast("סומנה כבוצעה — לא נרשם ביומן"); }; acts.appendChild(ok);
+    const ed=mk("button","btn","ערוך"); ed.type="button"; ed.onclick=()=>openTaskForm(t.id); acts.appendChild(ed); }
+  else { const bk=mk("button","btn","↩ החזר לפתוחות"); bk.type="button"; bk.onclick=()=>upd({done:false, doneAt:""}); acts.appendChild(bk); }
+  const del=mk("button","btn ghost","מחק"); del.type="button"; del.onclick=()=>{ if(!confirm("למחוק את המשימה האישית?\n"+t.title)) return; upd({del:true}); toast("המשימה האישית נמחקה"); };   // my own: I delete it (not the managers-only delete)
+  acts.appendChild(del); c.appendChild(acts);
+  return c;
+}
+if($("#cHello")){ $("#cHello").style.cursor="pointer"; $("#cHello").title="המשימות שלי"; $("#cHello").onclick=()=>{ tkView="mine"; paintTkSeg(); renderTasks(); show("Tasks"); window.scrollTo({top:0}); }; }
 setTimeout(weeklyCheck,1500);
 if(DEEP_OPEN) goList({stat:OPEN_ANY});
