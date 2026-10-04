@@ -10,6 +10,9 @@ service cloud.firestore {
     function isOwner()  { return signedIn() && myEmail() == "OWNER_EMAIL"; }
     function isMember() { return signedIn() && (isOwner() || exists(/databases/$(db)/documents/members/$(myEmail()))); }
     function isAdmin()  { return isOwner() || (isMember() && get(/databases/$(db)/documents/members/$(myEmail())).data.role == "admin"); }
+    // "צופה" (the office screen): reads like a team member, writes nothing
+    function isViewer() { return !isOwner() && isMember() && get(/databases/$(db)/documents/members/$(myEmail())).data.role == "viewer"; }
+    function canWrite() { return isMember() && !isViewer(); }
     function stamped()  { return request.resource.data._upd == request.time && request.resource.data._by == myEmail(); }
     // deleting is "_del: true" (no hard deletes of shared data); only an admin deletes, and only an admin brings one back
     function delOk()    { return request.resource.data.get('_del', false) != true || isAdmin(); }
@@ -22,31 +25,37 @@ service cloud.firestore {
     }
     match /events/{id} {
       allow read: if isMember();
-      allow create: if isMember() && request.resource.data.id == id && stamped() && delOk();
-      allow update: if isMember() && request.resource.data.id == id && stamped() && delOk() && undelOk();
+      allow create: if canWrite() && request.resource.data.id == id && stamped() && delOk();
+      allow update: if canWrite() && request.resource.data.id == id && stamped() && delOk() && undelOk();
       allow delete: if false;
     }
     // files attached to tasks (one document each): team members read and add; only the one who added it (or an admin) replaces it
     match /files/{id} {
       allow read: if isMember();
-      allow create: if isMember() && stamped();
-      allow update: if isMember() && stamped() && (resource.data._by == myEmail() || isAdmin());
+      allow create: if canWrite() && stamped();
+      allow update: if canWrite() && stamped() && (resource.data._by == myEmail() || isAdmin());
       allow delete: if isAdmin();
     }
     // feedback (💬) with a screenshot: anyone in the team sends; only managers read, mark and delete
     match /feedback/{id} {
-      allow create: if isMember() && stamped() && (request.resource.data.mail == myEmail() || isAdmin());
+      allow create: if canWrite() && stamped() && (request.resource.data.mail == myEmail() || isAdmin());
       allow read, update, delete: if isAdmin();
     }
     // personal area: my own to-dos — only I read and write them (not even a manager)
     match /private/{email} {
-      allow read, write: if isMember() && myEmail() == email;
+      allow read, write: if canWrite() && myEmail() == email;
+    }
+    // notice board (📌): everyone in the team (and the office screen) reads; managers post and remove
+    match /board/{id} {
+      allow read: if isMember();
+      allow create, update: if isAdmin() && stamped();
+      allow delete: if isAdmin();
     }
     // meta: lists (meta/lists), tasks (task-<id>), "who am I" (me-<mail>), presence (seen-<mail>);
     // older feedback (fb-<id>) is only read and moved out by a manager
     match /meta/{doc} {
       allow read: if isMember();
-      allow create, update: if isMember() && stamped() && (
+      allow create, update: if canWrite() && stamped() && (
            doc == 'lists'
         || (doc.matches('task-.*') && delOk() && (request.method == 'create' || undelOk()))
         || ((doc == 'me-' + myEmail() || doc == 'seen-' + myEmail()))

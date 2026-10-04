@@ -92,7 +92,7 @@
     }
     try{
       const m=await F.getDoc(F.doc(db,"members",email));
-      if(m.exists()) return m.data().role==="admin" ? "admin" : "member";
+      if(m.exists()){ const r=m.data().role; return r==="admin" ? "admin" : r==="viewer" ? "viewer" : "member"; }
       // not listed but allowed to read -> the owner from the rules: register as admin
       await F.setDoc(F.doc(db,"members",email),{role:"admin",added:F.serverTimestamp(),by:email});
       return "admin";
@@ -146,8 +146,20 @@
       snap.docs.forEach(d=>{ const x=d.data({serverTimestamps:"estimate"}); if(x.email && x.at && x.at.toMillis) seen[x.email]=x.at.toMillis(); });
       paintMembers(); if(window.paintTeamStrip) window.paintTeamStrip();
     }, ()=>{});
-    beat(); watchFeedback(); watchMine();
+    beat(); watchFeedback(); watchMine(); watchBoard();
   }
+  /* notice board (📌): board/<id> — the whole team and the office screen read it, managers post and remove */
+  let unsubBoard=null;
+  function watchBoard(){
+    if(unsubBoard) return;
+    unsubBoard=F.onSnapshot(F.collection(db,"board"), snap=>{
+      const items=snap.docs.map(d=>{ const x=d.data(); return {id:d.id, text:String(x.text||""), until:String(x.until||""), important:!!x.important, by:String(x.by||""), at:String(x.at||"")}; });
+      if(window.boardApply) window.boardApply(items);
+    }, ()=>{});
+  }
+  window.cloudBoardPut=async it=>{ if(!started || !me) return false;
+    try{ await F.setDoc(F.doc(db,"board",it.id),{text:it.text,until:it.until||"",important:!!it.important,by:it.by||"",at:it.at||"",_upd:F.serverTimestamp(),_by:me}); return true; }catch(e){ return false; } };
+  window.cloudBoardDel=async id=>{ if(!started || !me) return false; try{ await F.deleteDoc(F.doc(db,"board",id)); return true; }catch(e){ return false; } };
   /* personal area (my own to-dos): one private document per person, private/<mail> — the rules let only its owner read or
      write it (not even a manager), so it follows me to my other devices and nobody else sees it */
   let unsubMine=null, minePushT=null; window.cloudMineState="";
@@ -223,7 +235,7 @@
   function stopSync(){
     initialDone=false;
     members=[]; window.TEAM_NAMES=[];
-    [unsubEv,unsubLists,unsubMembers,unsubTasks,unsubSeen,unsubFb,unsubFbOld,unsubMine].forEach(u=>{ if(u) u(); }); unsubEv=unsubLists=unsubMembers=unsubTasks=unsubSeen=unsubFb=unsubFbOld=unsubMine=null; started=false;
+    [unsubEv,unsubLists,unsubMembers,unsubTasks,unsubSeen,unsubFb,unsubFbOld,unsubMine,unsubBoard].forEach(u=>{ if(u) u(); }); unsubEv=unsubLists=unsubMembers=unsubTasks=unsubSeen=unsubFb=unsubFbOld=unsubMine=unsubBoard=null; started=false;
   }
   function applyEvents(snap){
     const ch=snap.docChanges();
@@ -502,7 +514,7 @@
       adm.appendChild(mk("p",null,"רק המיילים ברשימה יכולים להיכנס, לראות ולרשום."));
       const add=mk("div","row cloud-add"); const inp=mk("input","txt"); inp.type="email"; inp.placeholder="מייל של איש צוות"; inp.dir="ltr"; inp.style.flex="1";
       const nameIn=mk("input","txt"); nameIn.placeholder="שם (כמו ברשימת המעורבים)"; nameIn.setAttribute("list","dlPpl"); nameIn.style.flex="1";
-      const sel=mk("select","dsel"); [["member","איש צוות"],["admin","מנהל"]].forEach(([v,l])=>{ const o=mk("option",null,l); o.value=v; sel.appendChild(o); });
+      const sel=mk("select","dsel"); [["member","איש צוות"],["admin","מנהל"],["viewer","צופה — מסך משרד"]].forEach(([v,l])=>{ const o=mk("option",null,l); o.value=v; sel.appendChild(o); });
       const b=mk("button","btn","הוסף"); b.type="button";
       b.onclick=async()=>{
         const em=inp.value.trim().toLowerCase(); if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){ toast("מייל לא תקין"); return; }
@@ -517,7 +529,7 @@
       const ta=mk("textarea","txt"); ta.rows=6; ta.dir="auto";
       ta.placeholder="שורה לכל אחד — מייל ושם, למשל:\nyossi@example.com יוסי לוי\nדני כהן <dani@example.com>";
       const brow=mk("div","row"), bsel=mk("select","dsel");
-      [["member","איש צוות"],["admin","מנהל"]].forEach(([v,l])=>{ const o=mk("option",null,l); o.value=v; bsel.appendChild(o); });
+      [["member","איש צוות"],["admin","מנהל"],["viewer","צופה — מסך משרד"]].forEach(([v,l])=>{ const o=mk("option",null,l); o.value=v; bsel.appendChild(o); });
       const bb=mk("button","btn primary","הוסף את כולם"); bb.type="button";
       const bres=mk("p","hint"); bres.hidden=true;
       const parse=txt=>{ const out=new Map(), re=/[^\s<>,;:"'()\[\]]+@[^\s<>,;:"'()\[\]]+\.[^\s<>,;:"'()\[\]]+/g;
@@ -599,7 +611,15 @@
       const r=mk("div","listrow"), who=mk("div","cm-who");
       who.appendChild(mk("b",null,m.name||"(בלי שם)")); who.appendChild(mk("span","cm-mail",m.email));
       who.appendChild(mk("span","cm-st st-"+S[i].k,S[i].t));
-      r.appendChild(who); r.appendChild(mk("span",null,m.role==="admin"?"מנהל":"איש צוות"));
+      r.appendChild(who);
+      const RL={admin:"מנהל",viewer:"צופה — מסך משרד",member:"איש צוות"};
+      if(role==="admin" && m.email!==me){                 // a manager changes the role right here
+        const rs=mk("select","dsel cm-role"); [["member","איש צוות"],["admin","מנהל"],["viewer","צופה — מסך משרד"]].forEach(([v,l])=>{ const o=mk("option",null,l); o.value=v; rs.appendChild(o); });
+        rs.value=RL[m.role]?m.role:"member"; rs.setAttribute("aria-label","תפקיד של "+(m.name||m.email));
+        rs.onchange=async()=>{ if(!confirm("לשנות את התפקיד של "+(m.name||m.email)+" ל"+RL[rs.value]+"?")){ rs.value=RL[m.role]?m.role:"member"; return; }
+          try{ await F.setDoc(F.doc(db,"members",m.email),{role:rs.value},{merge:true}); toast("התפקיד עודכן"); }catch(e){ toast("השמירה נכשלה"); rs.value=m.role||"member"; } };
+        r.appendChild(rs);
+      } else r.appendChild(mk("span",null,RL[m.role]||"איש צוות"));
       const nb=mk("button","btn mini","שם"); nb.type="button";
       nb.onclick=async()=>{
         const v=prompt("השם של "+m.email+" ביומן (כמו שמופיע ברשימת המעורבים):", m.name||""); if(v===null) return;

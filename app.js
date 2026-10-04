@@ -1,5 +1,7 @@
 "use strict";
 const $ = s => document.querySelector(s);
+/* office screen ("מסך משרד"): ?tv=1 in the address, or signed in as a "צופה" — the app shows only the big rotating screen */
+var TV = /[?&]tv=1\b/.test(location.search);
 
 /* ================= seed lists ================= */
 const SEED = {
@@ -1059,7 +1061,7 @@ function dashTasks(cards, from){
       .concat(PRIOS.map(p=>["עדיפות "+p, open.filter(t=>prioOf(t)===p).length])), ["מדד","משימות"]);
   c.classList.add("wide"); cards.appendChild(c);
 }
-function renderDash(){ renderDash0(); arrangeDash(); paintTicker(); }
+function renderDash(){ renderDash0(); arrangeDash(); paintTicker(); paintBoard(); }
 function renderDash0(){
   document.querySelectorAll("#dRange button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.r===dRange)));
   const from = dRange==="all" ? "" : ymd(daysAgo(+dRange-1));
@@ -1439,7 +1441,7 @@ function paintSettings(){
   if((!mgr || isLite()) && (sgCur==="lists"||sgCur==="files")) sgCur = team ? "team" : "general";   // phone view: no lists / files topics
   if(sgCur==="team" && !team) sgCur = mgr ? "lists" : "general";
   document.querySelectorAll("#sgNav button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.sg===sgCur)));
-  document.querySelectorAll("#viewData > .card").forEach(c=>{ c.hidden = (c.dataset.sg||"general")!==sgCur || c.dataset.off==="1" || (c.id==="liteCard" && !LITE_MQ.matches); });
+  document.querySelectorAll("#viewData > .card").forEach(c=>{ c.hidden = (c.dataset.sg||"general")!==sgCur || c.dataset.off==="1" || (c.id==="liteCard" && !LITE_MQ.matches) || (c.id==="tvCard" && !mgr); });
 }
 document.querySelectorAll("#sgNav button").forEach(b=>b.onclick=()=>{ sgCur=b.dataset.sg; try{ localStorage.setItem("ogg-settings-topic",sgCur); }catch(e){} paintSettings(); window.scrollTo({top:0}); });
 window.paintSettings=paintSettings;
@@ -1782,7 +1784,7 @@ function wkLast(){
   $("#wkLast").textContent = t ? "בוצע לאחרונה: "+new Date(t).toLocaleDateString("he-IL")+" · החלון נפתח לבד בכל יום ראשון"
                                : "החלון נפתח לבד בכל יום ראשון עד שמבצעים את שני השלבים.";
 }
-function weeklyCheck(){
+function weeklyCheck(){ if(TV) return;
   if(isLite()) return;                                  // the weekly summary + backup is done on a computer
   if($("#dlgWeek").open || !$("#splash").hidden || !events.length) return;
   if(CLOUD_ON){
@@ -1858,7 +1860,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.35", APP_DATE="01/10/2026";
+const APP_VER="2.36", APP_DATE="01/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2010,8 +2012,9 @@ function paintHello(){
 }
 /* who sees which tasks: a manager (and this device, without the team log) — all of them;
    a team member — only the tasks assigned to them by name or to their department */
-function tkVis(){ return isManager() ? tasks : tasks.filter(t=>isMine(t) || openedByMe(t)); }
-window.tkVisible=t=>isManager() || isMine(t) || openedByMe(t);
+function isViewer(){ try{ return CLOUD_ON && localStorage.getItem("ogg-cloud-role")==="viewer"; }catch(e){ return false; } }
+function tkVis(){ return isManager() || isViewer() ? tasks : tasks.filter(t=>isMine(t) || openedByMe(t)); }   // the office screen ("צופה") shows the whole team's tasks
+window.tkVisible=t=>isManager() || isViewer() || isMine(t) || openedByMe(t);
 /* "שפתחתי": the tasks I opened (also when assigned to another department). New tasks keep who opened them;
    older ones: from the first line of their update log ("המשימה נפתחה"). */
 function openedByMe(t){
@@ -2081,7 +2084,7 @@ function inboxAdd(items, toasted){
   if(Date.now()<inboxOpenUntil) inboxCheck();
   else if(!toasted) toast(add.length===1 ? "הודעה חדשה: "+(add[0].title||"") : add.length+" הודעות חדשות", {label:"הצג", fn:openInbox});
 }
-function inboxCheck(){
+function inboxCheck(){ if(TV) return;
   if(!CLOUD_ON || !inboxGet().some(x=>!x.read && !x.arch)) return;
   const sp=$("#splash"); if(sp && !sp.hidden) return;                 // after the opening screen
   if(document.querySelector("dialog[open]")) return;                  // the weekly window etc. first (retried when it closes)
@@ -3064,9 +3067,10 @@ function tourEnd(){
   tour=null; const L=$("#tourLayer"); if(L) L.hidden=true; document.documentElement.classList.remove("touring");
   try{ localStorage.setItem(TOUR_KEY,"1"); }catch(e){}
 }
-function tourAuto(){                           // the first time on this device: once the opening screen and any message window are gone
+function tourAuto(){ if(TV) return;                           // the first time on this device: once the opening screen and any message window are gone
   try{ if(localStorage.getItem(TOUR_KEY)) return; }catch(e){ return; }
   let n=0; const t=setInterval(()=>{ n++;
+    try{ if(TV || localStorage.getItem(TOUR_KEY)){ clearInterval(t); return; } }catch(e){}   // marked done meanwhile / became the office screen
     const sp=$("#splash"), busy=(sp && !sp.hidden) || document.querySelector("dialog[open]");
     if(!busy){ clearInterval(t); tourStart(); } else if(n>120) clearInterval(t); },1000);
 }
@@ -3083,7 +3087,6 @@ setTimeout(tourAuto,1500);
 
 /* ===== dashboard ticker ("מבזקים"): what is open right now — tasks (the ones I can see) and events — running in a strip.
    Rebuilt only when its content changes, so the strip keeps moving; it stops while a finger or the mouse is on it. */
-var tickSig="";   // var: the dashboard may paint before this line runs
 function evGo(id){                                // open one event in the list: unfold its month, scroll to it, open its details
   const e=events.find(x=>x.id===id); if(!e){ toast("האירוע כבר לא קיים"); return; }
   goList({ppl:""}); $("#fPanel").hidden=true; $("#fToggle").setAttribute("aria-expanded","false");
@@ -3093,8 +3096,10 @@ function evGo(id){                                // open one event in the list:
   if(el){ el.scrollIntoView({block:"center"}); el.classList.add("flash"); setTimeout(()=>el.classList.remove("flash"),2200);
     const info=[...el.querySelectorAll("button")].find(b=>b.textContent==="פרטים"); if(info) info.click(); }
 }
-function paintTicker(){
-  const box=$("#dTicker"); if(!box) return;
+function paintTicker(){ paintTickerInto($("#dTicker"),$("#dTickTrack"),"d"); }
+function paintTickerInto(box, tr, key){
+  const tickSigs=window.__tickSigs||(window.__tickSigs={});        // may run before the rest of the file
+  if(!box || !tr) return;
   const today=ymd(new Date()), items=[];
   const tks=tkVis().filter(tkOpen).sort((a,b)=>{ const r=t=>t.due && t.due<today ? 0 : t.due===today ? 1 : prioOf(t)==="דחופה" ? 2 : 3;
     return r(a)-r(b) || String(a.due||"9").localeCompare(String(b.due||"9")); }).slice(0,15);
@@ -3106,8 +3111,8 @@ function paintTicker(){
     items.push({k:"e", id:e.id, cls:ty==="תקלה"?"fault":"ev", tag:ty,
       text:(e.no?"#"+e.no+" ":"")+(e.title||String(e.desc||"").slice(0,70)||ty)+((e.loc||[]).length?" · "+e.loc.join(", "):"")+(e.when?" · "+fmtWhen(e.when).slice(0,5):"")}); });
   box.hidden=!items.length;
-  const sig=JSON.stringify(items); if(sig===tickSig) return; tickSig=sig;
-  const tr=$("#dTickTrack"); tr.textContent="";
+  const sig=JSON.stringify(items); if(sig===tickSigs[key]) return; tickSigs[key]=sig;
+  tr.textContent="";
   const run=()=>{ const g=mk("div","tk-run"); items.forEach(it=>{
       const b=mk("button","tk-it"+(it.cls?" ki-"+it.cls:"")); b.type="button"; b.title=it.k==="t"?"פתח את המשימה":"פתח את האירוע";
       b.append(mk("span","tk-tag",it.tag), mk("span","tk-tx",it.text));
@@ -3184,3 +3189,136 @@ function privCard(t, today){
 if($("#cHello")){ $("#cHello").style.cursor="pointer"; $("#cHello").title="המשימות שלי"; $("#cHello").onclick=()=>{ tkView="mine"; paintTkSeg(); renderTasks(); show("Tasks"); window.scrollTo({top:0}); }; }
 setTimeout(weeklyCheck,1500);
 if(DEEP_OPEN) goList({stat:OPEN_ANY});
+
+/* ===== notice board (📌): managers post short notices with an end date; everyone sees them on the dashboard and on the office screen.
+   Team log: board/<id> in the cloud (cloud.js); on this device only: kept here. */
+var BOARD=(()=>{ try{ const a=JSON.parse(localStorage.getItem("ogg-board")||"[]"); return Array.isArray(a)?a:[]; }catch(e){ return []; } })();
+function boardActive(){ const d=ymd(new Date()); return (BOARD||[]).filter(x=>x && x.text && (!x.until || x.until>=d))
+  .sort((a,b)=>(b.important?1:0)-(a.important?1:0) || String(b.at).localeCompare(String(a.at))); }
+function boardSave(){ try{ localStorage.setItem("ogg-board",JSON.stringify(BOARD)); }catch(e){} }
+window.boardApply=items=>{ BOARD=items||[]; boardSave(); paintBoard(); if(TV) tvPaint(true); };
+function paintBoard(){
+  const box=$("#dBoard"); if(!box) return;
+  const act=boardActive(), mgr=isManager() && !isViewer();
+  box.hidden = !act.length && !mgr;
+  $("#bdAdd").hidden=!mgr || !$("#bdForm").hidden;
+  const L=$("#bdList"); L.textContent="";
+  if(!act.length) L.appendChild(mk("p","hint","אין מודעות כרגע. מודעה שתפרסם תופיע כאן לכל הצוות ועל מסך המשרד."));
+  act.forEach(x=>{ const r=mk("div","bd-it"+(x.important?" imp":""));
+    r.appendChild(mk("div","bd-tx",x.text));
+    r.appendChild(mk("div","bd-m",[x.by, x.until?"עד "+dmy(x.until).slice(0,5):""].filter(Boolean).join(" · ")));
+    if(mgr){ const d=mk("button","bd-del","✕"); d.type="button"; d.title="הסר את המודעה"; d.setAttribute("aria-label","הסר את המודעה");
+      d.onclick=async()=>{ if(!confirm("להסיר את המודעה?\n"+x.text)) return;
+        if(CLOUD_ON && window.cloudBoardDel){ if(!await window.cloudBoardDel(x.id)) toast("ההסרה נכשלה"); }
+        else { BOARD=BOARD.filter(b=>b.id!==x.id); boardSave(); paintBoard(); } };
+      r.appendChild(d); }
+    L.appendChild(r); });
+}
+$("#bdAdd").onclick=()=>{ $("#bdForm").hidden=false; $("#bdAdd").hidden=true; const d=new Date(); d.setDate(d.getDate()+7); $("#bdUntil").value=ymd(d); $("#bdUntil").min=ymd(new Date()); $("#bdImp").checked=false; $("#bdText").focus(); };
+$("#bdCancel").onclick=()=>{ $("#bdForm").hidden=true; $("#bdText").value=""; paintBoard(); };
+$("#bdForm").onsubmit=async ev=>{ ev.preventDefault(); const text=$("#bdText").value.trim(); if(!text){ $("#bdText").focus(); return; }
+  const it={id:newId(), text:text.slice(0,400), until:$("#bdUntil").value||"", important:$("#bdImp").checked, by:reporter()||"", at:nowLocal()};
+  if(CLOUD_ON && window.cloudBoardPut){ if(!await window.cloudBoardPut(it)){ toast("הפרסום נכשל — אולי צריך לפרסם את כללי האבטחה המעודכנים"); return; } }
+  else { BOARD.push(it); boardSave(); }
+  $("#bdText").value=""; $("#bdForm").hidden=true; paintBoard(); toast("המודעה פורסמה 📌"); };
+paintBoard();
+
+/* ===== office screen: big, rotating, live — header (clock), the ticker, one page at a time
+   (open tasks, open events, notice board, the numbers), each page for a few seconds. No buttons; nothing can be changed here. */
+let tvOn=false, tvPages=[], tvI=0, tvTimer=null, tvSig="", tvLock=null, tvLast=Date.now();
+function tvBuild(){
+  if($("#tvRoot")) return;
+  const R=mk("div"); R.id="tvRoot";
+  R.innerHTML='<header class="tv-top"><div class="tv-brand"><img src="icons/logo-header.png" alt=""><div><b>יומן אירועים ומשימות</b><span>מט"ש אוג</span></div></div>'
+    +'<div class="tv-clock"><b id="tvTime"></b><span id="tvDate"></span></div></header>'
+    +'<div class="ticker tv-ticker" id="tvTicker"><span class="tk-live" aria-hidden="true"><i></i>לייב</span><div class="tk-vp"><div class="tk-track" id="tvTickTrack"></div></div></div>'
+    +'<main class="tv-page" id="tvPage"></main>'
+    +'<footer class="tv-foot"><div class="tv-dots" id="tvDots"></div><span id="tvUpd"></span></footer>'
+    +'<button type="button" class="tv-exit" id="tvExit">✕ יציאה ממצב מסך</button>';
+  document.body.appendChild(R);
+  $("#tvExit").onclick=()=>{ if(isViewer()){ toast("זה מסך משרד (צופה) — כדי לצאת מתנתקים מהחשבון"); return; } location.href=location.pathname; };
+  let hideT=null; document.addEventListener("mousemove",()=>{ R.classList.add("show-exit"); clearTimeout(hideT); hideT=setTimeout(()=>R.classList.remove("show-exit"),2500); });
+}
+function tvClock(){ const d=new Date(), p=v=>String(v).padStart(2,"0");
+  $("#tvTime").textContent=p(d.getHours())+":"+p(d.getMinutes());
+  $("#tvDate").textContent=new Intl.DateTimeFormat("he-IL",{weekday:"long"}).format(d)+" · "+p(d.getDate())+"/"+p(d.getMonth()+1)+"/"+d.getFullYear();
+  const s=Math.round((Date.now()-tvLast)/1000); $("#tvUpd").textContent = navigator.onLine===false ? "⚠ אין חיבור — מוצג המידע האחרון" : "מתעדכן בלייב · עודכן לפני "+(s<60?s+" שנ׳":Math.round(s/60)+" דק׳");
+}
+function tvData(){
+  const today=ymd(new Date());
+  const tks=tkVis().filter(tkOpen).sort((a,b)=>{ const r=t=>t.due && t.due<today ? 0 : t.due===today ? 1 : prioOf(t)==="דחופה" ? 2 : 3;
+    return r(a)-r(b) || String(a.due||"9").localeCompare(String(b.due||"9")); });
+  const evs=events.filter(isOpen).sort((a,b)=>String(b.when||"").localeCompare(String(a.when||"")));
+  return {today, tks, evs, board:boardActive()};
+}
+function tvMakePages(){
+  const D=tvData(), P=[], per=8;
+  for(let i=0;i<Math.max(1,Math.ceil(D.tks.length/per));i++) P.push({k:"tk", title:"משימות פתוחות", n:D.tks.length, items:D.tks.slice(i*per,(i+1)*per), pg:[i+1,Math.ceil(D.tks.length/per)]});
+  for(let i=0;i<Math.ceil(D.evs.length/per);i++) P.push({k:"ev", title:"אירועים פתוחים", n:D.evs.length, items:D.evs.slice(i*per,(i+1)*per), pg:[i+1,Math.ceil(D.evs.length/per)]});
+  if(D.board.length) P.push({k:"bd", title:"📌 לוח מודעות", items:D.board.slice(0,6), long:true});
+  P.push({k:"num", title:"תמונת מצב", D});
+  return P;
+}
+function tvRenderPage(pg){
+  const M=$("#tvPage"); M.textContent=""; M.className="tv-page tvp-"+pg.k;
+  const h=mk("h2","tv-h",pg.title); if(pg.n!=null) h.appendChild(mk("span","tv-n",String(pg.n))); if(pg.pg && pg.pg[1]>1) h.appendChild(mk("small",null,"עמוד "+pg.pg[0]+" מתוך "+pg.pg[1])); M.appendChild(h);
+  const today=ymd(new Date()), grid=mk("div","tv-grid");
+  if(pg.k==="tk"){
+    if(!pg.items.length) grid.appendChild(mk("div","tv-empty","אין משימות פתוחות 👍"));
+    pg.items.forEach(t=>{ const st=t.due && t.due<today ? "late" : t.due===today ? "today" : "future", pr=prioOf(t);
+      const c=mk("div","tv-card tl-"+(t.due?st:"none"));
+      const top=mk("div","tv-ct"); if(t.no) top.appendChild(mk("span","tv-no","#"+t.no)); top.appendChild(mk("b",null,t.title||"משימה")); c.appendChild(top);
+      const m=mk("div","tv-cm");
+      if(t.due) m.appendChild(mk("span","tv-tag "+st,(st==="late"?"באיחור · ":st==="today"?"היום · ":"יעד ")+dmy(t.due).slice(0,5)));
+      if(pr!=="רגילה") m.appendChild(mk("span","tv-tag pr-"+PRIO_HUE[pr],pr));
+      const who=(t.ppl||[])[0] || (t.depts||[]).join(", "); if(who) m.appendChild(mk("span","tv-who","👤 "+who));
+      if((t.loc||[]).length) m.appendChild(mk("span","tv-who","📍 "+t.loc.join(", ")));
+      c.appendChild(m); grid.appendChild(c); });
+  } else if(pg.k==="ev"){
+    pg.items.forEach(e=>{ const ty=(e.type||[])[0]||"אירוע", c=mk("div","tv-card ev");
+      c.style.borderInlineStartColor="var(--c-"+hueOf(ty)+")";
+      const top=mk("div","tv-ct"); if(e.no) top.appendChild(mk("span","tv-no","#"+e.no)); top.appendChild(mk("b",null,e.title||String(e.desc||"").slice(0,90)||ty)); c.appendChild(top);
+      const m=mk("div","tv-cm"); const tg=mk("span","tv-tag",ty); tg.style.background="var(--c-"+hueOf(ty)+"-bg)"; tg.style.color="var(--c-"+hueOf(ty)+")"; m.appendChild(tg);
+      if((e.loc||[]).length) m.appendChild(mk("span","tv-who","📍 "+e.loc.join(", ")));
+      if(e.when) m.appendChild(mk("span","tv-who","🕒 "+fmtWhen(e.when)));
+      c.appendChild(m); grid.appendChild(c); });
+  } else if(pg.k==="bd"){
+    grid.className="tv-board";
+    pg.items.forEach(x=>{ const c=mk("div","tv-note"+(x.important?" imp":"")); c.appendChild(mk("p",null,x.text));
+      c.appendChild(mk("span",null,[x.by, x.until?"עד "+dmy(x.until).slice(0,5):""].filter(Boolean).join(" · "))); grid.appendChild(c); });
+  } else {
+    grid.className="tv-nums"; const D=pg.D;
+    [["משימות פתוחות",D.tks.length,""],["משימות באיחור",D.tks.filter(t=>t.due && t.due<D.today).length,"late"],["להיום",D.tks.filter(t=>t.due===D.today).length,"today"],
+     ["אירועים פתוחים",D.evs.length,""],["תקלות פתוחות",D.evs.filter(e=>(e.type||[]).includes("תקלה")).length,"late"],
+     ["נסגרו היום",events.filter(e=>!isOpen(e) && String(e.closedAt||"").slice(0,10)===D.today).length,"today"]]
+      .forEach(([l,v,cls])=>{ const c=mk("div","tv-num "+cls); c.append(mk("b",null,nf(v)), mk("span",null,l)); grid.appendChild(c); });
+  }
+  M.appendChild(grid);
+  const dots=$("#tvDots"); dots.textContent=""; tvPages.forEach((p,i)=>dots.appendChild(mk("i",i===tvI?"on":"")));
+}
+function tvPaint(force){                             // data changed: rebuild the pages, stay on the same kind of page
+  if(!tvOn) return;
+  const sig=JSON.stringify([tasks.length, tasks.map(t=>t.upd||t.status).join(), events.length, events.filter(isOpen).map(e=>e.id+(e.ts||"")).join(), BOARD.map(b=>b.id+b.text+b.until).join()]);
+  if(!force && sig===tvSig) return; tvSig=sig; tvLast=Date.now();
+  const k=tvPages[tvI] && tvPages[tvI].k; tvPages=tvMakePages();
+  if(tvI>=tvPages.length || (tvPages[tvI] && tvPages[tvI].k!==k)) tvI=Math.max(0,tvPages.findIndex(p=>p.k===k));
+  tvRenderPage(tvPages[tvI]||tvPages[0]); paintTickerInto($("#tvTicker"),$("#tvTickTrack"),"tv");
+}
+function tvNext(){ tvPages=tvMakePages(); tvI=(tvI+1)%tvPages.length; tvRenderPage(tvPages[tvI]);
+  clearTimeout(tvTimer); tvTimer=setTimeout(tvNext, tvPages[tvI].long ? 20000 : 14000); }
+async function tvWake(){ try{ if("wakeLock" in navigator && !document.hidden) tvLock=await navigator.wakeLock.request("screen"); }catch(e){} }
+function tvStart(){
+  if(tvOn) return; tvOn=true; TV=true; document.documentElement.classList.add("tv");
+  document.querySelectorAll("dialog[open]").forEach(d=>d.close());
+  tvBuild(); tvClock(); setInterval(tvClock,1000);
+  tvPages=tvMakePages(); tvI=0; tvRenderPage(tvPages[0]); paintTickerInto($("#tvTicker"),$("#tvTickTrack"),"tv");
+  clearTimeout(tvTimer); tvTimer=setTimeout(tvNext,14000);
+  setInterval(()=>tvPaint(false),4000);
+  tvWake(); document.addEventListener("visibilitychange",()=>{ if(!document.hidden) tvWake(); });
+  // the opening screen: once signed in, go straight in
+  const sp=setInterval(()=>{ const b=$("#spEnter"), s=$("#splash"); if(s && !s.hidden && b && !b.hidden){ b.click(); } if(s && s.hidden) clearInterval(sp); },800);
+}
+$("#tvOpen").onclick=()=>window.open(location.pathname+"?tv=1","_blank","noopener");
+$("#tvCopy").onclick=async()=>{ const u=location.origin+location.pathname+"?tv=1"; try{ await navigator.clipboard.writeText(u); toast("הקישור הועתק: "+u); }catch(e){ prompt("הקישור למסך המשרד:",u); } };
+if(TV) tvStart();
+else { const w=setInterval(()=>{ if(isViewer()){ clearInterval(w); tvStart(); } },1500); }   // signed in as "צופה": the office screen opens by itself
