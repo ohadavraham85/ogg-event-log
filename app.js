@@ -1860,7 +1860,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.37", APP_DATE="01/10/2026";
+const APP_VER="2.38", APP_DATE="01/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -3122,7 +3122,9 @@ function paintTickerInto(box, tr, key){
       b.onclick=()=>it.k==="t" ? goTask(it.id) : it.k==="b" ? goBoard() : evGo(it.id); g.appendChild(b); }); return g; };
   const a1=run(), a2=run(); a2.setAttribute("aria-hidden","true"); a2.querySelectorAll("button").forEach(b=>b.tabIndex=-1);
   tr.append(a1,a2);
-  requestAnimationFrame(()=>{ const w=a1.scrollWidth; tr.style.setProperty("--tk-dur", Math.max(18, Math.round(w/55))+"s"); });   // ~55px a second
+  // a calm, readable pace: about 1.5 letters' width a second (≈22px on a phone, more on the big screen where the letters are bigger)
+  requestAnimationFrame(()=>{ const w=a1.scrollWidth, fs=parseFloat(getComputedStyle(a1.querySelector(".tk-tx")||a1).fontSize)||14;
+    tr.style.setProperty("--tk-dur", Math.max(30, Math.round(w/(fs*1.6)))+"s"); });
 }
 
 /* ===== personal area: my own to-dos — not managed, not shared, never written to the log.
