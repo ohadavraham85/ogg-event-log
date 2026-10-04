@@ -649,7 +649,7 @@ function renderList(reset){
     }
     if(!inSlice.has(e)) return;
     const t=(e.type||[])[0]||"";
-    const d=document.createElement("article"); d.className="ev"+(UNSEEN.has(e.id)?" is-new":"");
+    const d=document.createElement("article"); d.className="ev"+(UNSEEN.has(e.id)?" is-new":""); d.dataset.id=e.id;
     d.style.borderInlineStartColor="var(--c-"+hueOf(t)+")";
     let top=document.createElement("div"); top.className="top";
     const w=document.createElement("span"); w.className="when"; w.textContent=fmtWhen(e.when);
@@ -1059,7 +1059,7 @@ function dashTasks(cards, from){
       .concat(PRIOS.map(p=>["עדיפות "+p, open.filter(t=>prioOf(t)===p).length])), ["מדד","משימות"]);
   c.classList.add("wide"); cards.appendChild(c);
 }
-function renderDash(){ renderDash0(); arrangeDash(); }
+function renderDash(){ renderDash0(); arrangeDash(); paintTicker(); }
 function renderDash0(){
   document.querySelectorAll("#dRange button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.r===dRange)));
   const from = dRange==="all" ? "" : ymd(daysAgo(+dRange-1));
@@ -1414,10 +1414,11 @@ function show(w){
   if($("#newCnt")) paintNewCount();
   // the calendar opens from the events or the tasks list, and that tab stays lit; settings is the gear in the header
   const lit = w==="Cal" ? (calMd==="tk" ? "Tasks" : "List") : w;
-  ["New","List","Dash","Data","Tasks","Cal"].forEach(v=>{
+  ["New","List","Dash","Data","Tasks","Cal","Me"].forEach(v=>{
     $("#view"+v).hidden=(v!==w);
-    $("#tab"+v).setAttribute("aria-selected",String(v===lit));
+    const tb=$("#tab"+v); if(tb) tb.setAttribute("aria-selected",String(v===lit));
   });
+  $("#meBtn").setAttribute("aria-pressed",String(w==="Me"));
   $("#setBtn").setAttribute("aria-pressed",String(w==="Data"));
   $("#savebar").style.display = w==="New"?"block":"none";
   document.querySelector(".wrap").style.paddingBottom = w==="New"?"130px":"40px";
@@ -1858,7 +1859,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.33", APP_DATE="01/10/2026";
+const APP_VER="2.34", APP_DATE="01/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2966,6 +2967,7 @@ function tourSteps(){
   return [
     {sel:".tabs", title:"שלוש לשוניות", text:"משימות — עבודה שצריך לבצע. דשבורד — תמונת מצב. אירועים — היומן של מה שקרה בשטח."},
     {sel: lite ? '.dcard[data-t="משימות"]' : "#dKpis", pre:tab("#tabDash"), title:"דשבורד", text: lite ? "המשימות שלך ושל המחלקה, ומתחת — האירועים הפתוחים. לחיצה על מספר פותחת את הרשימה שלו." : "המספרים של היומן. לחיצה על כרטיס פותחת את האירועים שמאחוריו."},
+    {sel:"#dTicker", pre:tab("#tabDash"), title:"מבזקים", text:"פס שרץ כל הזמן עם מה שפתוח עכשיו — משימות באיחור ולהיום קודם, ואחריהן האירועים הפתוחים. נוגעים כדי לעצור, לוחצים על פריט כדי לפתוח אותו."},
     {sel:"#fabNew", pre:tab("#tabList"), title:"רישום אירוע", text:"קרה משהו? ＋ חדש. בוחרים מתי, סוג ומיקום, כותבים מה קרה (אפשר להכתיב 🎙) ושומרים. אירוע שלא טופל נשאר פתוח."},
     {sel:"#viewList .toolbar", title:"חיפוש וסינון", text:"מחפשים מילה בתיאור, בפעולה או בציוד. \"סינון\" — לפי סוג, מיקום, סטטוס, תאריכים."},
     {sel:"#evCollAll", title:"חודשים", text:"האירועים מסודרים לפי חודשים. החץ ליד חודש ממזער אותו, וכאן — את כולם."},
@@ -2975,6 +2977,7 @@ function tourSteps(){
     {sel:"#tkNewBtn", title:"משימה חדשה", text:"כותרת, הקצאה למחלקה או לעובדים (הראשון — האחראי), סוג, עדיפות ותאריכים. מי שהוקצה מקבל הודעה."},
     {sel:"#tkList .tk", title:"משימה", text:"הפס בצד מראה את היעד: אדום — באיחור, ירוק — היום, כתום — בהמשך. \"+ עדכון\" מוסיף התקדמות, ו\"סיים ורשום ביומן\" סוגר אותה ורושם אירוע סגור ביומן."},
     {sel:"#inboxBtn", title:"הודעות", text:"🔔 כאן מגיעות הקצאות ועדכונים במשימות שלך. החלקה ימינה מעבירה הודעה לארכיון."},
+    {sel:"#meBtn", title:"האזור האישי", text:"מטלות לעצמך — רק אתה רואה אותן. הן לא מנוהלות ולא נרשמות ביומן."},
     {sel:"#fbBtn", title:"משוב", text:"משהו לא עובד או חסר? 💬 מצלם את המסך, מסמנים עליו ושולחים למנהל."},
     {sel:"#setBtn", title:"הגדרות", text: lite ? "בטלפון מוצג רק מה שצריך בשטח. ⚙ ← כללי ← \"עבור לתצוגה מלאה\" מציג הכל." : "ערכת צבעים, צוות וחשבון"+(mgr?", ניהול רשימות, גיבוי":"")+"."},
     {sel:"#helpBtn", title:"זהו!", text:"ההדרכה ותרשים התהליך נמצאים תמיד כאן, ב-?.", end:true}
@@ -3045,5 +3048,95 @@ $("#flClose").onclick=()=>$("#dlgFlow").close();
 $("#tourStart").onclick=()=>{ $("#dlgFlow").close(); tourStart(); };
 $("#tourStart2").onclick=tourStart; $("#flowOpen2").onclick=()=>openFlow();
 setTimeout(tourAuto,1500);
+
+/* ===== dashboard ticker ("מבזקים"): what is open right now — tasks (the ones I can see) and events — running in a strip.
+   Rebuilt only when its content changes, so the strip keeps moving; it stops while a finger or the mouse is on it. */
+var tickSig="";   // var: the dashboard may paint before this line runs
+function evGo(id){                                // open one event in the list: unfold its month, scroll to it, open its details
+  const e=events.find(x=>x.id===id); if(!e){ toast("האירוע כבר לא קיים"); return; }
+  goList({ppl:""}); $("#fPanel").hidden=true; $("#fToggle").setAttribute("aria-expanded","false");
+  const g=(e.when||"").slice(0,7); if(evColl.has(g)){ evColl.delete(g); saveEvColl(); }
+  const i=lastRows.indexOf(e); if(i>=shown) shown=i+1; renderList(false);
+  const el=document.querySelector('#listBox .ev[data-id="'+CSS.escape(id)+'"]');
+  if(el){ el.scrollIntoView({block:"center"}); el.classList.add("flash"); setTimeout(()=>el.classList.remove("flash"),2200);
+    const info=[...el.querySelectorAll("button")].find(b=>b.textContent==="פרטים"); if(info) info.click(); }
+}
+function paintTicker(){
+  const box=$("#dTicker"); if(!box) return;
+  const today=ymd(new Date()), items=[];
+  const tks=tkVis().filter(tkOpen).sort((a,b)=>{ const r=t=>t.due && t.due<today ? 0 : t.due===today ? 1 : prioOf(t)==="דחופה" ? 2 : 3;
+    return r(a)-r(b) || String(a.due||"9").localeCompare(String(b.due||"9")); }).slice(0,15);
+  tks.forEach(t=>{ const st = t.due && t.due<today ? "late" : t.due===today ? "today" : prioOf(t)==="דחופה" ? "urg" : "";
+    items.push({k:"t", id:t.id, cls:st, tag: st==="late" ? "באיחור" : st==="today" ? "היום" : st==="urg" ? "דחופה" : "משימה",
+      text:(t.no?"#"+t.no+" ":"")+(t.title||"משימה")+((t.ppl||[])[0]?" · "+t.ppl[0]:"")+(t.due && st!=="today"?" · יעד "+dmy(t.due).slice(0,5):"")}); });
+  events.filter(isOpen).sort((a,b)=>String(b.when||"").localeCompare(String(a.when||""))).slice(0,15).forEach(e=>{
+    const ty=(e.type||[])[0]||"אירוע";
+    items.push({k:"e", id:e.id, cls:ty==="תקלה"?"fault":"ev", tag:ty,
+      text:(e.no?"#"+e.no+" ":"")+(e.title||String(e.desc||"").slice(0,70)||ty)+((e.loc||[]).length?" · "+e.loc.join(", "):"")+(e.when?" · "+fmtWhen(e.when).slice(0,5):"")}); });
+  box.hidden=!items.length;
+  const sig=JSON.stringify(items); if(sig===tickSig) return; tickSig=sig;
+  const tr=$("#dTickTrack"); tr.textContent="";
+  const run=()=>{ const g=mk("div","tk-run"); items.forEach(it=>{
+      const b=mk("button","tk-it"+(it.cls?" ki-"+it.cls:"")); b.type="button"; b.title=it.k==="t"?"פתח את המשימה":"פתח את האירוע";
+      b.append(mk("span","tk-tag",it.tag), mk("span","tk-tx",it.text));
+      b.onclick=()=>it.k==="t" ? goTask(it.id) : evGo(it.id); g.appendChild(b); }); return g; };
+  const a1=run(), a2=run(); a2.setAttribute("aria-hidden","true"); a2.querySelectorAll("button").forEach(b=>b.tabIndex=-1);
+  tr.append(a1,a2);
+  requestAnimationFrame(()=>{ const w=a1.scrollWidth; tr.style.setProperty("--tk-dur", Math.max(18, Math.round(w/55))+"s"); });   // ~55px a second
+}
+
+/* ===== personal area: my own to-dos — not managed, not shared, never written to the log.
+   Kept on this device per signed-in user, and in the team log in a private document only I can read (cloud.js). */
+var meKey=()=>"ogg-me-todos-"+((window.cloudMe && window.cloudMe()) || "local");
+function meGet(){ try{ const a=JSON.parse(localStorage.getItem(meKey())||"[]"); return Array.isArray(a)?a:[]; }catch(e){ return []; } }
+function mePut(a, fromCloud){
+  const keep=a.filter(x=>!x.del || Date.now()-Date.parse(x.upd||0) < 30*864e5);      // deleted ones are remembered a month (so other devices hear of it)
+  try{ localStorage.setItem(meKey(), JSON.stringify(keep)); }catch(e){}
+  if(!fromCloud && window.cloudPushMine) window.cloudPushMine(keep);
+  paintMe2();
+}
+window.meApply=remote=>{                          // merge my other devices' copy: per item, the later change wins
+  const loc=meGet(), by={}; loc.forEach(x=>by[x.id]=x); let changed=false, mineNewer=false;
+  (remote||[]).forEach(r=>{ const l=by[r.id]; if(!l || String(r.upd)>String(l.upd)){ by[r.id]=r; changed=true; } });
+  const rm={}; (remote||[]).forEach(r=>rm[r.id]=r);
+  loc.forEach(l=>{ const r=rm[l.id]; if(!r || String(l.upd)>String(r.upd)) mineNewer=true; });
+  if(changed) mePut(Object.values(by), true);
+  if(mineNewer && window.cloudPushMine) window.cloudPushMine(Object.values(by));
+  if(!changed) paintMe2();
+};
+function meSet(id, patch){ const a=meGet(), x=a.find(m=>m.id===id); if(!x) return; Object.assign(x, patch, {upd:new Date().toISOString()}); mePut(a); }
+function paintMe2(){
+  const open_=meGet().filter(x=>!x.del && !x.done), today=ymd(new Date());
+  const n=$("#meN"), due=open_.filter(x=>x.due && x.due<=today).length;
+  n.textContent = open_.length>99 ? "99+" : String(open_.length); n.hidden=!open_.length; n.classList.toggle("hot", !!due);
+  if($("#viewMe").hidden) return;
+  const w=$("#meWarn"); w.hidden = window.cloudMineState!=="denied";
+  w.textContent="המטלות נשמרות כרגע רק במכשיר הזה — כדי שיעברו גם למכשירים האחרים שלך, המנהל צריך לפרסם את כללי האבטחה המעודכנים.";
+  const all=meGet().filter(x=>!x.del), op=all.filter(x=>!x.done).sort((a,b)=>String(a.due||"9").localeCompare(String(b.due||"9")) || String(b.at).localeCompare(String(a.at))),
+        dn=all.filter(x=>x.done).sort((a,b)=>String(b.doneAt||"").localeCompare(String(a.doneAt||"")));
+  const row=x=>{ const r=mk("div","me-it"+(x.done?" done":""));
+    const c=mk("input"); c.type="checkbox"; c.checked=!!x.done; c.setAttribute("aria-label", x.done?"החזר לפתוחות":"סמן שבוצע");
+    c.onchange=()=>meSet(x.id, {done:c.checked, doneAt:c.checked?nowLocal():""});
+    const tx=mk("span","me-tx",x.text); tx.title="לחיצה כפולה — עריכה";
+    tx.ondblclick=()=>{ const v=prompt("עריכת המטלה",x.text); if(v!=null && v.trim()) meSet(x.id,{text:v.trim().slice(0,300)}); };
+    r.append(c,tx);
+    if(x.due){ const st = x.done ? "" : x.due<today ? "late" : x.due===today ? "today" : "future";
+      r.appendChild(mk("span","tk-tag "+st,(st==="late"?"באיחור · ":st==="today"?"היום · ":"עד ")+dmy(x.due).slice(0,5))); }
+    const del=mk("button","me-del","✕"); del.type="button"; del.setAttribute("aria-label","מחק"); del.title="מחק";
+    del.onclick=()=>meSet(x.id,{del:true}); r.appendChild(del); return r; };
+  const L=$("#meList"); L.textContent="";
+  if(!op.length) L.appendChild(mk("div","tk-empty", dn.length ? "הכל בוצע 👍" : "עדיין אין מטלות. כתוב למעלה מה לזכור ולחץ \"הוסף\"."));
+  op.forEach(x=>L.appendChild(row(x)));
+  $("#meDoneBox").hidden=!dn.length; $("#meDoneSum").textContent="בוצעו ("+dn.length+")";
+  const D=$("#meDone"); D.textContent=""; dn.forEach(x=>D.appendChild(row(x)));
+}
+window.paintMe2=paintMe2;
+$("#meForm").onsubmit=ev=>{ ev.preventDefault(); const t=$("#meText").value.trim(); if(!t) return;
+  const a=meGet(); a.unshift({id:newId(), text:t.slice(0,300), due:$("#meDue").value||"", done:false, at:nowLocal(), upd:new Date().toISOString()});
+  $("#meText").value=""; $("#meDue").value=""; mePut(a); $("#meText").focus(); };
+$("#meClear").onclick=()=>{ const a=meGet(), u=new Date().toISOString(); a.forEach(x=>{ if(x.done && !x.del){ x.del=true; x.upd=u; } }); mePut(a); };
+$("#meBtn").onclick=()=>{ show("Me"); paintMe2(); window.scrollTo({top:0}); };
+if($("#cHello")){ $("#cHello").style.cursor="pointer"; $("#cHello").title="האזור האישי שלי"; $("#cHello").onclick=()=>$("#meBtn").click(); }
+paintMe2();
 setTimeout(weeklyCheck,1500);
 if(DEEP_OPEN) goList({stat:OPEN_ANY});

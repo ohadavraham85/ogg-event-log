@@ -38,6 +38,10 @@ service cloud.firestore {
       allow create: if isMember() && stamped() && (request.resource.data.mail == myEmail() || isAdmin());
       allow read, update, delete: if isAdmin();
     }
+    // personal area: my own to-dos — only I read and write them (not even a manager)
+    match /private/{email} {
+      allow read, write: if isMember() && myEmail() == email;
+    }
     // meta: lists (meta/lists), tasks (task-<id>), "who am I" (me-<mail>), presence (seen-<mail>);
     // older feedback (fb-<id>) is only read and moved out by a manager
     match /meta/{doc} {

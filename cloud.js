@@ -146,8 +146,22 @@
       snap.docs.forEach(d=>{ const x=d.data({serverTimestamps:"estimate"}); if(x.email && x.at && x.at.toMillis) seen[x.email]=x.at.toMillis(); });
       paintMembers(); if(window.paintTeamStrip) window.paintTeamStrip();
     }, ()=>{});
-    beat(); watchFeedback();
+    beat(); watchFeedback(); watchMine();
   }
+  /* personal area (my own to-dos): one private document per person, private/<mail> — the rules let only its owner read or
+     write it (not even a manager), so it follows me to my other devices and nobody else sees it */
+  let unsubMine=null, minePushT=null; window.cloudMineState="";
+  function watchMine(){
+    if(unsubMine || !me) return;
+    unsubMine=F.onSnapshot(F.doc(db,"private",me), s=>{
+      window.cloudMineState="ok";
+      let items=[]; try{ items=s.exists() ? JSON.parse(s.data().items||"[]") : []; }catch(e){}
+      if(window.meApply) window.meApply(items);
+    }, ()=>{ window.cloudMineState="denied"; if(window.paintMe2) window.paintMe2(); });
+  }
+  window.cloudPushMine=items=>{ if(!started || !me) return; clearTimeout(minePushT);
+    minePushT=setTimeout(async()=>{ try{ await F.setDoc(F.doc(db,"private",me),{items:JSON.stringify(items),_upd:F.serverTimestamp(),_by:me}); window.cloudMineState="ok"; }
+      catch(e){ window.cloudMineState="denied"; } if(window.paintMe2) window.paintMe2(); },700); };
   /* feedback (💬): one document each in its own collection "feedback" (feedback/<id>), which only managers can read —
      the screenshot can show anything that was on the sender's screen. Older ones were kept in meta/fb-<id>, where every
      team member could read them; a manager's device moves them over (copy, then delete) when it sees them. */
@@ -209,7 +223,7 @@
   function stopSync(){
     initialDone=false;
     members=[]; window.TEAM_NAMES=[];
-    [unsubEv,unsubLists,unsubMembers,unsubTasks,unsubSeen,unsubFb,unsubFbOld].forEach(u=>{ if(u) u(); }); unsubEv=unsubLists=unsubMembers=unsubTasks=unsubSeen=unsubFb=unsubFbOld=null; started=false;
+    [unsubEv,unsubLists,unsubMembers,unsubTasks,unsubSeen,unsubFb,unsubFbOld,unsubMine].forEach(u=>{ if(u) u(); }); unsubEv=unsubLists=unsubMembers=unsubTasks=unsubSeen=unsubFb=unsubFbOld=unsubMine=null; started=false;
   }
   function applyEvents(snap){
     const ch=snap.docChanges();
@@ -668,7 +682,7 @@
     if(!confirm("להתנתק? העותק של היומן המשותף יימחק מהמכשיר הזה (הוא נשאר בענן).")) return;
     stopSync();
     try{ await F.signOut(auth); }catch(e){}
-    ["ogg-cloud-log","ogg-cloud-lists","ogg-cloud-tasks",K_SYNC,K_SYNC_T,K_ROLE].forEach(k=>put(k,null));
+    ["ogg-cloud-log","ogg-cloud-lists","ogg-cloud-tasks",K_SYNC,K_SYNC_T,K_ROLE,"ogg-me-todos-"+me].forEach(k=>put(k,null));
     try{ await Promise.all(["ogg-cloud-log","ogg-cloud-tasks"].map(k=>window.kvDel ? window.kvDel(k) : null)); }catch(e){}
     try{ await F.terminate(db); await F.clearIndexedDbPersistence(db); }catch(e){}
     location.reload();

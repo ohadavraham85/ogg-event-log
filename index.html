@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;900&family=Rubik:wght@500;600;700&family=Assistant:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=2.33">
+<link rel="stylesheet" href="style.css?v=2.34">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0E7C86">
 <meta name="color-scheme" content="light dark">
@@ -112,10 +112,11 @@
       <img class="logo" src="icons/logo-header.png" alt="מבט&quot;י — מפעלי ביוב וטיהור ירושלים" width="101" height="137">
       <div class="mark">יומן אירועים ומשימות <span class="sub">מט"ש אוג</span></div>
       <div class="clock" id="clock" aria-live="off"><span class="c-hello" id="cHello" hidden></span><span class="c-day" id="cDay"></span><span class="c-date" id="cDate"></span><b class="c-time" id="cTime"></b></div>
-      <span class="ver" id="verChip" title="גרסה">v2.33</span>
+      <span class="ver" id="verChip" title="גרסה">v2.34</span>
       <button class="icon-btn inbox-btn" id="inboxBtn" aria-label="הודעות" title="הודעות" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm7-6V11a7 7 0 0 0-5.5-6.84V3.5a1.5 1.5 0 0 0-3 0v.66A7 7 0 0 0 5 11v5l-2 2v1h18v-1z" fill="currentColor"/></svg><span class="newcnt" id="inboxN" hidden></span></button>
       <button class="icon-btn" id="refreshBtn" aria-label="רענון" title="רענון — טעינה מחדש ובדיקת עדכון"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M20.5 3.5v5h-5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       <button class="icon-btn" id="themeBtn" aria-label="מצב תצוגה">☾</button>
+      <button class="icon-btn me-btn" id="meBtn" type="button" aria-label="האזור האישי שלי" title="האזור האישי — המטלות שלי (רק אני רואה)"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6 2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm8 1.5V8h4.5zM8 12.3l1.4-1.4 1.6 1.6 3.6-3.6L16 10.3l-5 5z"/></svg><span class="newcnt" id="meN" hidden></span></button>
       <button class="icon-btn help-btn" id="helpBtn" type="button" aria-label="עזרה — הדרכה ותרשים התהליך" title="עזרה — הדרכה ותרשים התהליך">?</button>
       <button class="icon-btn" id="setBtn" aria-label="הגדרות" title="הגדרות" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.5 7.5 0 0 0-1.7-1L15 3.3h-4l-.4 2.6a7.5 7.5 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.5 7.5 0 0 0 1.7 1l.4 2.6h4l.4-2.6a7.5 7.5 0 0 0 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg></button>
     </div>
@@ -223,6 +224,10 @@
 
   <!-- ============ DASHBOARD ============ -->
   <section id="viewDash" hidden>
+    <div class="ticker" id="dTicker" hidden aria-label="מבזקים — מה פתוח עכשיו">
+      <span class="tk-live" aria-hidden="true"><i></i>לייב</span>
+      <div class="tk-vp"><div class="tk-track" id="dTickTrack"></div></div>
+    </div>
     <div class="dsh-head">
       <h2>מצב אירועים</h2>
       <div class="seg" role="group" aria-label="טווח זמן" id="dRange">
@@ -335,6 +340,21 @@
     <div class="card cal-day" id="calDay"></div>
   </section>
 
+  <!-- ============ PERSONAL AREA ============ -->
+  <section id="viewMe" hidden>
+    <div class="dsh-head"><h2>🔒 האזור האישי שלי</h2></div>
+    <p class="hint me-hint">מטלות לעצמך — תזכורות, דברים לבדוק, רשימת קניות לעבודה. <b>רק אתה רואה אותן</b>: הן לא מנוהלות, לא נשלחות לאף אחד ולא נרשמות ביומן.</p>
+    <p class="hint me-warn" id="meWarn" hidden></p>
+    <form class="card me-add" id="meForm" autocomplete="off">
+      <input type="text" id="meText" maxlength="300" placeholder="מה אני רוצה לזכור / לעשות" aria-label="מטלה חדשה">
+      <input type="date" id="meDue" aria-label="עד מתי (לא חובה)" title="עד מתי (לא חובה)">
+      <button class="btn primary" type="submit">הוסף</button>
+    </form>
+    <div class="me-list" id="meList"></div>
+    <details class="me-done" id="meDoneBox" hidden><summary id="meDoneSum"></summary><div class="me-list" id="meDone"></div>
+      <button type="button" class="btn ghost mini" id="meClear">נקה את מה שבוצע</button></details>
+  </section>
+
   <section id="viewData" hidden>
     <div class="dsh-head"><h2>הגדרות</h2></div>
     <nav class="sg-nav" id="sgNav" aria-label="נושאי הגדרות">
@@ -412,7 +432,7 @@
 
     <div class="card" data-sg="general">
       <h3>גרסה</h3>
-      <p id="verLine">גרסה 2.33 · 01/10/2026</p>
+      <p id="verLine">גרסה 2.34 · 01/10/2026</p>
       <div class="row"><button class="btn" id="reloadApp">בדוק עדכון</button></div>
     </div>
 
@@ -580,9 +600,9 @@
     <button class="btn ghost" id="wkClose" hidden>סגור</button></div>
 </dialog>
 
-<script src="firebase-config.js?v=2.33"></script>
-<script src="app.js?v=2.33"></script>
-<script src="cloud.js?v=2.33"></script>
+<script src="firebase-config.js?v=2.34"></script>
+<script src="app.js?v=2.34"></script>
+<script src="cloud.js?v=2.34"></script>
 <script>
 if("serviceWorker" in navigator){
   window.addEventListener("load",()=>{ navigator.serviceWorker.register("sw.js").catch(()=>{}); });
