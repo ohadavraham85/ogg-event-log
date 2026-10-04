@@ -1860,7 +1860,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.36", APP_DATE="01/10/2026";
+const APP_VER="2.37", APP_DATE="01/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -3101,6 +3101,8 @@ function paintTickerInto(box, tr, key){
   const tickSigs=window.__tickSigs||(window.__tickSigs={});        // may run before the rest of the file
   if(!box || !tr) return;
   const today=ymd(new Date()), items=[];
+  // notices from the board run first (the important ones before the rest)
+  (typeof boardActive==="function" ? boardActive() : []).forEach(x=>items.push({k:"b", id:x.id, cls:x.important?"bimp":"bd", tag:x.important?"❗ מודעה":"📌 מודעה", text:x.text.replace(/\s+/g," ").slice(0,140)}));
   const tks=tkVis().filter(tkOpen).sort((a,b)=>{ const r=t=>t.due && t.due<today ? 0 : t.due===today ? 1 : prioOf(t)==="דחופה" ? 2 : 3;
     return r(a)-r(b) || String(a.due||"9").localeCompare(String(b.due||"9")); }).slice(0,15);
   tks.forEach(t=>{ const st = t.due && t.due<today ? "late" : t.due===today ? "today" : prioOf(t)==="דחופה" ? "urg" : "";
@@ -3116,7 +3118,8 @@ function paintTickerInto(box, tr, key){
   const run=()=>{ const g=mk("div","tk-run"); items.forEach(it=>{
       const b=mk("button","tk-it"+(it.cls?" ki-"+it.cls:"")); b.type="button"; b.title=it.k==="t"?"פתח את המשימה":"פתח את האירוע";
       b.append(mk("span","tk-tag",it.tag), mk("span","tk-tx",it.text));
-      b.onclick=()=>it.k==="t" ? goTask(it.id) : evGo(it.id); g.appendChild(b); }); return g; };
+      b.title = it.k==="b" ? "לוח המודעות" : b.title;
+      b.onclick=()=>it.k==="t" ? goTask(it.id) : it.k==="b" ? goBoard() : evGo(it.id); g.appendChild(b); }); return g; };
   const a1=run(), a2=run(); a2.setAttribute("aria-hidden","true"); a2.querySelectorAll("button").forEach(b=>b.tabIndex=-1);
   tr.append(a1,a2);
   requestAnimationFrame(()=>{ const w=a1.scrollWidth; tr.style.setProperty("--tk-dur", Math.max(18, Math.round(w/55))+"s"); });   // ~55px a second
@@ -3196,7 +3199,8 @@ var BOARD=(()=>{ try{ const a=JSON.parse(localStorage.getItem("ogg-board")||"[]"
 function boardActive(){ const d=ymd(new Date()); return (BOARD||[]).filter(x=>x && x.text && (!x.until || x.until>=d))
   .sort((a,b)=>(b.important?1:0)-(a.important?1:0) || String(b.at).localeCompare(String(a.at))); }
 function boardSave(){ try{ localStorage.setItem("ogg-board",JSON.stringify(BOARD)); }catch(e){} }
-window.boardApply=items=>{ BOARD=items||[]; boardSave(); paintBoard(); if(TV) tvPaint(true); };
+window.boardApply=items=>{ BOARD=items||[]; boardSave(); paintBoard(); paintTicker(); if(TV) tvPaint(true); };
+function goBoard(){ if(TV) return; show("Dash"); const c=$("#dBoard"); if(c && !c.hidden){ c.scrollIntoView({block:"center"}); c.classList.add("flash"); setTimeout(()=>c.classList.remove("flash"),1800); } }
 function paintBoard(){
   const box=$("#dBoard"); if(!box) return;
   const act=boardActive(), mgr=isManager() && !isViewer();
@@ -3210,7 +3214,7 @@ function paintBoard(){
     if(mgr){ const d=mk("button","bd-del","✕"); d.type="button"; d.title="הסר את המודעה"; d.setAttribute("aria-label","הסר את המודעה");
       d.onclick=async()=>{ if(!confirm("להסיר את המודעה?\n"+x.text)) return;
         if(CLOUD_ON && window.cloudBoardDel){ if(!await window.cloudBoardDel(x.id)) toast("ההסרה נכשלה"); }
-        else { BOARD=BOARD.filter(b=>b.id!==x.id); boardSave(); paintBoard(); } };
+        else { BOARD=BOARD.filter(b=>b.id!==x.id); boardSave(); paintBoard(); paintTicker(); } };
       r.appendChild(d); }
     L.appendChild(r); });
 }
@@ -3220,8 +3224,8 @@ $("#bdForm").onsubmit=async ev=>{ ev.preventDefault(); const text=$("#bdText").v
   const it={id:newId(), text:text.slice(0,400), until:$("#bdUntil").value||"", important:$("#bdImp").checked, by:reporter()||"", at:nowLocal()};
   if(CLOUD_ON && window.cloudBoardPut){ if(!await window.cloudBoardPut(it)){ toast("הפרסום נכשל — אולי צריך לפרסם את כללי האבטחה המעודכנים"); return; } }
   else { BOARD.push(it); boardSave(); }
-  $("#bdText").value=""; $("#bdForm").hidden=true; paintBoard(); toast("המודעה פורסמה 📌"); };
-paintBoard();
+  $("#bdText").value=""; $("#bdForm").hidden=true; paintBoard(); paintTicker(); toast("המודעה פורסמה 📌"); };
+paintBoard(); paintTicker();          // the ticker painted before the notices were loaded
 
 /* ===== office screen: big, rotating, live — header (clock), the ticker, one page at a time
    (open tasks, open events, notice board, the numbers), each page for a few seconds. No buttons; nothing can be changed here. */
