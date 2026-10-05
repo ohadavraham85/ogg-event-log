@@ -1884,7 +1884,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.43", APP_DATE="01/10/2026";
+const APP_VER="2.44", APP_DATE="01/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2569,7 +2569,7 @@ function renderTasks(){
     renderLog(t, c);
     const acts=mk("div","tk-acts"), btn=(label,cls,fn)=>{ const b=mk("button","btn"+(cls?" "+cls:""),label); b.type="button"; b.onclick=fn; acts.appendChild(b); };
     if(tkOpen(t)){
-      btn("✓ סיים ורשום ביומן","primary",()=>openTaskDone(t.id));
+      btn("✓ השלם משימה","primary",()=>openTaskDone(t.id));
       btn(t.status==="בטיפול"?"החזר לפתוחה":"בטיפול","",()=>{ t.status = t.status==="בטיפול" ? "פתוחה" : "בטיפול";
         tkLog(t, t.status==="בטיפול" ? "הועברה לטיפול" : "הוחזרה לפתוחה", "", true); t.upd=new Date().toISOString(); saveTasks(); });
       btn("ערוך","",()=>openTaskForm(t.id));
@@ -2791,13 +2791,28 @@ function openTaskDone(id){
   fillSelect($("#tdType"), types, def);
   colorSelect($("#tdType"), hueOf($("#tdType").value));
   $("#tdWhen").value=nowLocal();
+  // writing it to the log is optional; the choice is remembered on this device (on unless turned off)
+  let lg=true; try{ lg=localStorage.getItem("ogg-td-log")!=="0"; }catch(e){}
+  if(t.eventId && events.some(e=>e.id===t.eventId)) lg=true;        // reopened from its event: it closes that event again
+  $("#tdLog").checked=lg; paintTdLog();
   $("#dlgTaskDone").showModal();
 }
+function paintTdLog(){ const on=$("#tdLog").checked; $("#tdLogF").hidden=!on; $("#tdOk").textContent = on ? "✓ השלם ורשום ביומן" : "✓ השלם משימה"; }
+$("#tdLog").onchange=()=>{ paintTdLog(); try{ localStorage.setItem("ogg-td-log",$("#tdLog").checked?"1":"0"); }catch(e){} };
 $("#tdType").onchange=()=>colorSelect($("#tdType"), hueOf($("#tdType").value));
 $("#tdCancel").onclick=()=>$("#dlgTaskDone").close();
 $("#tdOk").onclick=()=>{
   const t=tasks.find(x=>x.id===tkDoneId); if(!t){ $("#dlgTaskDone").close(); return; }
   const when=$("#tdWhen").value||nowLocal(), act=$("#tdAct").value.trim(), type=$("#tdType").value;
+  if(!$("#tdLog").checked){                       // complete only — no event in the log
+    Object.assign(t,{status:"הושלמה", doneAt:nowLocal(), doneBy:reporter()||"", act, upd:new Date().toISOString()});
+    tkLog(t, "הושלמה"+(act?": "+act:"")+" (לא נרשם ביומן)", "", true);
+    const nx0 = t.rep && !t.nextId ? nextOccurrence(t) : null; if(nx0){ tasks.push(nx0); t.nextId=nx0.id; }
+    $("#dlgTaskDone").close(); saveTasks(); renderTasks();
+    if(nx0) toast("המשימה הושלמה · נפתחה המשימה הבאה ליעד "+dmy(nx0.due).slice(0,5),{label:"הצג",fn:()=>goTask(nx0.id)});
+    else toast("המשימה הושלמה ועברה ל\"הושלמו\"");
+    return;
+  }
   const old=t.eventId && events.find(x=>x.id===t.eventId);     // a task that was reopened: its event is closed again (no second event)
   const ev={ id:old ? old.id : newId(), ...(old ? {no:old.no, src:old.src} : {}), type:type?[type]:[], loc:(t.loc||[]).slice(), eq:(t.eq||[]).slice(), ppl:(t.ppl||[]).slice(),
     stat:["נסגר"], title:t.title, desc:t.desc||"", act, when, closedAt:when, closedBy:reporter()||"", ts:new Date().toISOString(),
@@ -3049,7 +3064,7 @@ function tourSteps(){
     {sel:"#tkSeg", pre:tab("#tabTasks"), title:"משימות", text:"המשימות שלי — מה שהוקצה לך ולמחלקה שלך. שפתחתי — מה שאתה פתחת. פתוחות / הושלמו — הכל."},
     mgr && {sel:"#tkDeptSeg", title:"לפי מחלקה", text:"כמנהל — בוחרים מחלקה כדי לראות רק את המשימות שלה. הרשימה נפתחת על המחלקה שלך."},
     {sel:"#tkNewBtn", title:"משימה חדשה", text:"כותרת, הקצאה למחלקה או לעובדים (הראשון — האחראי), סוג, עדיפות ותאריכים. מי שהוקצה מקבל הודעה. בחירה ב\"🔒 אישית\" — משימה לעצמך שרק אתה רואה, בלי הקצאה ובלי רישום ביומן."},
-    {sel:"#tkList .tk", title:"משימה", text:"הפס בצד מראה את היעד: אדום — באיחור, ירוק — היום, כתום — בהמשך. \"+ עדכון\" מוסיף התקדמות, ו\"סיים ורשום ביומן\" סוגר אותה ורושם אירוע סגור ביומן."},
+    {sel:"#tkList .tk", title:"משימה", text:"הפס בצד מראה את היעד: אדום — באיחור, ירוק — היום, כתום — בהמשך. \"+ עדכון\" מוסיף התקדמות, ו\"השלם משימה\" מעביר אותה ל\"הושלמו\" — ואם רוצים, גם רושם אירוע סגור ביומן."},
     {sel:"#inboxBtn", title:"הודעות", text:"🔔 כאן מגיעות הקצאות ועדכונים במשימות שלך. החלקה ימינה מעבירה הודעה לארכיון."},
     {sel:"#fbBtn", title:"משוב", text:"משהו לא עובד או חסר? 💬 מצלם את המסך, מסמנים עליו ושולחים למנהל."},
     {sel:"#setBtn", title:"הגדרות", text: lite ? "בטלפון מוצג רק מה שצריך בשטח. ⚙ ← כללי ← \"עבור לתצוגה מלאה\" מציג הכל." : "ערכת צבעים, צוות וחשבון"+(mgr?", ניהול רשימות, גיבוי":"")+"."},

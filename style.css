@@ -1604,3 +1604,5 @@ html.tv body{background:var(--tvbg)}
 .tv-ticker .tk-it.ki-bimp .tk-tag{background:#D6342C;color:#fff}
 .tv-ticker .tk-it.ki-late .tk-tag{background:#D6342C;color:#fff}
 .tv-ticker .tk-it.ki-today .tk-tag{background:#1C8A4E;color:#fff}
+#tdLogF[hidden]{display:none}
+.td-log{margin:2px 0 10px}
