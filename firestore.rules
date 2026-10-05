@@ -51,14 +51,20 @@ service cloud.firestore {
       allow create, update: if isAdmin() && stamped();
       allow delete: if isAdmin();
     }
-    // meta: lists (meta/lists), tasks (task-<id>), "who am I" (me-<mail>), presence (seen-<mail>);
+    // who is connected (last seen): each one writes their own; only managers read it
+    match /presence/{email} {
+      allow read: if isAdmin();
+      allow create, update: if canWrite() && myEmail() == email && stamped();
+      allow delete: if isAdmin();
+    }
+    // meta: lists (meta/lists), tasks (task-<id>), "who am I" (me-<mail>) — the old presence docs (seen-<mail>) are only removed by a manager;
     // older feedback (fb-<id>) is only read and moved out by a manager
     match /meta/{doc} {
       allow read: if isMember();
       allow create, update: if canWrite() && stamped() && (
            doc == 'lists'
         || (doc.matches('task-.*') && delOk() && (request.method == 'create' || undelOk()))
-        || ((doc == 'me-' + myEmail() || doc == 'seen-' + myEmail()))
+        || doc == 'me-' + myEmail()
         || (doc.matches('me-.*') && isAdmin())
         || (doc.matches('fb-.*') && isAdmin())
       );

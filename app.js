@@ -1311,7 +1311,8 @@ window.agoHe=agoHe;
 /* the team at a glance (team log, on the dashboard): who is connected now, and when the others were last here */
 window.paintTeamStrip=function(){
   const box=$("#dTeam"); if(!box) return;
-  const M=window.teamMembers ? window.teamMembers() : []; if(!CLOUD_ON || !M.length){ box.hidden=true; return; }
+  const M=window.teamMembers ? window.teamMembers() : [];
+  if(!CLOUD_ON || !M.length || !(window.cloudIsAdmin && window.cloudIsAdmin())){ box.hidden=true; return; }   // who is connected: managers only
   const st=M.map(m=>({m, s:window.memberState(m), t:(window.teamSeen()[m.email]||0)}))
     .sort((a,b)=>(a.s.k==="on"?0:1)-(b.s.k==="on"?0:1) || b.t-a.t || (a.m.name||a.m.email).localeCompare(b.m.name||b.m.email,"he"));
   box.textContent=""; box.hidden=false;
@@ -1883,7 +1884,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.42", APP_DATE="01/10/2026";
+const APP_VER="2.43", APP_DATE="01/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){

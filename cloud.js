@@ -141,11 +141,19 @@
     const tSince=Math.max(0,(+get(K_SYNC_T)||0)-5*60*1000);
     unsubTasks=F.onSnapshot(F.query(F.collection(db,"meta"), F.where("_upd",">",F.Timestamp.fromMillis(tSince))), {includeMetadataChanges:true}, applyTasks, ()=>{});   // metadata too: know when the server answered even if nothing changed
     cloudPush(); cloudPushTasks();                         // anything changed while signed out / offline
-    // presence: who is here now / when last seen (meta/seen-<mail>, refreshed every few minutes while the app is open)
-    unsubSeen=F.onSnapshot(F.query(F.collection(db,"meta"), F.where("kind","==","seen")), snap=>{
-      snap.docs.forEach(d=>{ const x=d.data({serverTimestamps:"estimate"}); if(x.email && x.at && x.at.toMillis) seen[x.email]=x.at.toMillis(); });
-      paintMembers(); if(window.paintTeamStrip) window.paintTeamStrip();
-    }, ()=>{});
+    // presence: who is here now / when last seen — presence/<mail>, refreshed every few minutes while the app is open.
+    // Only managers read it (the rules allow nobody else), so only they see who is connected.
+    if(role==="admin"){
+      unsubSeen=F.onSnapshot(F.collection(db,"presence"), snap=>{
+        snap.docs.forEach(d=>{ const x=d.data({serverTimestamps:"estimate"}); if(x.email && x.at && x.at.toMillis) seen[x.email]=Math.max(seen[x.email]||0, x.at.toMillis()); });
+        paintMembers(); if(window.paintTeamStrip) window.paintTeamStrip();
+      }, ()=>{});
+      // the old place (meta/seen-<mail>) could be read by everyone: take what is there, then clear it
+      const once=F.onSnapshot(F.query(F.collection(db,"meta"), F.where("kind","==","seen")), snap=>{
+        snap.docs.forEach(d=>{ const x=d.data(); if(x.email && x.at && x.at.toMillis) seen[x.email]=Math.max(seen[x.email]||0, x.at.toMillis()); F.deleteDoc(d.ref).catch(()=>{}); });
+        paintMembers(); if(window.paintTeamStrip) window.paintTeamStrip(); setTimeout(()=>once(),0);
+      }, ()=>{});
+    }
     beat(); watchFeedback(); watchMine(); watchBoard();
   }
   /* notice board (📌): board/<id> — the whole team and the office screen read it, managers post and remove */
@@ -223,11 +231,11 @@
     });
   }
   let unsubSeen=null, lastBeat=0; const seen={};
-  window.teamSeen=()=>seen; window.teamMembers=()=>members;
+  window.teamSeen=()=>seen; window.teamMembers=()=>members; window.cloudIsAdmin=()=>role==="admin";
   function beat(force){
     if(!started || !me || document.hidden) return;
     if(!force && Date.now()-lastBeat<60e3) return; lastBeat=Date.now();
-    F.setDoc(F.doc(db,"meta","seen-"+me),{kind:"seen",email:me,at:F.serverTimestamp(),_upd:F.serverTimestamp(),_by:me}).catch(()=>{});
+    F.setDoc(F.doc(db,"presence",me),{email:me,at:F.serverTimestamp(),_upd:F.serverTimestamp(),_by:me}).catch(()=>{});
   }
   setInterval(()=>beat(true), 5*60e3);
   document.addEventListener("visibilitychange",()=>{ if(!document.hidden) beat(); });
@@ -625,11 +633,11 @@
   function paintMembers(){
     const box=$("#cloudMembers"); if(!box) return; box.textContent="";
     const S=members.map(memberState), cnt=k=>S.filter(x=>x.k===k).length;
-    box.appendChild(mk("p","cm-sum","🟢 "+cnt("on")+" מחוברים עכשיו · "+(cnt("on")+cnt("was"))+" הצטרפו · "+cnt("inv")+" הוזמנו ועוד לא נכנסו · "+cnt("new")+" טרם הוזמנו"));
+    if(role==="admin") box.appendChild(mk("p","cm-sum","🟢 "+cnt("on")+" מחוברים עכשיו · "+(cnt("on")+cnt("was"))+" הצטרפו · "+cnt("inv")+" הוזמנו ועוד לא נכנסו · "+cnt("new")+" טרם הוזמנו"));
     members.forEach((m,i)=>{
       const r=mk("div","listrow"), who=mk("div","cm-who");
       who.appendChild(mk("b",null,m.name||"(בלי שם)")); who.appendChild(mk("span","cm-mail",m.email));
-      who.appendChild(mk("span","cm-st st-"+S[i].k,S[i].t));
+      if(role==="admin") who.appendChild(mk("span","cm-st st-"+S[i].k,S[i].t));   // who is connected: managers only
       r.appendChild(who);
       const RL={admin:"מנהל",viewer:"צופה — מסך משרד",member:"איש צוות"};
       if(role==="admin" && m.email!==me){                 // a manager changes the role right here
