@@ -702,6 +702,7 @@ function renderList(reset){
     sbtn.textContent = closed_ ? "פתח מחדש" : "סגור אירוע";
     sbtn.onclick=()=>setStatus(e.id, !closed_);
     acts.appendChild(sbtn);
+    if(!isLocked(e) && !isViewer()){ const ed=document.createElement("button"); ed.textContent="ערוך"; ed.onclick=()=>loadInto(e); acts.appendChild(ed); }
     if(isLocked(e)){
       const lk=document.createElement("span"); lk.className="lock"; lk.title="ארכיון · "+(e.src||"");
       const li=document.createElement("span"); li.className="lk-i"; li.textContent="🔒";
@@ -779,7 +780,8 @@ $("#fQuick12").onclick=()=>{
 };
 $("#fQuickOpen").onclick=()=>{ $("#fStat").value="פתוח"; renderList(); };
 $("#expView").onclick=()=>exportCsv(lastRows, true);
-function isLocked(e){ return !!(e.src && e.src!=="רישום ידני"); }
+// the old archive (loaded from the earlier log files) stays as it was; anything recorded here, from a task or from Planner can be edited
+function isLocked(e){ return !!(e.src && e.src!=="רישום ידני" && e.src!=="Planner"); }
 function nowLocal(){ const d=new Date(), p=n=>String(n).padStart(2,"0");
   return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+"T"+p(d.getHours())+":"+p(d.getMinutes()); }
 function afterStatus(){ renderFilters(); renderList(false); renderStats(); if(!$("#viewDash").hidden) renderDash(); }
@@ -802,6 +804,18 @@ function syncTaskFromEvent(e){
 function reconcileTaskEvents(){
   if(typeof isViewer==="function" && isViewer()) return;
   tasks.forEach(t=>{ if(tkOpen(t) || !t.eventId || t._del) return; const e=events.find(x=>x.id===t.eventId); if(e && isOpen(e)) syncTaskFromEvent(e); });
+}
+function reopenTask(t){
+  const prev={status:t.status, doneAt:t.doneAt, doneBy:t.doneBy, log:(t.log||[]).slice()};
+  t.status="פתוחה"; delete t.doneAt; delete t.doneBy; t.upd=new Date().toISOString();
+  tkLog(t, "נפתחה מחדש", "", true);
+  const e=t.eventId && events.find(x=>x.id===t.eventId), ep = e && !isOpen(e) ? {stat:e.stat, closedAt:e.closedAt, closedBy:e.closedBy, ts:e.ts} : null;
+  if(ep){ e.stat=["פתוח"]; delete e.closedAt; delete e.closedBy; e.ts=new Date().toISOString(); persist(); }
+  saveTasks(); renderAll(); renderTasks();
+  toast("המשימה נפתחה מחדש"+(ep?" · גם האירוע שלה ביומן":""),{label:"ביטול",fn:()=>{
+    Object.keys(prev).forEach(k=>{ if(prev[k]===undefined) delete t[k]; else t[k]=prev[k]; }); t.upd=new Date().toISOString();
+    if(ep) Object.keys(ep).forEach(k=>{ if(ep[k]===undefined) delete e[k]; else e[k]=ep[k]; });
+    if(ep) persist(); saveTasks(); renderAll(); toast("השינוי בוטל"); }});
 }
 function undoTaskSync(s){ if(!s) return; Object.keys(s.prev).forEach(k=>{ if(s.prev[k]===undefined) delete s.t[k]; else s.t[k]=s.prev[k]; }); s.t.upd=new Date().toISOString(); saveTasks(); }
 function setStatus(id, close){
@@ -1884,7 +1898,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.46", APP_DATE="01/10/2026";
+const APP_VER="2.47", APP_DATE="01/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2532,7 +2546,7 @@ function renderTasks(){
       tkRowOpen.has(t.id) ? tkRowOpen.delete(t.id) : tkRowOpen.add(t.id); c.classList.toggle("x"); }); c.style.borderInlineStartColor = tkOpen(t) && !t.due ? "var(--c-"+ph+")" : "";
     if(tkOpen(t) && t.due) c.classList.add(t.due<today?"tl-late":t.due===today?"tl-today":"tl-future");   // the whole frame in the traffic-light colour of the due date
     if(tkOpen(t) && pr==="דחופה") c.style.background="color-mix(in srgb,var(--c-fault-bg) 55%,var(--panel))";
-    { const tt=mk("div","tk-t"), tx=mk("span","tk-tt",t.title||"(ללא כותרת)"); tt.appendChild(tkCircle(t, ()=>openTaskDone(t.id))); if(t.no) tt.appendChild(mk("span","sn","#"+t.no));
+    { const tt=mk("div","tk-t"), tx=mk("span","tk-tt",t.title||"(ללא כותרת)"); tt.appendChild(tkCircle(t, ()=>tkOpen(t) ? openTaskDone(t.id) : reopenTask(t))); if(t.no) tt.appendChild(mk("span","sn","#"+t.no));
       (t.eq||[]).forEach(q=>{ const g=mk("span","tk-eqtag","⚙ "+q); g.title="ציוד"; tx.appendChild(g); });   // the equipment, right by the title
       tt.appendChild(tx); c.appendChild(tt); }   // number and text side by side: a wrapped line starts under the text, not under the number
     // tags sit in fixed slots, so in "רשימה" every kind lines up in its own column (in "אריחים" the slots just flow)
@@ -2573,6 +2587,10 @@ function renderTasks(){
       btn(t.status==="בטיפול"?"החזר לפתוחה":"בטיפול","",()=>{ t.status = t.status==="בטיפול" ? "פתוחה" : "בטיפול";
         tkLog(t, t.status==="בטיפול" ? "הועברה לטיפול" : "הוחזרה לפתוחה", "", true); t.upd=new Date().toISOString(); saveTasks(); });
       btn("ערוך","",()=>openTaskForm(t.id));
+    } else if(!isViewer()){
+      // a completed task can be reopened (its event in the log reopens with it) and edited
+      btn("↩ פתח מחדש","",()=>reopenTask(t));
+      btn("ערוך","",()=>openTaskForm(t.id));
     }
     // a team task that turns out to be only mine: move it to my personal (🔒) tasks — it leaves the team board (so: managers, like deleting)
     if(tkOpen(t) && isManager() && !isViewer()) btn("🔒 העבר לאישית","",()=>{
@@ -2597,9 +2615,9 @@ function renderTasks(){
 function tkCircle(t, onDone, priv){
   const open=tkOpen(t), b=mk("button","tk-done-c"+(open?"":" on")); b.type="button";
   b.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12.5l4 4 8-9" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-  const can = !(typeof isViewer==="function" && isViewer()) && (open || priv);
+  const can = !(typeof isViewer==="function" && isViewer());
   b.disabled=!can;
-  b.title = open ? "השלם משימה" : priv ? "החזר לפתוחות" : "הושלמה"+(t.doneBy?" · "+t.doneBy:"");
+  b.title = open ? "השלם משימה" : "הושלמה"+(t.doneBy?" · "+t.doneBy:"")+" — לחיצה מחזירה לפתוחות";
   b.setAttribute("aria-label", b.title);
   b.onclick=ev=>{ ev.stopPropagation(); if(can) onDone(); };
   return b;
