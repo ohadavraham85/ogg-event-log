@@ -1464,7 +1464,7 @@ function paintSettings(){
   if((!mgr || isLite()) && (sgCur==="lists"||sgCur==="files")) sgCur = team ? "team" : "general";   // phone view: no lists / files topics
   if(sgCur==="team" && !team) sgCur = mgr ? "lists" : "general";
   document.querySelectorAll("#sgNav button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.sg===sgCur)));
-  document.querySelectorAll("#viewData > .card").forEach(c=>{ c.hidden = (c.dataset.sg||"general")!==sgCur || c.dataset.off==="1" || (c.id==="liteCard" && !LITE_MQ.matches) || (c.id==="tvCard" && !mgr); });
+  document.querySelectorAll("#viewData > .card").forEach(c=>{ c.hidden = (c.dataset.sg||"general")!==sgCur || c.dataset.off==="1" || (c.id==="liteCard" && !LITE_MQ.matches) || (c.id==="tvCard" && !mgr) || (c.id==="newsCard" && !(CLOUD_ON && mgr)); });
 }
 document.querySelectorAll("#sgNav button").forEach(b=>b.onclick=()=>{ sgCur=b.dataset.sg; try{ localStorage.setItem("ogg-settings-topic",sgCur); }catch(e){} paintSettings(); window.scrollTo({top:0}); });
 window.paintSettings=paintSettings;
@@ -1883,7 +1883,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.41", APP_DATE="01/10/2026";
+const APP_VER="2.42", APP_DATE="01/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -3369,3 +3369,7 @@ $("#tvOpen").onclick=()=>window.open(location.pathname+"?tv=1","_blank","noopene
 $("#tvCopy").onclick=async()=>{ const u=location.origin+location.pathname+"?tv=1"; try{ await navigator.clipboard.writeText(u); toast("הקישור הועתק: "+u); }catch(e){ prompt("הקישור למסך המשרד:",u); } };
 if(TV) tvStart();
 else { const w=setInterval(()=>{ if(isViewer()){ clearInterval(w); tvStart(); } },1500); }   // signed in as "צופה": the office screen opens by itself
+
+/* settings → כללי: a manager gets a message on every change in every team task (on unless turned off; cloud.js reads it) */
+if($("#newsAll")){ try{ $("#newsAll").checked=localStorage.getItem("ogg-news-all")!=="0"; }catch(e){}
+  $("#newsAll").onchange=e=>{ try{ localStorage.setItem("ogg-news-all", e.target.checked?"1":"0"); }catch(_){} toast(e.target.checked?"תקבל הודעה על כל שינוי בכל משימה":"תקבל הודעות רק על המשימות שלך ושפתחת"); }; }

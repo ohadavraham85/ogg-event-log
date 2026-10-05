@@ -270,6 +270,14 @@
       if(window.nosAfterSync) setTimeout(window.nosAfterSync,1500); }
     syncChip(snap.metadata);
   }
+  /* which tasks send me a message when someone else changes them: mine / my department's, the ones I opened or wrote in —
+     and for a manager (unless turned off in settings → כללי) every task of the team */
+  function followsTask(x){
+    if(!x) return false;
+    if(get(K_ROLE)==="admin" && get("ogg-news-all")!=="0") return true;
+    const mineT=window.taskIsMine ? window.taskIsMine(x) : (x.ppl||[]).includes(window.cloudMyName());
+    return mineT || !!(window.openedByMe && window.openedByMe(x)) || (x.log||[]).some(l=>l && l.mail===me);
+  }
   function applyTasks(snap){
     // the first server answer on a brand-new device is the initial download, not news
     let maxU=+get(K_SYNC_T)||0, changed=false; const firstEver=tFresh && !tInit, fresh=[], assigned=[], news=[]; let mergedLog=false;
@@ -278,7 +286,10 @@
       const d=c.doc.data({serverTimestamps:"estimate"}), tid=id.slice(5);
       if(!c.doc.metadata.hasPendingWrites && d._upd && d._upd.toMillis) maxU=Math.max(maxU,d._upd.toMillis());
       const i=tasks.findIndex(t=>t.id===tid);
-      if(d._del){ if(i>=0){ tasks.splice(i,1); changed=true; } delete tSynced[tid]; return; }
+      if(d._del){ if(i>=0){
+          const w=tasks[i];                                  // a task I follow was deleted by someone else: tell me
+          if(!firstEver && d._by && d._by!==me && followsTask(w)) news.push({tid:w.id, title:w.title||"", by:whoOf(d._by), id:w.id+":del:"+(d._upd && d._upd.toMillis ? d._upd.toMillis() : Date.now()), kind:"off", text:"המשימה נמחקה"});
+          tasks.splice(i,1); changed=true; } delete tSynced[tid]; return; }
       const t=clean(d), js=JSON.stringify(t);
       if(tSynced[tid]===js && i>=0) return;                // our own write coming back
       const mine=window.cloudMyName(), was=i>=0 ? tasks[i] : null;
@@ -288,7 +299,7 @@
       // messages list: anything someone else did to a task of mine (or that stopped being mine),
       // or to a task I'm involved in — I opened it or wrote an update on it
       // a manager also follows tasks they opened or wrote in; a team member their own, their department's and the ones they opened
-      const touched=x=>!!x && (get(K_ROLE)==="admin" ? (x.log||[]).some(l=>l && l.mail===me) : !!(window.openedByMe && window.openedByMe(x))), inv=x=>!!x && (mineT(x) || touched(x));
+      const inv=x=>followsTask(x);
       if(!firstEver && d._by && d._by!==me && (inv(t) || inv(was)))
         news.push(...taskNews(was, t, whoOf(d._by), mineT(t), !!was && mineT(was), d._upd && d._upd.toMillis ? d._upd.toMillis() : Date.now()));
       // update log: keep entries this device has that the incoming copy lacks (two people updating at once)
@@ -339,7 +350,9 @@
         text:"הוקצתה לך משימה"+(t.prio && t.prio!=="רגילה" ? " · "+t.prio : "")+(t.due ? " · יעד "+dm(t.due) : "")});
       return out;
     }
-    if(!was) return out;
+    if(!was){                                            // a new task that isn't assigned to me (a manager following the whole team)
+      out.push({...base, id:t.id+":new:"+upd, kind:"assign", text:"נפתחה משימה חדשה"+((t.ppl||[]).length?" · אחראי: "+t.ppl[0]:"")+((t.depts||[]).length?" · 🏢 "+t.depts.join(", "):"")+(t.due ? " · יעד "+dm(t.due) : "")});
+      return out; }
     const had=new Set((was.log||[]).map(l=>l && l.id));
     (t.log||[]).filter(l=>l && !had.has(l.id) && l.mail!==me).forEach(l=>out.push({...base, id:t.id+":"+l.id, kind:l.sys ? "status" : "update",
       text:l.text||"", by:l.by||who, at:l.at}));
@@ -348,6 +361,7 @@
     if(!same(t.due,was.due)) ch.push("יעד "+dm(t.due));
     if(!same(t.start,was.start)) ch.push("התחלה "+dm(t.start));
     if(!same(t.prio,was.prio)) ch.push("עדיפות "+(t.prio||"רגילה"));
+    if(!same(t.type,was.type)) ch.push("סוג "+(t.type||"—"));
     if(!same(t.desc,was.desc)) ch.push("תיאור");
     if(!same(t.loc,was.loc)) ch.push("מיקום");
     if(!same(t.eq,was.eq)) ch.push("ציוד");
@@ -356,6 +370,11 @@
     if(!same(items(t),items(was))) ch.push("רשימת בדיקה");
     if(!same(t.ppl,was.ppl) || !same(t.depts,was.depts)) ch.push("שיוך: "+(t.ppl||[]).concat((t.depts||[]).map(x=>"🏢 "+x)).join(", "));
     if(ch.length) out.push({...base, id:t.id+":ed:"+upd, kind:"edit", text:"עודכנו פרטים: "+ch.join(" · ")});
+    // files and photos added / removed
+    const fl=x=>(x.files||[]).filter(f=>f && !f.del), wasF=new Set(fl(was).map(f=>f.id)), nowF=new Set(fl(t).map(f=>f.id));
+    const addF=fl(t).filter(f=>!wasF.has(f.id)), rmF=fl(was).filter(f=>!nowF.has(f.id));
+    if(addF.length) out.push({...base, id:t.id+":fa:"+upd, kind:"edit", text:(addF.length===1 ? (/^image\//.test(addF[0].type||"")?"📷 צורפה תמונה: ":"📎 צורף קובץ: ")+(addF[0].name||"") : "📎 צורפו "+addF.length+" קבצים")});
+    if(rmF.length) out.push({...base, id:t.id+":fr:"+upd, kind:"edit", text:"הוסר קובץ: "+rmF.map(f=>f.name||"").join(", ")});
     if(!out.length && t.status!==was.status) out.push({...base, id:t.id+":st:"+upd, kind:"status", text:"סטטוס: "+(t.status||"")});
     return out;
   }
