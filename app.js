@@ -1884,7 +1884,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.45", APP_DATE="01/10/2026";
+const APP_VER="2.46", APP_DATE="01/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2724,15 +2724,16 @@ $("#tkSave").onclick=()=>{
     closeTaskForm(); if(tkView==="done"){ tkView="mine"; paintTkSeg(); } mePut(a);
     toast(window.cloudMineState==="denied" ? "נשמרה 🔒 — כרגע רק במכשיר הזה" : "המשימה האישית נשמרה 🔒 — רק אתה רואה אותה"); return;
   }
-  // all fields are required: type, priority, assignee, due date, location, equipment, and what to do
+  // required: type, priority, assignee (person or department), location, equipment and the title
   // assignment: a person, one or more departments, or both — at least one of them
-  const need=[["#tkType","סוג"],["#tkPrio","עדיפות"],["#tkStart","תאריך התחלה"],["#tkPpl","אחראי או מחלקה"],["#tkDue","תאריך יעד"],["#tkLoc","מיקום"],["#tkEq","ציוד"],["#tkTitle","כותרת המשימה"]];
+  // start and due dates are optional (a recurring task without a due date counts its next round from the day it is done)
+  const need=[["#tkType","סוג"],["#tkPrio","עדיפות"],["#tkPpl","אחראי או מחלקה"],["#tkLoc","מיקום"],["#tkEq","ציוד"],["#tkTitle","כותרת המשימה"]];
   const miss=need.filter(([id])=>{ const v=($(id).value||"").trim(); let bad=!v || v==="__other";
     if(id==="#tkPpl") bad=!tkPplSel.length && !tkDeptSel.length;
     $(id).closest(".tk-f").classList.toggle("bad",bad); if(id==="#tkPpl") $("#tkDepts").closest(".tk-f").classList.toggle("bad",bad); return bad; });
   if(miss.length){ toast("חסר: "+miss.map(m=>m[1]).join(", "));
     const f=$(miss[0][0]); (f.classList.contains("ss-hidden") ? f.nextElementSibling : f).focus(); return; }
-  if($("#tkStart").value > $("#tkDue").value){ $("#tkDue").closest(".tk-f").classList.add("bad"); toast("תאריך היעד לפני תאריך ההתחלה"); $("#tkDue").focus(); return; }
+  if($("#tkStart").value && $("#tkDue").value && $("#tkStart").value > $("#tkDue").value){ $("#tkDue").closest(".tk-f").classList.add("bad"); toast("תאריך היעד לפני תאריך ההתחלה"); $("#tkDue").focus(); return; }
   const title=$("#tkTitle").value.trim();
   const now=new Date().toISOString(), prio=$("#tkPrio").value||"רגילה";
   const data={title, desc:$("#tkDesc").value.trim(), type:$("#tkType").value||"", prio, urgent:prio==="דחופה",
