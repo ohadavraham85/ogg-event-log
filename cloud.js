@@ -107,6 +107,7 @@
     if(!role){ stopSync(); state="noaccess"; showSplash(); renderLogin(); setChip("off","אין הרשאה"); return; }
     put(K_ROLE,role); state="in"; renderLogin();
     startSync(); renderAccount();
+    if(get(K_PUSH)) pushRegister(false);                   // push on this device: keep its token current
     if(typeof paintSettings==="function") paintSettings();       // members don't get the admin-only settings
     if(typeof renderAll==="function"){ renderAll(); renderTasks(); }  // delete buttons only for a manager
     if(sp.hidden===false && location.search.includes("oobCode")) {}   // stay on the opening screen until "כניסה"
@@ -342,7 +343,7 @@
       const title = assigned.length===1 ? "הוקצתה לך משימה" : "הוקצו לך "+assigned.length+" משימות";
       const body = assigned.map(t=>(t.prio&&t.prio!=="רגילה"&&t.prio!=="נמוכה" ? t.prio+" · " : t.urgent?"דחופה · ":"")+(t.title||"")+(t.due?" · יעד "+t.due.slice(8,10)+"/"+t.due.slice(5,7):"")).join("\n");
       toast(title+": "+(assigned[0].title||""), {label:"הצג", fn:openMine});
-      notifyDevice(title, body, "ogg-task", openMine);
+      if(!pushOn()) notifyDevice(title, body, "ogg-task", openMine);   // with push on, the phone gets it from the server
       if(typeof addMineUnseen==="function") addMineUnseen(assigned.map(t=>t.id));
     } else if(fresh.length) toast(fresh.length===1 ? "משימה חדשה: "+(fresh[0].title||"") : fresh.length+" משימות חדשות",
       {label:"הצג", fn:()=>{ $("#tabTasks").click(); }});
@@ -514,6 +515,9 @@
       nt.appendChild(nb);
     }
     card.appendChild(nt);
+    // push to the phone (task messages also when the app is closed)
+    const pb=mk("div","cloud-push"); card.appendChild(pb);
+    pushSupported().then(ok=>{ if(ok && role!=="viewer") paintPush(pb); });
 
     // local-only log on this device (from before the team log) -> admin can upload it once
     let local=[]; try{ local=JSON.parse(get("ogg-log-v2")||"[]"); }catch(e){}
@@ -718,6 +722,54 @@
     box.appendChild(row);
     box.scrollIntoView({block:"nearest",behavior:"smooth"});
   }
+  /* ---------- push to the phone (FCM): task messages even when the app is closed ----------
+     Needs FIREBASE_VAPID_KEY (firebase-config.js) and the "taskPush" Cloud Function (functions/). This device's token is kept in
+     push/<token> with its owner's mail and the manager's "every task" setting; the function sends what the 📨 list would show. */
+  const K_PUSH="ogg-push-token";
+  let pushSup=null;
+  async function pushSupported(){
+    if(pushSup===null) pushSup=!!(window.FIREBASE_VAPID_KEY && "serviceWorker" in navigator && "Notification" in window && F && F.messagingSupported
+                                  && await F.messagingSupported().catch(()=>false));
+    return pushSup;
+  }
+  const pushOn=()=>!!get(K_PUSH) && "Notification" in window && Notification.permission==="granted";
+  async function pushRegister(ask){
+    if(!me || role==="viewer" || !(await pushSupported())) return false;
+    if(ask && Notification.permission==="default"){ try{ await Notification.requestPermission(); }catch(e){} }
+    if(Notification.permission!=="granted"){ if(Notification.permission==="denied") put(K_PUSH,null); return false; }
+    try{
+      const reg=await navigator.serviceWorker.ready;
+      const tok=await F.getToken(F.getMessaging(app),{vapidKey:window.FIREBASE_VAPID_KEY, serviceWorkerRegistration:reg});
+      if(!tok) return false;
+      const old=get(K_PUSH);
+      if(old && old!==tok) F.deleteDoc(F.doc(db,"push",old)).catch(()=>{});
+      await F.setDoc(F.doc(db,"push",tok),{token:tok, mail:me, all:get("ogg-news-all")!=="0", ua:navigator.userAgent.slice(0,120), _upd:F.serverTimestamp(), _by:me});
+      put(K_PUSH,tok); return true;
+    }catch(e){ return false; }
+  }
+  async function pushOff(){
+    const tok=get(K_PUSH); put(K_PUSH,null);
+    if(!tok) return;
+    try{ await F.deleteDoc(F.doc(db,"push",tok)); }catch(e){}
+    try{ await F.deleteToken(F.getMessaging(app)); }catch(e){}
+  }
+  window.cloudPushPrefs=()=>{ if(me && get(K_PUSH)) pushRegister(false); };   // the manager's "every task" setting changed
+  function paintPush(pb){
+    pb.textContent="";
+    const ios=/iPhone|iPad|iPod/.test(navigator.userAgent);
+    if(pushOn()){
+      pb.appendChild(mk("p","hint","📱 התראות פוש פעילות במכשיר הזה: הודעה על שינוי במשימות שאתה עוקב אחריהן (כמו ברשימת ההודעות 📨) — גם כשהאפליקציה סגורה."));
+      const b=mk("button","btn","כבה פוש במכשיר הזה"); b.type="button";
+      b.onclick=async()=>{ b.disabled=true; await pushOff(); paintPush(pb); toast("התראות הפוש כובו במכשיר הזה"); };
+      pb.appendChild(b);
+    } else if(Notification.permission!=="denied"){
+      pb.appendChild(mk("p","hint","📱 התראות פוש לטלפון: הודעה על שינוי במשימות שלך, של המחלקה ושפתחת — גם כשהאפליקציה סגורה."+(ios?" באייפון — רק מהאפליקציה שהותקנה במסך הבית.":"")));
+      const b=mk("button","btn primary","הפעל התראות פוש"); b.type="button";
+      b.onclick=async()=>{ b.disabled=true; const ok=await pushRegister(true);
+        toast(ok?"התראות פוש הופעלו במכשיר הזה":"לא הצלחתי להפעיל התראות פוש"+(Notification.permission==="denied"?" — ההתראות חסומות בדפדפן":"")); renderAccount(); };
+      pb.appendChild(b);
+    }
+  }
   /* device notification (when the app is in the background and the user allowed it) */
   function notifyDevice(title, body, tag, onClick){
     if(!(document.hidden && "Notification" in window && Notification.permission==="granted")) return;
@@ -728,6 +780,7 @@
   async function logout(){
     if(!confirm("להתנתק? העותק של היומן המשותף יימחק מהמכשיר הזה (הוא נשאר בענן).")) return;
     stopSync();
+    await pushOff();                                      // this device stops getting the team's pushes
     try{ await F.signOut(auth); }catch(e){}
     ["ogg-cloud-log","ogg-cloud-lists","ogg-cloud-tasks",K_SYNC,K_SYNC_T,K_ROLE,"ogg-me-todos-"+me].forEach(k=>put(k,null));
     try{ await Promise.all(["ogg-cloud-log","ogg-cloud-tasks"].map(k=>window.kvDel ? window.kvDel(k) : null)); }catch(e){}

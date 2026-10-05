@@ -6,3 +6,8 @@
 Thumbs.db
 .vscode/
 .idea/
+
+# Firebase deploy settings (no data): allowed despite *.json above.
+# firestore.rules is deliberately NOT in firebase.json — it is published by hand with the real OWNER_EMAIL.
+!firebase.json
+!functions/package.json

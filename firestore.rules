@@ -57,6 +57,13 @@ service cloud.firestore {
       allow create, update: if canWrite() && myEmail() == email && stamped();
       allow delete: if isAdmin();
     }
+    // push to phones: push/<FCM token> — one per device, with its owner's mail; read and sent only by the Cloud Function
+    // (it bypasses these rules). A member registers their own device and removes it; a manager can remove any.
+    match /push/{tok} {
+      allow read: if signedIn() && resource.data.mail == myEmail();
+      allow create, update: if canWrite() && stamped() && request.resource.data.mail == myEmail() && request.resource.data.token == tok;
+      allow delete: if signedIn() && (resource.data.mail == myEmail() || isAdmin());
+    }
     // meta: lists (meta/lists), tasks (task-<id>), "who am I" (me-<mail>) — the old presence docs (seen-<mail>) are only removed by a manager;
     // older feedback (fb-<id>) is only read and moved out by a manager
     match /meta/{doc} {

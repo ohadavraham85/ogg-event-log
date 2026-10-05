@@ -1898,7 +1898,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.48", APP_DATE="01/10/2026";
+const APP_VER="2.49", APP_DATE="05/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -3433,4 +3433,5 @@ else { const w=setInterval(()=>{ if(isViewer()){ clearInterval(w); tvStart(); } 
 
 /* settings → כללי: a manager gets a message on every change in every team task (on unless turned off; cloud.js reads it) */
 if($("#newsAll")){ try{ $("#newsAll").checked=localStorage.getItem("ogg-news-all")!=="0"; }catch(e){}
-  $("#newsAll").onchange=e=>{ try{ localStorage.setItem("ogg-news-all", e.target.checked?"1":"0"); }catch(_){} toast(e.target.checked?"תקבל הודעה על כל שינוי בכל משימה":"תקבל הודעות רק על המשימות שלך ושפתחת"); }; }
+  $("#newsAll").onchange=e=>{ try{ localStorage.setItem("ogg-news-all", e.target.checked?"1":"0"); }catch(_){} toast(e.target.checked?"תקבל הודעה על כל שינוי בכל משימה":"תקבל הודעות רק על המשימות שלך ושפתחת");
+    if(window.cloudPushPrefs) window.cloudPushPrefs(); }; }
