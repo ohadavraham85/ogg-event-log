@@ -1606,3 +1606,12 @@ html.tv body{background:var(--tvbg)}
 .tv-ticker .tk-it.ki-today .tk-tag{background:#1C8A4E;color:#fff}
 #tdLogF[hidden]{display:none}
 .td-log{margin:2px 0 10px}
+/* completion circle at the start of a task; a completed task is struck through */
+.tk-done-c{flex:none;width:26px;height:26px;border-radius:50%;border:2px solid var(--ink-3);background:var(--panel);color:transparent;display:inline-grid;place-items:center;padding:0;cursor:pointer;transition:all .15s;align-self:center}
+.tk-done-c svg{width:16px;height:16px}
+.tk-done-c:not(:disabled):hover{border-color:#1C8A4E;color:#1C8A4E;background:color-mix(in srgb,#1C8A4E 10%,var(--panel))}
+.tk-done-c.on{background:#1C8A4E;border-color:#1C8A4E;color:#fff}
+.tk-done-c:disabled{cursor:default}
+.tk-t .tk-done-c{margin-top:0}
+.tk.done .tk-tt{text-decoration:line-through;text-decoration-thickness:2px;text-decoration-color:color-mix(in srgb,var(--ink) 55%,transparent);color:var(--ink-2)}
+.tk.done{opacity:.92}
