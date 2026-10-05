@@ -539,7 +539,8 @@ function doSave(e){
   if(isOpen(e)){ delete e.closedAt; delete e.closedBy; }
   if(i>=0) events[i]=e; else events.unshift(e);
   events.sort((a,b)=>(b.when||"").localeCompare(a.when||""));
-  persist(); renderAll(); toast(i>=0?"האירוע עודכן":"האירוע נשמר"); resetForm();
+  const ts = i>=0 ? syncTaskFromEvent(e) : null;
+  persist(); renderAll(); toast((i>=0?"האירוע עודכן":"האירוע נשמר")+(ts ? (isOpen(e)?" · המשימה חזרה למשימות הפתוחות":" · המשימה סומנה כהושלמה") : "")); resetForm();
 }
 $("#saveBtn").onclick = ()=>{
   const e=collect();
@@ -783,14 +784,36 @@ function nowLocal(){ const d=new Date(), p=n=>String(n).padStart(2,"0");
   return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+"T"+p(d.getHours())+":"+p(d.getMinutes()); }
 function afterStatus(){ renderFilters(); renderList(false); renderStats(); if(!$("#viewDash").hidden) renderDash(); }
 /* close / reopen an event. Archive events stay locked for editing, but their status may change. */
+/* an event written by finishing a task moves with it: reopening the event brings the task back to the open tasks,
+   closing it again completes the task again. Returns what to restore for "ביטול". */
+function syncTaskFromEvent(e){
+  const t=e && e.taskId && tasks.find(x=>x.id===e.taskId && !x._del); if(!t) return null;
+  const prev={status:t.status, doneAt:t.doneAt, doneBy:t.doneBy, upd:t.upd, log:(t.log||[]).slice()};
+  if(isOpen(e) && !tkOpen(t)){
+    t.status="פתוחה"; delete t.doneAt; delete t.doneBy; t.upd=new Date().toISOString();
+    tkLog(t, "נפתחה מחדש — האירוע ביומן"+(e.no?" #"+e.no:"")+" נפתח מחדש", "", true);
+  } else if(!isOpen(e) && tkOpen(t) && t.eventId===e.id){
+    t.status="הושלמה"; t.doneAt=e.closedAt||nowLocal(); t.doneBy=e.closedBy||reporter()||""; t.upd=new Date().toISOString();
+    tkLog(t, "הושלמה — האירוע ביומן"+(e.no?" #"+e.no:"")+" נסגר", "", true);
+  } else return null;
+  saveTasks(); return {t, prev};
+}
+// tasks whose event was reopened before this was linked (or on another device): back to the open tasks
+function reconcileTaskEvents(){
+  if(typeof isViewer==="function" && isViewer()) return;
+  tasks.forEach(t=>{ if(tkOpen(t) || !t.eventId || t._del) return; const e=events.find(x=>x.id===t.eventId); if(e && isOpen(e)) syncTaskFromEvent(e); });
+}
+function undoTaskSync(s){ if(!s) return; Object.keys(s.prev).forEach(k=>{ if(s.prev[k]===undefined) delete s.t[k]; else s.t[k]=s.prev[k]; }); s.t.upd=new Date().toISOString(); saveTasks(); }
 function setStatus(id, close){
   const e=events.find(x=>x.id===id); if(!e) return;
   const prev={stat:e.stat, closedAt:e.closedAt, closedBy:e.closedBy, ts:e.ts};
   if(close){ e.stat=["נסגר"]; e.closedAt=nowLocal(); e.closedBy=reporter()||""; } else { e.stat=["פתוח"]; delete e.closedAt; delete e.closedBy; }
   e.ts=new Date().toISOString();
+  const ts=syncTaskFromEvent(e);
   persist(); afterStatus();
-  toast(close?"האירוע נסגר":"האירוע נפתח מחדש",{label:"ביטול",fn:()=>{
+  toast((close?"האירוע נסגר":"האירוע נפתח מחדש")+(ts ? (close?" · המשימה סומנה כהושלמה":" · המשימה חזרה למשימות הפתוחות") : ""),{label:"ביטול",fn:()=>{
     ["stat","closedAt","closedBy","ts"].forEach(k=>{ if(prev[k]===undefined) delete e[k]; else e[k]=prev[k]; });
+    undoTaskSync(ts);
     persist(); afterStatus(); toast("השינוי בוטל");
   }});
 }
@@ -1860,7 +1883,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.39", APP_DATE="01/10/2026";
+const APP_VER="2.40", APP_DATE="01/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2468,6 +2491,7 @@ $("#tkExp").onclick=()=>exportTasksCsv(tkLastRows);
 function tkText(t){ return [snOf(t),t.title,t.desc,t.act,t.type,t.prio,(t.ppl||[]).join(" "),(t.loc||[]).join(" "),(t.eq||[]).join(" "),(t.depts||[]).join(" "),
   (t.log||[]).map(l=>(l.by||"")+" "+(l.text||"")).join(" "),(t.check||[]).filter(x=>x&&!x.del).map(x=>x.text).join(" "),(t.files||[]).filter(x=>x&&!x.del).map(x=>x.name).join(" ")].join(" ").toLowerCase(); }
 function renderTasks(){
+  reconcileTaskEvents();
   const ae=document.activeElement; tkFocus = ae && ae.dataset && ae.dataset.draft || null;   // typing in a task's message box
   paintTaskCount(); renderTkFilters(); paintMe();
   if(!$("#viewDash").hidden && typeof renderDash==="function") setTimeout(renderDash,0);   // keep the tasks card current
@@ -2762,11 +2786,13 @@ $("#tdCancel").onclick=()=>$("#dlgTaskDone").close();
 $("#tdOk").onclick=()=>{
   const t=tasks.find(x=>x.id===tkDoneId); if(!t){ $("#dlgTaskDone").close(); return; }
   const when=$("#tdWhen").value||nowLocal(), act=$("#tdAct").value.trim(), type=$("#tdType").value;
-  const ev={ id:newId(), type:type?[type]:[], loc:(t.loc||[]).slice(), eq:(t.eq||[]).slice(), ppl:(t.ppl||[]).slice(),
+  const old=t.eventId && events.find(x=>x.id===t.eventId);     // a task that was reopened: its event is closed again (no second event)
+  const ev={ id:old ? old.id : newId(), ...(old ? {no:old.no, src:old.src} : {}), type:type?[type]:[], loc:(t.loc||[]).slice(), eq:(t.eq||[]).slice(), ppl:(t.ppl||[]).slice(),
     stat:["נסגר"], title:t.title, desc:t.desc||"", act, when, closedAt:when, closedBy:reporter()||"", ts:new Date().toISOString(),
     ...((t.log||[]).some(l=>!l.sys) ? {follow:(t.log||[]).slice().sort((x,y)=>String(x.at).localeCompare(String(y.at))).map(logLine).join("\n")} : {}),
     taskId:t.id, taskCreated:t.created||"" };
-  events.push(ev); events.sort((a,b)=>(b.when||"").localeCompare(a.when||""));
+  if(old) events[events.indexOf(old)]=ev; else events.push(ev);
+  events.sort((a,b)=>(b.when||"").localeCompare(a.when||""));
   ["loc","eq","ppl"].forEach(k=>(ev[k]||[]).forEach(v=>{ if(!lists[k].includes(v)) lists[k].push(v); }));
   Object.assign(t,{status:"הושלמה", doneAt:when, doneBy:reporter()||"", act, eventType:type, eventId:ev.id, upd:new Date().toISOString()});
   tkLog(t, "הושלמה ונרשמה ביומן"+(act?": "+act:""), "", true);
