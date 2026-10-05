@@ -1883,7 +1883,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.40", APP_DATE="01/10/2026";
+const APP_VER="2.41", APP_DATE="01/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2573,6 +2573,17 @@ function renderTasks(){
         tkLog(t, t.status==="בטיפול" ? "הועברה לטיפול" : "הוחזרה לפתוחה", "", true); t.upd=new Date().toISOString(); saveTasks(); });
       btn("ערוך","",()=>openTaskForm(t.id));
     }
+    // a team task that turns out to be only mine: move it to my personal (🔒) tasks — it leaves the team board (so: managers, like deleting)
+    if(tkOpen(t) && isManager() && !isViewer()) btn("🔒 העבר לאישית","",()=>{
+      const who=(t.ppl||[]).filter(n=>n!==myName());
+      if(!confirm("להעביר את המשימה למשימות האישיות שלך?\n"+(t.title||"")+"\n\nהיא תוסר מלוח המשימות של הצוות"+(who.length?" (גם אצל "+who.join(", ")+")":"")+", ורק אתה תראה אותה. אם תסיים אותה — היא לא תירשם ביומן.")) return;
+      const now=new Date().toISOString(), items=meGet();
+      items.unshift({id:newId(), title:t.title||"", desc:t.desc||"", prio:prioOf(t), start:t.start||"", due:t.due||"",
+        check:(t.check||[]).filter(x=>x && !x.del).map(x=>({id:newId(), text:x.text, done:!!x.done})), done:false, at:nowLocal(), created:now, upd:now, fromTask:t.id});
+      mePut(items);
+      tasks=tasks.filter(x=>x.id!==t.id); saveTasks(); renderTasks();
+      toast("הועברה למשימות האישיות שלך 🔒");
+    });
     if(isManager()) btn("מחק","ghost",async()=>{
       if(!await confirmDel("למחוק את המשימה?", (t.title||"")+((t.log||[]).length?"\nכולל יומן העדכונים ("+t.log.length+")":"")+(t.eventId?"\nהאירוע שנרשם ביומן נשאר.":"")+(CLOUD_ON?"\nהמשימה תימחק לכל הצוות.":""))) return;
       tasks=tasks.filter(x=>x.id!==t.id); saveTasks(); toast("המשימה נמחקה");
