@@ -1615,3 +1615,5 @@ html.tv body{background:var(--tvbg)}
 .tk-t .tk-done-c{margin-top:0}
 .tk.done .tk-tt{text-decoration:line-through;text-decoration-thickness:2px;text-decoration-color:color-mix(in srgb,var(--ink) 55%,transparent);color:var(--ink-2)}
 .tk.done{opacity:.92}
+.ss-opt.picked{font-weight:800}
+.ss-done{width:calc(100% - 16px);margin:6px 8px 8px}

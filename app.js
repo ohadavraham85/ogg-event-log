@@ -1898,7 +1898,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.47", APP_DATE="01/10/2026";
+const APP_VER="2.48", APP_DATE="01/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -3022,7 +3022,14 @@ function openSS(sel,btn){
   const p=mk("div","ss-panel"), q=mk("input","ss-q"), list=mk("div","ss-list");
   q.type="search"; q.placeholder="חיפוש…"; q.autocomplete="off"; p.append(q,list);
   const opts=[...sel.options].map(o=>({v:o.value,t:o.textContent,core:isCore(o.value)}));
-  const pick=v=>{ sel.value=v; sel.dispatchEvent(new Event("change",{bubbles:true})); closeSS(); btn.focus(); };
+  // a list where several are picked (people on a task) stays open until it is closed: tap outside, "סיום" or Esc
+  const multi=!!sel._picked;
+  const pick=v=>{
+    if(multi && v && v!=="__other"){
+      if(sel._picked().includes(v)) sel._unpick(v); else { sel.value=v; sel.dispatchEvent(new Event("change",{bubbles:true})); }
+      q.value=""; paint(); requestAnimationFrame(()=>{ if(p._place) p._place(); }); q.focus({preventScroll:true}); return;
+    }
+    sel.value=v; sel.dispatchEvent(new Event("change",{bubbles:true})); closeSS(); btn.focus(); };
   let first=null;
   const paint=()=>{
     list.textContent=""; first=null; const f=q.value.trim().toLowerCase();
@@ -3030,7 +3037,10 @@ function openSS(sel,btn){
       const special = o.v==="" || o.v==="__other";
       if(f && !special && !(o.t+" "+roleOf(o.v)+" "+deptOf(o.v)).toLowerCase().includes(f)) return;   // search by role / department too
       if(f && o.v==="") return;
-      const b=mk("button","ss-opt"+(o.v===sel.value?" on":"")+(special?" sp":"")+(o.core?" core":""),o.t); b.type="button"; b.onclick=()=>pick(o.v);
+      if(multi && o.v==="") return;
+      const picked = multi && !special && sel._picked().includes(o.v);
+      const b=mk("button","ss-opt"+(o.v===sel.value||picked?" on":"")+(special?" sp":"")+(o.core?" core":"")+(picked?" picked":""),(picked?"✓ ":"")+o.t); b.type="button"; b.onclick=()=>pick(o.v);
+      if(picked) b.title="נבחר — לחיצה מסירה";
       if(!special) b.appendChild(personTags(o.v));
       if(!first && !special) first=o.v; list.appendChild(b);
     });
@@ -3038,13 +3048,14 @@ function openSS(sel,btn){
   };
   q.oninput=paint;
   q.onkeydown=e=>{ if(e.key==="Enter"){ e.preventDefault(); if(first!==null) pick(first); } if(e.key==="Escape"){ closeSS(); btn.focus(); } };
+  if(multi){ const done=mk("button","btn primary ss-done","סיום ✓"); done.type="button"; done.onclick=()=>{ closeSS(); btn.focus(); }; p.appendChild(done); }
   paint(); document.body.appendChild(p); ssPanel=p; p._btn=btn;
   const place=()=>{
     const r=btn.getBoundingClientRect(), w=Math.max(r.width,Math.min(300,innerWidth-16));
     const below=innerHeight-r.bottom, h=Math.min(380, Math.max(below, r.top)-12);
     p.style.width=w+"px"; p.style.left=Math.max(8,Math.min(r.right-w,innerWidth-w-8))+"px";
     if(below>=240 || below>=r.top){ p.style.top=(r.bottom+4)+"px"; p.style.bottom=""; } else { p.style.bottom=(innerHeight-r.top+4)+"px"; p.style.top=""; }
-    list.style.maxHeight=Math.max(120,h-56)+"px";
+    list.style.maxHeight=Math.max(120,h-(multi?104:56))+"px";
   };
   place(); p._place=place;
   const on=list.querySelector(".ss-opt.on"); if(on) on.scrollIntoView({block:"nearest"});
@@ -3057,6 +3068,8 @@ addEventListener("scroll",e=>{            // follow the button while the page sc
 },true);
 addEventListener("resize",closeSS);
 ["#tkPpl","#tkLoc","#tkEq","#tfPpl","#tfLoc"].forEach(id=>enhanceSelect($(id)));
+// people on a task: several are picked one after another — the list stays open
+$("#tkPpl")._picked=()=>tkPplSel; $("#tkPpl")._unpick=v=>{ tkPplSel=tkPplSel.filter(x=>x!==v); paintPplChips(); };
 
 /* ================= boot ================= */
 load(); loadTasks(); if(!CLOUD_ON) window.nosAfterSync(); setNow(); renderAll(); renderTasks(); renderDash(); show(REFRESH_VIEW||"Dash"); applyLite();
