@@ -1897,7 +1897,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.54", APP_DATE="06/10/2026";
+const APP_VER="2.55", APP_DATE="06/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -3173,6 +3173,14 @@ function haptic(){
   hapSw.click();
 }
 document.addEventListener("click",ev=>{ if(ev.isTrusted && ev.target.closest && ev.target.closest("button,.btn,[role=tab],summary,.seg button,.dt-tile,.kpi,.tk-tag,input[type=checkbox],input[type=radio]") && !(hapSw && hapSw.contains(ev.target))) haptic(); },true);
+/* "שקיפות הרקע" (settings → ערכת צבעים): the light page behind the content turns see-through, showing the blue behind it.
+   0 = as before. Kept on this device. */
+const GLASS_KEY="ogg-glass";
+function applyGlass(v){ v=Math.max(0,Math.min(80,+v||0)); const r=document.documentElement;
+  r.style.setProperty("--glass", v+"%"); r.classList.toggle("glass", v>0);
+  if($("#glassR")){ $("#glassR").value=v; $("#glassV").textContent=v+"%"; } }
+try{ applyGlass(localStorage.getItem(GLASS_KEY)); }catch(e){ applyGlass(0); }
+if($("#glassR")) $("#glassR").oninput=e=>{ applyGlass(e.target.value); try{ localStorage.setItem(GLASS_KEY, e.target.value); }catch(_){} };
 if($("#hapOn")){ $("#hapOn").checked=hapOn(); $("#hapOn").onchange=e=>{ try{ localStorage.setItem(HAP_KEY,e.target.checked?"1":"0"); }catch(_){} if(e.target.checked) haptic(); }; }
 /* ===== help: a guided tour of the controls in working order, and a flow chart of the process =====
    The tour opens by itself the first time on a device (after the opening screen and any message window),

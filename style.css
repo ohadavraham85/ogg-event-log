@@ -1646,3 +1646,12 @@ html.tv body{background:var(--tvbg)}
 #dlgQk .qk-done{margin-top:10px;width:100%}
 #dlgQk .qk-row{display:flex;flex-wrap:wrap;gap:8px}
 #dlgQk .qk-full{margin-inline-start:auto}
+/* v2.55: "שקיפות הרקע" — the light page turns see-through over a blue backdrop (cards stay solid) */
+.glass-f{display:flex;justify-content:space-between;gap:10px;font-size:14px;font-weight:700;margin-top:12px;color:var(--ink-2)}
+.glass-f b{color:var(--water);direction:ltr}
+#glassR{width:100%;accent-color:var(--water);margin:6px 0 0}
+html.glass body{background:linear-gradient(180deg,#1A73B8 0%,#1565A8 45%,#0E4C80 100%) fixed}
+html.glass .wrap{background:color-mix(in srgb,var(--bg) calc(100% - var(--glass)),transparent);min-height:100vh;box-sizing:border-box}
+html.glass header.bar{background:color-mix(in srgb,var(--bg) calc(100% - var(--glass) * .8),transparent)}
+@media (prefers-color-scheme:dark){ :root.glass:not([data-theme="light"]) body{background:linear-gradient(180deg,#0E3A63,#0A2A48) fixed} }
+:root.glass[data-theme="dark"] body{background:linear-gradient(180deg,#0E3A63,#0A2A48) fixed}
