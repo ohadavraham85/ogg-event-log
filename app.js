@@ -1897,7 +1897,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.53", APP_DATE="06/10/2026";
+const APP_VER="2.54", APP_DATE="06/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2000,7 +2000,7 @@ function saveTasks(){
 }
 const newId=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const tkOpen=t=>t.status!=="הושלמה";
-const tkStat=t=>["בטיפול","HOLD"].includes(t.status) ? t.status : "פתוחה";   // an open task: פתוחה / בטיפול / HOLD (waiting)
+const tkStat=t=>t.status==="בטיפול" ? "בטיפול" : t.status==="בהמתנה" || t.status==="HOLD" ? "בהמתנה" : "פתוחה";   // an open task: פתוחה / בטיפול / בהמתנה (v2.53 wrote "HOLD")
 /* order of the open tasks: newest first (default), by due date, or by priority — picked above the list, kept on the device */
 let tkSort="new"; try{ tkSort=localStorage.getItem("ogg-tk-sort")||"new"; }catch(e){}
 function tkCmp(){
@@ -2469,7 +2469,7 @@ function renderLog(t, c){
       const by = auto ? reporter() : who.value;
       if(!by){ toast("בחר מי מדווח"); who.focus(); return; }
       if(!auto) try{ localStorage.setItem(K_REPORTER,by); }catch(e){}
-      tkLog(t, txt, by); if(t.status!=="בטיפול" && t.status!=="HOLD") t.status="בטיפול";   // an update on a task on HOLD leaves it on HOLD
+      tkLog(t, txt, by); if(tkStat(t)==="פתוחה") t.status="בטיפול";   // an update on a waiting task leaves it waiting
       delete tkDraft[t.id]; t.upd=new Date().toISOString(); tkUpdFor=null; saveTasks(); toast("העדכון נוסף");
     };
     no.onclick=()=>{ delete tkDraft[t.id]; tkUpdFor=null; renderTasks(); };
@@ -2564,7 +2564,7 @@ function renderTasks(){
       if(pr!=="רגילה") tag(pr,"",ph,"prio");
       if(t.type) tag(t.type,"",hueOf(t.type),"type");
       if(t.status==="בטיפול") tag("בטיפול","w",null,"stat");
-      if(t.status==="HOLD") tag("⏸ HOLD","hold",null,"stat");
+      if(tkStat(t)==="בהמתנה") tag("⏸ בהמתנה","hold",null,"stat");
       if(t.rep) tag("🔁 "+repLabel(t.rep),"rep");
       { const nf_=(t.files||[]).filter(x=>x&&!x.del).length; if(nf_) tag("📎 "+nf_); }
       { const ci=(t.check||[]).filter(x=>x && !x.del); if(ci.length) tag("☑ "+ci.filter(x=>x.done).length+"/"+ci.length, ci.every(x=>x.done)?"ok":""); }
@@ -2596,9 +2596,9 @@ function renderTasks(){
       btn("✓ השלם משימה","primary",()=>openTaskDone(t.id));
       btn(t.status==="בטיפול"?"החזר לפתוחה":"בטיפול","",()=>{ t.status = t.status==="בטיפול" ? "פתוחה" : "בטיפול";
         tkLog(t, t.status==="בטיפול" ? "הועברה לטיפול" : "הוחזרה לפתוחה", "", true); t.upd=new Date().toISOString(); saveTasks(); });
-      // HOLD: the task is waiting (a part, an approval, a contractor…) — set aside without closing it
-      btn(t.status==="HOLD"?"▶ שחרר מ-HOLD":"⏸ HOLD","",()=>{ t.status = t.status==="HOLD" ? "פתוחה" : "HOLD";
-        tkLog(t, t.status==="HOLD" ? "הועברה ל-HOLD (בהמתנה)" : "שוחררה מ-HOLD", "", true); t.upd=new Date().toISOString(); saveTasks(); });
+      // בהמתנה: the task is waiting (a part, an approval, a contractor…) — set aside without closing it
+      btn(tkStat(t)==="בהמתנה"?"▶ שחרר מהמתנה":"⏸ בהמתנה","",()=>{ t.status = tkStat(t)==="בהמתנה" ? "פתוחה" : "בהמתנה";
+        tkLog(t, t.status==="בהמתנה" ? "הועברה להמתנה" : "שוחררה מהמתנה", "", true); t.upd=new Date().toISOString(); saveTasks(); });
       btn("ערוך","",()=>openTaskForm(t.id));
     } else if(!isViewer()){
       // a completed task can be reopened (its event in the log reopens with it) and edited
@@ -2798,7 +2798,7 @@ function qkOpen(t, keys){
     }
     const multi = k==="ppl" || k==="depts";
     const cur = k==="status" ? [tkStat(t)] : k==="prio" ? [prioOf(t)] : k==="type" ? (t.type?[t.type]:[]) : (t[k]||[]).slice();
-    const opts = k==="status" ? ["פתוחה","בטיפול","HOLD"] : k==="prio" ? PRIOS : k==="type" ? byUse("type") : k==="ppl" ? pplValues() : k==="depts" ? allDepts() : byUse(k);
+    const opts = k==="status" ? ["פתוחה","בטיפול","בהמתנה"] : k==="prio" ? PRIOS : k==="type" ? byUse("type") : k==="ppl" ? pplValues() : k==="depts" ? allDepts() : byUse(k);
     qkV[k]=cur.slice();
     const chips=mk("div","qk-chips"), all=[...new Set(cur.concat(opts))];
     let q=null; if(all.length>8){ q=mk("input","qk-q"); q.type="search"; q.placeholder="חיפוש"+(k==="ppl"||k==="depts"?"":" או ערך חדש"); sec.appendChild(q); }
@@ -2806,7 +2806,7 @@ function qkOpen(t, keys){
       const vis=all.filter(v=>!f || v.toLowerCase().includes(f));
       vis.forEach(v=>{ const on=qkV[k].includes(v), b=mk("button","dchip qk-c"+(on?" on":""));
         b.type="button"; b.setAttribute("aria-pressed",String(on));
-        b.textContent=(on && multi?"✓ ":"")+(k==="depts"?deptIcon(v)+" ":"")+(k==="status" && v==="HOLD"?"⏸ HOLD — בהמתנה":v)+(k==="ppl" && on && qkV.ppl[0]===v && qkV.ppl.length>1?" · אחראי":"");
+        b.textContent=(on && multi?"✓ ":"")+(k==="depts"?deptIcon(v)+" ":"")+(k==="status" && v==="בהמתנה"?"⏸ בהמתנה":v)+(k==="ppl" && on && qkV.ppl[0]===v && qkV.ppl.length>1?" · אחראי":"");
         if(k==="prio") colorSelect(b, on ? PRIO_HUE[v] : ""); if(k==="type" && on) colorSelect(b, hueOf(v));
         b.onclick=()=>{ if(multi) qkV[k] = on ? qkV[k].filter(x=>x!==v) : qkV[k].concat(v); else qkV[k] = on && k!=="status" && k!=="prio" ? [] : [v];
           if(instant) return qkSave(); paint(); };
@@ -2844,7 +2844,7 @@ function qkSave(){
   const changed = Object.keys(d).some(k=>JSON.stringify(d[k]??"")!==JSON.stringify(t[k]??(Array.isArray(d[k])?[]:""))) || (stNew && stNew!==tkStat(t));
   $("#dlgQk").close(); if(!changed) return;
   Object.assign(t, d);
-  if(stNew && stNew!==tkStat(t)){ const from=tkStat(t); t.status=stNew; tkLog(t, stNew==="בטיפול" ? "הועברה לטיפול" : stNew==="HOLD" ? "הועברה ל-HOLD (בהמתנה)" : from==="HOLD" ? "שוחררה מ-HOLD" : "הוחזרה לפתוחה", "", true); }
+  if(stNew && stNew!==tkStat(t)){ const from=tkStat(t); t.status=stNew; tkLog(t, stNew==="בטיפול" ? "הועברה לטיפול" : stNew==="בהמתנה" ? "הועברה להמתנה" : from==="בהמתנה" ? "שוחררה מהמתנה" : "הוחזרה לפתוחה", "", true); }
   t.upd=new Date().toISOString(); saveTasks(); toast("המשימה עודכנה"); if(typeof haptic==="function") haptic();
 }
 $("#qkOk").onclick=qkSave; $("#qkNo").onclick=()=>$("#dlgQk").close();
@@ -3048,7 +3048,7 @@ function renderCalDay(I, today){
     const r=mk("button","cal-row r-task"); r.type="button"; r.style.borderInlineStartColor="var(--c-"+PRIO_HUE[prioOf(t)]+")";
     const when = pos==="start" ? "▶ מתחילה היום" : pos==="end"||pos==="single" ? (t.due<today?"⚠ היעד עבר":"🏁 יעד") : "בביצוע";
     const range = t.start && t.start!==t.due ? dmy(t.start).slice(0,5)+"–"+dmy(t.due).slice(0,5) : "";
-    r.append(mk("b",null,t.title||""), mk("span","cal-meta",[when, range, prioOf(t)!=="רגילה"?prioOf(t):"", (t.ppl||[])[0]||"", ["בטיפול","HOLD"].includes(t.status)?t.status:""].filter(Boolean).join(" · ")));
+    r.append(mk("b",null,t.title||""), mk("span","cal-meta",[when, range, prioOf(t)!=="רגילה"?prioOf(t):"", (t.ppl||[])[0]||"", tkStat(t)!=="פתוחה"?tkStat(t):""].filter(Boolean).join(" · ")));
     r.onclick=()=>goTasks({}); return r; }));
   sec(reps.length?"משימות מחזוריות — צפויות ביום הזה ("+reps.length+")":"", reps.map(t=>{
     const r=mk("button","cal-row r-rep"); r.type="button";
