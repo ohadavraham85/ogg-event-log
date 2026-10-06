@@ -1622,3 +1622,26 @@ html.tv body{background:var(--tvbg)}
   border-radius:10px;padding:7px 10px;max-width:100%;cursor:pointer}
 #tkDeptSel.on{border-color:var(--c-maint);background:var(--c-maint-bg)}
 #tkSeg .seg-priv[aria-pressed="true"]{color:#7c3aed}
+/* v2.52: quick edit — a tag on a task opens a small window for just that detail */
+.tk .qk{cursor:pointer}
+.tk .tk-tags .qk .tk-tag,.tk .tk-eqtag.qk{transition:box-shadow .12s}
+@media (hover:hover){
+  .tk .tk-tags .qk:hover .tk-tag,.tk .tk-eqtag.qk:hover{box-shadow:0 0 0 2px var(--water)}
+  .tk .tk-m.qk:hover{color:var(--water)}
+  #viewTasks.rows .tk:not(.x) .tk-tags .sl.qk:empty:hover::after{content:"＋";color:var(--water);font-weight:800;opacity:.6;margin:auto}
+}
+#viewTasks.rows .tk:not(.x) .tk-tags .sl.qk{min-height:24px;border-radius:8px}
+#dlgQk{width:min(460px,calc(100vw - 24px));max-width:460px}
+#dlgQk .qk-sub{font-size:13.5px;color:var(--ink-2);margin:-2px 0 12px;overflow-wrap:anywhere}
+#dlgQk .qk-sec{margin-bottom:12px}
+#dlgQk .qk-lbl{font-size:13px;font-weight:800;color:var(--ink-2);margin-bottom:6px}
+#dlgQk .qk-chips{display:flex;flex-wrap:wrap;gap:6px;max-height:min(42vh,320px);overflow:auto;padding:2px}
+#dlgQk .qk-c{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#dlgQk .qk-new{border-style:dashed}
+#dlgQk .qk-none{font-size:13px;color:var(--ink-2)}
+#dlgQk .qk-q{width:100%;box-sizing:border-box;font:inherit;font-size:15px;padding:8px 10px;border:1.5px solid var(--edge);border-radius:10px;background:var(--panel);color:var(--ink);margin-bottom:8px}
+#dlgQk .qk-date{display:flex;gap:8px;align-items:center}
+#dlgQk .qk-date input{flex:1;min-width:0;font:inherit;font-size:15px;padding:8px 10px;border:1.5px solid var(--edge);border-radius:10px;background:var(--panel);color:var(--ink)}
+#dlgQk .qk-done{margin-top:10px;width:100%}
+#dlgQk .qk-row{display:flex;flex-wrap:wrap;gap:8px}
+#dlgQk .qk-full{margin-inline-start:auto}

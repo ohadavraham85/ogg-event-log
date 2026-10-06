@@ -1897,7 +1897,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.51", APP_DATE="06/10/2026";
+const APP_VER="2.52", APP_DATE="06/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2542,11 +2542,12 @@ function renderTasks(){
     const pr=prioOf(t), ph=PRIO_HUE[pr];
     const c=mk("div","tk"+(tkOpen(t)?"":" done")+(tkRowOpen.has(t.id)?" x":"")); c.dataset.id=t.id;
     // "רשימה": one compact line per task; a tap opens it in full (and closes it again)
-    c.addEventListener("click",ev=>{ if(tkLV!=="rows" || ev.target.closest("button,input,textarea,select,a,label,.tk-log,.tk-check,.tk-files")) return;
+    c.addEventListener("click",ev=>{ if(tkLV!=="rows" || ev.target.closest("button,input,textarea,select,a,label,.tk-log,.tk-check,.tk-files,.qk")) return;
       tkRowOpen.has(t.id) ? tkRowOpen.delete(t.id) : tkRowOpen.add(t.id); c.classList.toggle("x"); }); c.style.borderInlineStartColor = tkOpen(t) && !t.due ? "var(--c-"+ph+")" : "";
     if(tkOpen(t) && t.due) c.classList.add(t.due<today?"tl-late":t.due===today?"tl-today":"tl-future");   // the whole frame in the traffic-light colour of the due date
     if(tkOpen(t) && pr==="דחופה") c.style.background="color-mix(in srgb,var(--c-fault-bg) 55%,var(--panel))";
-    { const tt=mk("div","tk-t"), tx=mk("span","tk-tt",t.title||"(ללא כותרת)"); tt.appendChild(tkCircle(t, ()=>tkOpen(t) ? openTaskDone(t.id) : reopenTask(t))); if(t.no) tt.appendChild(mk("span","sn","#"+t.no));
+    const tx=mk("span","tk-tt",t.title||"(ללא כותרת)");
+    { const tt=mk("div","tk-t"); tt.appendChild(tkCircle(t, ()=>tkOpen(t) ? openTaskDone(t.id) : reopenTask(t))); if(t.no) tt.appendChild(mk("span","sn","#"+t.no));
       (t.eq||[]).forEach(q=>{ const g=mk("span","tk-eqtag","⚙ "+q); g.title="ציוד"; tx.appendChild(g); });   // the equipment, right by the title
       tt.appendChild(tx); c.appendChild(tt); }   // number and text side by side: a wrapped line starts under the text, not under the number
     // tags sit in fixed slots, so in "רשימה" every kind lines up in its own column (in "אריחים" the slots just flow)
@@ -2572,10 +2573,17 @@ function renderTasks(){
       if(t.type) tag(t.type,"",hueOf(t.type),"type");
       if(t.eventId && events.some(e=>e.id===t.eventId)) tag("נרשמה ביומן");
     }
+    if(tkOpen(t) && !isViewer()){   // tap a tag (or its empty column in "רשימה") to change just that — status, dates, people, equipment, type…
+      const QS={eq:["eq"], who:["ppl","depts"], dept:["depts"], prio:["prio"], type:["type"], stat:["status"], due:["start","due"]};
+      Object.keys(QS).forEach(k=>{ const el=SL[k]; el.classList.add("qk"); el.title="לחץ לשינוי";
+        el.onclick=ev=>{ ev.stopPropagation(); qkOpen(t, QS[k]); }; });
+      tx.querySelectorAll(".tk-eqtag").forEach(g=>{ g.classList.add("qk"); g.onclick=ev=>{ ev.stopPropagation(); qkOpen(t,["eq"]); }; });
+    }
     if(tags.querySelector(".tk-tag:not(.eqt)") || $("#viewTasks").classList.contains("rows")) c.appendChild(tags);
     const pn=n=>n;   // the worker's name only — department and role are in their own columns
     const meta=[(t.ppl||[]).length ? "👤 "+(t.ppl.length>1 ? "אחראי: "+pn(t.ppl[0])+" · משויכים: "+t.ppl.slice(1).join(", ") : pn(t.ppl[0])) : "", (t.loc||[]).length?"📍 "+t.loc.join(", "):"", (t.eq||[]).length?"⚙ "+t.eq.join(", "):""].filter(Boolean).join("   ");
-    if(meta) c.appendChild(mk("div","tk-m",meta));
+    if(meta){ const m=mk("div","tk-m",meta); c.appendChild(m);
+      if(tkOpen(t) && !isViewer()){ m.classList.add("qk"); m.title="לחץ לשינוי"; m.onclick=ev=>{ ev.stopPropagation(); qkOpen(t,["ppl","loc"]); }; } }
     if(t.desc) c.appendChild(mk("div","tk-d",t.desc));
     renderCheck(t, c);
     renderFiles(t, c);
@@ -2766,6 +2774,77 @@ $("#tkSave").onclick=()=>{
   const saved=tasks.find(x=>x.id===(was||tasks[tasks.length-1].id));
   toast(saved && !isManager() && !isMine(saved) ? (was?"המשימה עודכנה":"המשימה נשמרה")+" — היא לא משויכת אליך או למחלקה שלך; תמצא אותה ב\"שפתחתי\"" : (was?"המשימה עודכנה":"המשימה נשמרה"));
 };
+/* quick edit: a tag on a task opens a small window that changes only that detail (no need for the full form).
+   The change is saved like an edit in the form: the task's "upd" moves on and the team gets the usual message. */
+const QK_LABEL={status:"סטטוס", prio:"עדיפות", type:"סוג", ppl:"אחראי ומשויכים", depts:"מחלקות", loc:"מיקום", eq:"ציוד", start:"תאריך התחלה", due:"תאריך יעד"};
+let qkT=null, qkV={};
+function qkOpen(t, keys){
+  qkT=t; qkV={}; const box=$("#qkBody"); box.textContent="";
+  $("#qkTitle").textContent = keys.map(k=>QK_LABEL[k]).filter((x,i)=>!(keys[0]==="start" && i===0)).join(" · ").replace("תאריך יעד","תאריכים");
+  $("#qkSub").textContent = (t.no?"#"+t.no+" · ":"")+(t.title||"");
+  let instant = keys.length===1 && ["status","prio","type"].includes(keys[0]);   // one tap is enough
+  keys.forEach(k=>{
+    const sec=mk("div","qk-sec"); if(keys.length>1) sec.appendChild(mk("div","qk-lbl",QK_LABEL[k]));
+    if(k==="start" || k==="due"){
+      const i=mk("input"); i.type="date"; i.value=t[k]||""; i.dataset.k=k; qkV[k]=i.value;
+      i.onchange=()=>{ qkV[k]=i.value; };
+      const clr=mk("button","btn ghost qk-clr","ללא"); clr.type="button"; clr.onclick=()=>{ i.value=""; qkV[k]=""; };
+      const r=mk("div","qk-date"); r.append(i,clr); sec.appendChild(r); box.appendChild(sec); return;
+    }
+    const multi = k==="ppl" || k==="depts";
+    const cur = k==="status" ? [t.status==="בטיפול"?"בטיפול":"פתוחה"] : k==="prio" ? [prioOf(t)] : k==="type" ? (t.type?[t.type]:[]) : (t[k]||[]).slice();
+    const opts = k==="status" ? ["פתוחה","בטיפול"] : k==="prio" ? PRIOS : k==="type" ? byUse("type") : k==="ppl" ? pplValues() : k==="depts" ? allDepts() : byUse(k);
+    qkV[k]=cur.slice();
+    const chips=mk("div","qk-chips"), all=[...new Set(cur.concat(opts))];
+    let q=null; if(all.length>8){ q=mk("input","qk-q"); q.type="search"; q.placeholder="חיפוש"+(k==="ppl"||k==="depts"?"":" או ערך חדש"); sec.appendChild(q); }
+    const paint=()=>{ chips.textContent=""; const f=q ? q.value.trim().toLowerCase() : "";
+      const vis=all.filter(v=>!f || v.toLowerCase().includes(f));
+      vis.forEach(v=>{ const on=qkV[k].includes(v), b=mk("button","dchip qk-c"+(on?" on":""));
+        b.type="button"; b.setAttribute("aria-pressed",String(on));
+        b.textContent=(on && multi?"✓ ":"")+(k==="depts"?deptIcon(v)+" ":"")+v+(k==="ppl" && on && qkV.ppl[0]===v && qkV.ppl.length>1?" · אחראי":"");
+        if(k==="prio") colorSelect(b, on ? PRIO_HUE[v] : ""); if(k==="type" && on) colorSelect(b, hueOf(v));
+        b.onclick=()=>{ if(multi) qkV[k] = on ? qkV[k].filter(x=>x!==v) : qkV[k].concat(v); else qkV[k] = on && k!=="status" && k!=="prio" ? [] : [v];
+          if(instant) return qkSave(); paint(); };
+        chips.appendChild(b); });
+      if(q && f && !multi && !all.some(v=>v.toLowerCase()===f)){   // a new location / equipment / type joins the lists
+        const b=mk("button","dchip qk-c qk-new","+ הוסף: "+q.value.trim()); b.type="button";
+        b.onclick=()=>{ const v=q.value.trim(); if(!lists[k].includes(v)){ lists[k].push(v); if(!lists["_custom_"+k].includes(v)) lists["_custom_"+k].push(v); persist(); }
+          all.unshift(v); qkV[k]=[v]; q.value=""; if(instant) return qkSave(); paint(); };
+        chips.appendChild(b); }
+      if(!vis.length && !(q && f && !multi)) chips.appendChild(mk("span","qk-none","אין התאמה"));
+    };
+    if(q) q.oninput=paint;
+    paint(); sec.appendChild(chips);
+    if(k==="status"){ const d=mk("button","btn primary qk-done","✓ השלם משימה…"); d.type="button";
+      d.onclick=()=>{ $("#dlgQk").close(); openTaskDone(t.id); }; sec.appendChild(d); }
+    box.appendChild(sec);
+  });
+  $("#qkOk").hidden = instant;
+  $("#dlgQk").showModal();
+}
+function qkSave(){
+  const t=qkT && tasks.find(x=>x.id===qkT.id); if(!t){ $("#dlgQk").close(); return; }
+  const v=qkV, d={};
+  if("ppl" in v || "depts" in v){
+    const ppl = "ppl" in v ? v.ppl : (t.ppl||[]), dp = "depts" in v ? v.depts : (t.depts||[]);
+    if(!ppl.length && !dp.length){ toast("צריך לפחות אחראי אחד או מחלקה"); return; }
+    if("ppl" in v) d.ppl=ppl.slice(); if("depts" in v) d.depts=dp.slice(); }
+  if("loc" in v){ if(!v.loc.length){ toast("צריך לבחור מיקום"); return; } d.loc=v.loc.slice(0,1); }
+  if("eq" in v){ if(!v.eq.length){ toast("צריך לבחור ציוד"); return; } d.eq=v.eq.slice(0,1); }
+  if("type" in v){ if(!v.type.length){ toast("צריך לבחור סוג"); return; } d.type=v.type[0]; }
+  if("prio" in v){ d.prio=v.prio[0]||"רגילה"; d.urgent=d.prio==="דחופה"; }
+  if("start" in v) d.start=v.start; if("due" in v) d.due=v.due;
+  { const st="start" in d ? d.start : t.start, du="due" in d ? d.due : t.due; if(st && du && st>du){ toast("תאריך היעד לפני תאריך ההתחלה"); return; } }
+  const stNew = "status" in v ? v.status[0] : null;
+  const changed = Object.keys(d).some(k=>JSON.stringify(d[k]??"")!==JSON.stringify(t[k]??(Array.isArray(d[k])?[]:""))) || (stNew && stNew!==(t.status==="בטיפול"?"בטיפול":"פתוחה"));
+  $("#dlgQk").close(); if(!changed) return;
+  Object.assign(t, d);
+  if(stNew && stNew!==(t.status==="בטיפול"?"בטיפול":"פתוחה")){ t.status=stNew; tkLog(t, stNew==="בטיפול" ? "הועברה לטיפול" : "הוחזרה לפתוחה", "", true); }
+  t.upd=new Date().toISOString(); saveTasks(); toast("המשימה עודכנה"); if(typeof haptic==="function") haptic();
+}
+$("#qkOk").onclick=qkSave; $("#qkNo").onclick=()=>$("#dlgQk").close();
+$("#qkFull").onclick=()=>{ $("#dlgQk").close(); if(qkT) openTaskForm(qkT.id); };
+$("#dlgQk").addEventListener("click",e=>{ if(e.target===e.currentTarget) e.currentTarget.close(); });   // a tap outside closes it
 function paintTkSeg(){ document.querySelectorAll("#tkSeg button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===tkView))); }
 document.querySelectorAll("#tkSeg button").forEach(b=>b.onclick=()=>{ tkView=b.dataset.v; paintTkSeg(); renderTasks(); });
 /* finish a task -> a closed event in the log */
