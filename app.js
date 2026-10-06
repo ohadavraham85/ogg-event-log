@@ -1897,7 +1897,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.50", APP_DATE="06/10/2026";
+const APP_VER="2.51", APP_DATE="06/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2082,8 +2082,8 @@ function paintTaskCount(){
   $("#tkCnt").title = n+" פתוחות מתוך "+V.length+" משימות"; $("#tkCnt").dir="ltr";
   const m=V.filter(t=>tkOpen(t)&&isMine(t)).length, el=$("#tkMine"), o=V.filter(t=>tkOpen(t)&&openedByMe(t)).length;
   el.textContent = m ? String(m) : ""; el.title = m ? m+" משימות פתוחות שלך" : ""; el.hidden=!m;
-  const P=typeof privTasks==="function" ? privTasks() : [], po=P.filter(tkOpen).length;          // my personal (🔒) tasks count in my views
-  const segN={open:n+po, done:V.length-n+P.length-po, mine:m+po, opened:o+po, priv:po};
+  const P=typeof privTasks==="function" ? privTasks() : [], po=P.filter(tkOpen).length;          // my open personal (🔒) tasks
+  const segN={open:n, done:V.length-n, mine:m, opened:o, priv:po};   // personal (🔒) tasks show only under "אישיות"
   document.querySelectorAll("#tkSeg button").forEach(b=>{
     const base={open:"פתוחות",done:"הושלמו",mine:"המשימות שלי",opened:"שפתחתי",priv:"🔒 אישיות"}[b.dataset.v];
     b.textContent=""; b.append(base+" "); b.appendChild(mk("span","seg-n",nf(segN[b.dataset.v]||0))); });
@@ -2523,8 +2523,8 @@ function renderTasks(){
         return na ? String(b.created).localeCompare(String(a.created)) : tkCmp()(a,b); })
     : tkVis().filter(t=>!tkOpen(t)).sort((a,b)=>String(b.doneAt||"").localeCompare(String(a.doneAt||"")))), shown=rows.filter(pass);
   $("#tkResCount").textContent = shown.length===rows.length ? nf(rows.length)+" משימות" : nf(shown.length)+" מתוך "+nf(rows.length);
-  { // personal tasks (🔒) join the board; filters that only team tasks have (person, place, type, department) leave them out
-    const pv=privTasks().filter(t=> tkView==="priv" ? true : tkView==="done" ? !tkOpen(t) : tkOpen(t));   // "אישיות": all of mine, open first
+  { // personal tasks (🔒): their own view; filters that only team tasks have (person, place, type, department) leave them out
+    const pv=tkView==="priv" ? privTasks() : [];   // personal tasks only under "אישיות": all of mine, open first
     const pPass=t=>(tkView==="priv" || !tkF.ppl && !tkF.loc && !tkF.type && !tkF.dept) && (!tkF.prio || prioOf(t)===tkF.prio) && (!tkF.late || (t.due && t.due<today))
       && (!tkF.q || [t.title,t.desc].concat(t.check.map(x=>x.text)).join(" ").toLowerCase().includes(tkF.q.trim().toLowerCase()));
     if(pv.length){ const cmp = tkView==="priv" ? (a,b)=>(tkOpen(b)-tkOpen(a)) || (tkOpen(a) ? tkCmp()(a,b) : String(b.doneAt||"").localeCompare(String(a.doneAt||""))) : tkView==="done" ? (a,b)=>String(b.doneAt||"").localeCompare(String(a.doneAt||"")) : (a,b)=>{ const na=tkIsNew(a), nb=tkIsNew(b); if(na!==nb) return na ? -1 : 1; return tkCmp()(a,b); };
@@ -2739,7 +2739,7 @@ $("#tkSave").onclick=()=>{
     const pend=($("#tkCk input")||{}).value; if(pend && pend.trim() && !tkCkSel.includes(pend.trim())) tkCkSel.push(pend.trim());
     const now=new Date().toISOString(), a=meGet();
     a.unshift(Object.assign({id:newId(), done:false, at:nowLocal(), created:now, upd:now, check:tkCkSel.map(text=>({id:newId(), text, done:false}))}, data));
-    closeTaskForm(); if(tkView==="done"){ tkView="mine"; paintTkSeg(); } mePut(a);
+    closeTaskForm(); tkView="priv"; paintTkSeg(); mePut(a);   // show it where personal tasks live
     toast(window.cloudMineState==="denied" ? "נשמרה 🔒 — כרגע רק במכשיר הזה" : "המשימה האישית נשמרה 🔒 — רק אתה רואה אותה"); return;
   }
   // required: type, priority, assignee (person or department), location, equipment and the title
