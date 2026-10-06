@@ -1617,3 +1617,8 @@ html.tv body{background:var(--tvbg)}
 .tk.done{opacity:.92}
 .ss-opt.picked{font-weight:800}
 .ss-done{width:calc(100% - 16px);margin:6px 8px 8px}
+/* v2.49: departments as a drop-down (managers); "אישיות" view button */
+#tkDeptSel{font:inherit;font-size:14px;font-weight:800;color:var(--c-maint);background:var(--panel);border:1.5px solid var(--edge);
+  border-radius:10px;padding:7px 10px;max-width:100%;cursor:pointer}
+#tkDeptSel.on{border-color:var(--c-maint);background:var(--c-maint-bg)}
+#tkSeg .seg-priv[aria-pressed="true"]{color:#7c3aed}

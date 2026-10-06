@@ -509,7 +509,7 @@ function confirmDel(title, what, bulk, o){
 function resetForm(){
   sel.type=[]; sel.loc=[]; sel.eq=[]; sel.ppl=[]; sel.stat=["פתוח"];
   $("#title").value=""; $("#desc").value=""; $("#act").value=""; editId=null;
-  $("#saveBtn").textContent="שמור אירוע"; setNow(); paintRows(); window.scrollTo({top:0});
+  $("#saveBtn").textContent="שמור אירוע"; $("#delEvBtn").hidden=true; setNow(); paintRows(); window.scrollTo({top:0});
 }
 function collect(){
   return {
@@ -710,13 +710,6 @@ function renderList(reset){
       lk.append(li,lt);
       acts.appendChild(lk);
       d.classList.add("locked");
-    } else if(isManager()) {                // team log: only a manager deletes
-    const rm=document.createElement("button"); rm.textContent="מחיקה";
-    rm.onclick=async()=>{
-      const what=[fmtWhen(e.when),(e.type||[]).join(", "),e.title||String(e.desc||"").slice(0,80)].filter(Boolean).join(" · ");
-      if(!await confirmDel("למחוק את האירוע?", what+(CLOUD_ON?"\nהאירוע יימחק לכל הצוות.":""))) return;
-      events=events.filter(x=>x.id!==e.id); persist(); renderAll(); toast("האירוע נמחק"); };
-    acts.append(rm);
     }
     if(top) d.appendChild(top); d.append(b,det,acts); box.appendChild(d);
   });
@@ -840,8 +833,14 @@ function loadInto(e){
   sel.eq=(e.eq||[]).slice(); sel.ppl=(e.ppl||[]).slice(); sel.stat=(e.stat||["פתוח"]).slice();
   $("#title").value=e.title||""; $("#desc").value=e.desc||""; $("#act").value=e.act||"";
   const parts=(e.when||"").split("T"); $("#dDate").value=parts[0]||""; $("#dTime").value=(parts[1]||"").slice(0,5);
-  $("#saveBtn").textContent="עדכן אירוע"; show("New"); paintRows(); window.scrollTo({top:0});
+  $("#saveBtn").textContent="עדכן אירוע"; $("#delEvBtn").hidden=!isManager(); show("New"); paintRows(); window.scrollTo({top:0});
 }
+// deleting an event: only from its edit screen, and only a manager (team log)
+$("#delEvBtn").onclick=async()=>{
+  const e=events.find(x=>x.id===editId); if(!e || !isManager()) return;
+  const what=[fmtWhen(e.when),(e.type||[]).join(", "),e.title||String(e.desc||"").slice(0,80)].filter(Boolean).join(" · ");
+  if(!await confirmDel("למחוק את האירוע?", what+(CLOUD_ON?"\nהאירוע יימחק לכל הצוות.":""))) return;
+  events=events.filter(x=>x.id!==e.id); persist(); resetForm(); renderAll(); show("List"); toast("האירוע נמחק"); };
 function renderFilters(){
   const fill=(id,vals,keep,labels)=>{
     const s=$(id); if(!s) return;
@@ -1898,7 +1897,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.48", APP_DATE="01/10/2026";
+const APP_VER="2.49", APP_DATE="06/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2084,9 +2083,9 @@ function paintTaskCount(){
   const m=V.filter(t=>tkOpen(t)&&isMine(t)).length, el=$("#tkMine"), o=V.filter(t=>tkOpen(t)&&openedByMe(t)).length;
   el.textContent = m ? String(m) : ""; el.title = m ? m+" משימות פתוחות שלך" : ""; el.hidden=!m;
   const P=typeof privTasks==="function" ? privTasks() : [], po=P.filter(tkOpen).length;          // my personal (🔒) tasks count in my views
-  const segN={open:n+po, done:V.length-n+P.length-po, mine:m+po, opened:o+po};
+  const segN={open:n+po, done:V.length-n+P.length-po, mine:m+po, opened:o+po, priv:po};
   document.querySelectorAll("#tkSeg button").forEach(b=>{
-    const base={open:"פתוחות",done:"הושלמו",mine:"המשימות שלי",opened:"שפתחתי"}[b.dataset.v];
+    const base={open:"פתוחות",done:"הושלמו",mine:"המשימות שלי",opened:"שפתחתי",priv:"🔒 אישיות"}[b.dataset.v];
     b.textContent=""; b.append(base+" "); b.appendChild(mk("span","seg-n",nf(segN[b.dataset.v]||0))); });
 }
 function showMyTasks(){
@@ -2239,17 +2238,16 @@ function paintFormColors(){ colorSelect($("#tkPrio"), PRIO_HUE[$("#tkPrio").valu
 // managers: a row of departments above the list; it opens on the manager's own department
 let tkDeptInit=false;
 function paintDeptSeg(){
-  const box=$("#tkDeptSeg"), ds=allDepts(), on=isManager() && ds.length>0;
+  const box=$("#tkDeptSeg"), ds=allDepts(), on=isManager() && ds.length>0 && tkView!=="priv";   // personal tasks have no department
   box.hidden=!on; if(!on) return;
   if(!tkDeptInit && myDept() && ds.includes(myDept())){ tkDeptInit=true; tkF.dept=myDept(); }
   const base=tkVis().filter(t=> tkView==="done" ? !tkOpen(t) : tkOpen(t) && (tkView!=="mine" || isMine(t)) && (tkView!=="opened" || openedByMe(t)));
-  box.textContent="";
-  [["", "כל המחלקות", base.length]].concat(ds.map(d=>[d, d, base.filter(t=>tkInDept(t,d)).length])).forEach(([v,label,n])=>{
-    const b=mk("button"); b.type="button"; b.setAttribute("aria-pressed",String(tkF.dept===v));
-    b.append(label+" "); b.appendChild(mk("span","seg-n",nf(n)));
-    b.onclick=()=>{ tkF.dept=v; renderTasks(); }; box.appendChild(b);
-  });
+  const sl=$("#tkDeptSel"); sl.textContent="";
+  [["", "כל המחלקות", base.length]].concat(ds.map(d=>[d, "🏢 "+d, base.filter(t=>tkInDept(t,d)).length])).forEach(([v,label,n])=>{
+    const o=mk("option",null,label+" ("+nf(n)+")"); o.value=v; sl.appendChild(o); });
+  sl.value = ds.includes(tkF.dept) ? tkF.dept : ""; sl.classList.toggle("on",!!sl.value);
 }
+$("#tkDeptSel").onchange=e=>{ tkF.dept=e.target.value; renderTasks(); };
 function renderTkFilters(){
   fillSelect($("#tfPpl"), pplValues(), tkF.ppl, "כל האחראים");
   fillSelect($("#tfDept"), allDepts(), tkF.dept, "כל המחלקות"); $("#tfDept").hidden=!allDepts().length;
@@ -2517,23 +2515,23 @@ function renderTasks(){
              && (!tkF.type || t.type===tkF.type) && (!tkF.prio || prioOf(t)===tkF.prio)
              && (!tkF.late || (t.due && t.due<today)) && (!tkF.dept || tkInDept(t,tkF.dept))
              && (!tkF.q || tkText(t).includes(tkF.q.trim().toLowerCase()));
-  const rows = (tkView!=="done"
+  const rows = tkView==="priv" ? [] : (tkView!=="done"
     ? tkVis().filter(t=>tkOpen(t) && (tkView!=="mine" || isMine(t)) && (tkView!=="opened" || openedByMe(t))).sort((a,b)=>{
         const na=tkIsNew(a), nb=tkIsNew(b); if(na!==nb) return na ? -1 : 1;                     // new ones first
         return na ? String(b.created).localeCompare(String(a.created)) : tkCmp()(a,b); })
     : tkVis().filter(t=>!tkOpen(t)).sort((a,b)=>String(b.doneAt||"").localeCompare(String(a.doneAt||"")))), shown=rows.filter(pass);
   $("#tkResCount").textContent = shown.length===rows.length ? nf(rows.length)+" משימות" : nf(shown.length)+" מתוך "+nf(rows.length);
   { // personal tasks (🔒) join the board; filters that only team tasks have (person, place, type, department) leave them out
-    const pv=privTasks().filter(t=> tkView==="done" ? !tkOpen(t) : tkOpen(t));
-    const pPass=t=>!tkF.ppl && !tkF.loc && !tkF.type && !tkF.dept && (!tkF.prio || prioOf(t)===tkF.prio) && (!tkF.late || (t.due && t.due<today))
+    const pv=privTasks().filter(t=> tkView==="priv" ? true : tkView==="done" ? !tkOpen(t) : tkOpen(t));   // "אישיות": all of mine, open first
+    const pPass=t=>(tkView==="priv" || !tkF.ppl && !tkF.loc && !tkF.type && !tkF.dept) && (!tkF.prio || prioOf(t)===tkF.prio) && (!tkF.late || (t.due && t.due<today))
       && (!tkF.q || [t.title,t.desc].concat(t.check.map(x=>x.text)).join(" ").toLowerCase().includes(tkF.q.trim().toLowerCase()));
-    if(pv.length){ const cmp = tkView==="done" ? (a,b)=>String(b.doneAt||"").localeCompare(String(a.doneAt||"")) : (a,b)=>{ const na=tkIsNew(a), nb=tkIsNew(b); if(na!==nb) return na ? -1 : 1; return tkCmp()(a,b); };
+    if(pv.length){ const cmp = tkView==="priv" ? (a,b)=>(tkOpen(b)-tkOpen(a)) || (tkOpen(a) ? tkCmp()(a,b) : String(b.doneAt||"").localeCompare(String(a.doneAt||""))) : tkView==="done" ? (a,b)=>String(b.doneAt||"").localeCompare(String(a.doneAt||"")) : (a,b)=>{ const na=tkIsNew(a), nb=tkIsNew(b); if(na!==nb) return na ? -1 : 1; return tkCmp()(a,b); };
       rows.push(...pv); shown.push(...pv.filter(pPass)); shown.sort(cmp);
       $("#tkResCount").textContent = shown.length===rows.length ? nf(rows.length)+" משימות" : nf(shown.length)+" מתוך "+nf(rows.length); }
   }
   rows.length=0; rows.push(...shown); tkLastRows=shown.filter(t=>!t.priv);
-  if(!rows.length){ box.appendChild(mk("div","tk-empty", Object.values(tkF).some(Boolean) ? "אין משימות שמתאימות לסינון." :
-    tkView==="mine" ? (myName() ? "אין משימות פתוחות שלך או של המחלקה שלך." : (window.cloudMe ? "המנהל עדיין לא הגדיר לך שם בצוות." : "בחר למעלה \"אני:\" כדי לראות את המשימות שלך.")) : tkView==="opened" ? "אין משימות פתוחות שפתחת." : tkView==="open" ? "אין משימות פתוחות." : "עדיין לא הושלמו משימות.")); return; }
+  if(!rows.length){ box.appendChild(mk("div","tk-empty", tkView!=="priv" && Object.values(tkF).some(Boolean) ? "אין משימות שמתאימות לסינון." :
+    tkView==="mine" ? (myName() ? "אין משימות פתוחות שלך או של המחלקה שלך." : (window.cloudMe ? "המנהל עדיין לא הגדיר לך שם בצוות." : "בחר למעלה \"אני:\" כדי לראות את המשימות שלך.")) : tkView==="opened" ? "אין משימות פתוחות שפתחת." : tkView==="priv" ? "אין לך משימות אישיות — \"משימה חדשה\" → אישית 🔒." : tkView==="open" ? "אין משימות פתוחות." : "עדיין לא הושלמו משימות.")); return; }
   // "רשימה" on a wide screen: a header row naming the columns (hidden on cards / phones by CSS)
   { const h=mk("div","tk-head"); h.setAttribute("aria-hidden","true");
     ["משימה","ציוד","שיוך","מחלקה","עדיפות","סוג","סטטוס","נוספים","תאריכים","אחראי · מיקום"].forEach(x=>h.appendChild(mk("span",null,x))); box.appendChild(h); }
@@ -2647,7 +2645,7 @@ function openTaskForm(id){
   $("#tkTitle").value=t?t.title||"":""; $("#tkDesc").value=t?t.desc||"":"";
   $("#tkDue").value=t?t.due||"":"";
   $("#tkScope").hidden = !!(t || pt);                  // a task stays what it was (team or personal)
-  setScope(pt ? "me" : "team");
+  setScope(pt || (!t && tkView==="priv") ? "me" : "team");   // from "אישיות" a new task starts as personal
   if(pt){ $("#tkTitle").value=pt.title; $("#tkDesc").value=pt.desc; $("#tkDue").value=pt.due; fillSelect($("#tkPrio"), PRIOS, pt.prio); paintFormColors(); $("#tkCkWrap").hidden=true; }
   setRep(t && t.rep); repAuto=false;
   $("#tkStart").value=pt ? (pt.start||"") : t ? (t.start || String(t.created||"").slice(0,10) || ymd(new Date())) : ymd(new Date());
