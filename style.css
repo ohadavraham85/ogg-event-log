@@ -715,6 +715,7 @@ html.sp-open,html.sp-open body{overflow:hidden}
 .tk-tag{font-size:12.5px;font-weight:800;padding:2px 9px;border-radius:99px;background:var(--panel-2);color:var(--ink-2);border:1px solid var(--edge-2)}
 .tk-tag.u{background:var(--c-fault-bg);color:var(--c-fault);border-color:transparent}
 .tk-tag.w{background:var(--c-maint-bg);color:var(--c-maint);border-color:transparent}
+.tk-tag.hold{background:#64748b;color:#fff;border-color:transparent}
 .tk-tag.late{background:var(--c-fault);color:#fff;border-color:transparent}
 .tk-tag.ok{background:var(--water-soft);color:var(--water);border-color:transparent}
 .tk-m{font-size:13.5px;color:var(--ink-2);margin-top:4px;overflow-wrap:anywhere}
