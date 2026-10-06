@@ -1112,7 +1112,7 @@ function renderDash0(){
   // department filter: events of the people in it; tasks assigned to it or to its people
   const depts=allDepts(); if(dDept && !depts.includes(dDept)) dDept="";
   const dsel=$("#dDept"); dsel.textContent="";
-  [["","כל המחלקות"]].concat(depts.map(v=>[v,"🏢 "+v])).forEach(([v,l])=>{ const o=mk("option",null,l); o.value=v; dsel.appendChild(o); });
+  [["","כל המחלקות"]].concat(depts.map(v=>[v,deptIcon(v)+" "+v])).forEach(([v,l])=>{ const o=mk("option",null,l); o.value=v; dsel.appendChild(o); });
   dsel.value=dDept; dsel.hidden=!depts.length; dsel.classList.toggle("on",!!dDept); ps.classList.toggle("on",!!dPpl);
   const inScope=e=>(!dPpl || (e.ppl||[]).includes(dPpl)) && (!dDept || inDeptE(e,dDept));
   const rows = events.filter(e=>{
@@ -1263,7 +1263,7 @@ function renderDash0(){
     const lg=mk("div","legend"); [["אירועים פתוחים","s-open"],["אירועים שנסגרו","s-done"]].forEach(([l,c])=>{ const li=mk("span","li"); li.append(mk("i",c),mk("span",null,l)); lg.appendChild(li); });
     const box=mk("div","pbars");
     per.forEach(it=>{
-      const row=mk("div","pbar"), lb=mk("button","pl","🏢 "+it.l); lb.type="button";
+      const row=mk("div","pbar"), lb=mk("button","pl",deptIcon(it.l)+" "+it.l); lb.type="button";
       lb.onclick=()=>{ dDept=it.l; try{ localStorage.setItem("ogg-dash-dept",dDept); }catch(e){} dAnim=true; renderDash(); window.scrollTo({top:0,behavior:"smooth"}); };
       tipOn(lb, "הצג את הדשבורד של המחלקה", it.l);
       const tr=mk("span","pt"), bar=mk("span","pb"); bar.style.width = (it.o+it.c) ? "max(4px, calc(100% * "+((it.o+it.c)/max)+"))" : "0";
@@ -1897,7 +1897,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.49", APP_DATE="06/10/2026";
+const APP_VER="2.50", APP_DATE="06/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2237,13 +2237,15 @@ function paintFormColors(){ colorSelect($("#tkPrio"), PRIO_HUE[$("#tkPrio").valu
 // (tkInDept: a task belongs to a department if it was assigned to it, or to someone in it — defined with the calendar)
 // managers: a row of departments above the list; it opens on the manager's own department
 let tkDeptInit=false;
+// a department's icon by the kind of work in its name (generic words only): electricity ⚡, maintenance 🔧, operations 💧; others 🏢
+function deptIcon(d){ d=String(d||""); return /חשמל/.test(d) ? "⚡" : /אחזק/.test(d) ? "🔧" : /תפעול/.test(d) ? "💧" : "🏢"; }
 function paintDeptSeg(){
   const box=$("#tkDeptSeg"), ds=allDepts(), on=isManager() && ds.length>0 && tkView!=="priv";   // personal tasks have no department
   box.hidden=!on; if(!on) return;
   if(!tkDeptInit && myDept() && ds.includes(myDept())){ tkDeptInit=true; tkF.dept=myDept(); }
   const base=tkVis().filter(t=> tkView==="done" ? !tkOpen(t) : tkOpen(t) && (tkView!=="mine" || isMine(t)) && (tkView!=="opened" || openedByMe(t)));
   const sl=$("#tkDeptSel"); sl.textContent="";
-  [["", "כל המחלקות", base.length]].concat(ds.map(d=>[d, "🏢 "+d, base.filter(t=>tkInDept(t,d)).length])).forEach(([v,label,n])=>{
+  [["", "כל המחלקות", base.length]].concat(ds.map(d=>[d, deptIcon(d)+" "+d, base.filter(t=>tkInDept(t,d)).length])).forEach(([v,label,n])=>{
     const o=mk("option",null,label+" ("+nf(n)+")"); o.value=v; sl.appendChild(o); });
   sl.value = ds.includes(tkF.dept) ? tkF.dept : ""; sl.classList.toggle("on",!!sl.value);
 }
@@ -2556,7 +2558,7 @@ function renderTasks(){
       if(tkIsNew(t)){ tag("✨ חדשה","new",null,"who"); if(!$("#viewTasks").hidden) tkShownNew.add(t.id); }
       if(isMine(t)) tag((t.ppl||[]).includes(myName()) ? "שלי" : "המחלקה שלי","me",null,"who");
       else if(openedByMe(t)) tag("פתחתי","me",null,"who");
-      (t.depts||[]).forEach(d=>tag("🏢 "+d,"dept",null,"dept"));
+      (t.depts||[]).forEach(d=>tag(deptIcon(d)+" "+d,"dept",null,"dept"));
       if(pr!=="רגילה") tag(pr,"",ph,"prio");
       if(t.type) tag(t.type,"",hueOf(t.type),"type");
       if(t.status==="בטיפול") tag("בטיפול","w",null,"stat");
@@ -2717,7 +2719,7 @@ function paintDeptChips(sel){
   const box=$("#tkDepts"); box.textContent="";
   const all=[...new Set(allDepts().concat(tkDeptSel))];
   if(!all.length){ box.appendChild(mk("span","hint","אין עדיין מחלקות — מגדירים ב\"הגדרות ← ניהול רשימות ← אנשים ← תפקיד ומחלקה\".")); return; }
-  all.forEach(d=>{ const on=tkDeptSel.includes(d), b=mk("button","dchip"+(on?" on":""),(on?"✓ ":"")+d); b.type="button"; b.setAttribute("aria-pressed",String(on));
+  all.forEach(d=>{ const on=tkDeptSel.includes(d), b=mk("button","dchip"+(on?" on":""),(on?"✓ ":deptIcon(d)+" ")+d); b.type="button"; b.setAttribute("aria-pressed",String(on));
     b.onclick=()=>{ tkDeptSel = on ? tkDeptSel.filter(x=>x!==d) : tkDeptSel.concat(d); paintDeptChips();
       if(tkDeptSel.length) $("#tkPpl").closest(".tk-f").classList.remove("bad"), box.closest(".tk-f").classList.remove("bad"); };
     box.appendChild(b); });
@@ -2881,7 +2883,7 @@ function paintCalDept(){
     ? t=>(tkOpen(t) && t.due && (t.start&&t.start<=t.due?t.start:t.due)<=mE && t.due>=mS) || (!tkOpen(t) && String(t.doneAt||"").startsWith(pre))
     : e=>(e.when||"").startsWith(pre);
   const src = calMd==="tk" ? tkVis().filter(inMonth) : events.filter(inMonth), isIn = calMd==="tk" ? tkInDept : evInDept;
-  [["", "כל המחלקות", src.length]].concat(ds.map(d=>[d,"🏢 "+d,src.filter(x=>isIn(x,d)).length])).forEach(([v,l,n])=>{
+  [["", "כל המחלקות", src.length]].concat(ds.map(d=>[d,deptIcon(d)+" "+d,src.filter(x=>isIn(x,d)).length])).forEach(([v,l,n])=>{
     const b=mk("button","dchip"+(v===calDept?" on":"")); b.type="button"; b.setAttribute("aria-pressed",String(v===calDept));
     b.append(l+" "); b.appendChild(mk("span","seg-n",nf(n)));
     b.onclick=()=>{ calDept=v; try{ localStorage.setItem("ogg-cal-dept",calDept); }catch(e){} renderCal(); };

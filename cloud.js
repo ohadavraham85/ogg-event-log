@@ -359,7 +359,7 @@
       return out;
     }
     if(!was){                                            // a new task that isn't assigned to me (a manager following the whole team)
-      out.push({...base, id:t.id+":new:"+upd, kind:"assign", text:"נפתחה משימה חדשה"+((t.ppl||[]).length?" · אחראי: "+t.ppl[0]:"")+((t.depts||[]).length?" · 🏢 "+t.depts.join(", "):"")+(t.due ? " · יעד "+dm(t.due) : "")});
+      out.push({...base, id:t.id+":new:"+upd, kind:"assign", text:"נפתחה משימה חדשה"+((t.ppl||[]).length?" · אחראי: "+t.ppl[0]:"")+((t.depts||[]).length?" · "+t.depts.map(x=>deptIcon(x)+" "+x).join(", "):"")+(t.due ? " · יעד "+dm(t.due) : "")});
       return out; }
     const had=new Set((was.log||[]).map(l=>l && l.id));
     (t.log||[]).filter(l=>l && !had.has(l.id) && l.mail!==me).forEach(l=>out.push({...base, id:t.id+":"+l.id, kind:l.sys ? "status" : "update",
@@ -376,7 +376,7 @@
     if(!same(t.rep,was.rep)) ch.push("מחזוריות");
     const items=x=>(x.check||[]).filter(c=>c && !c.del).map(c=>c.text);
     if(!same(items(t),items(was))) ch.push("רשימת בדיקה");
-    if(!same(t.ppl,was.ppl) || !same(t.depts,was.depts)) ch.push("שיוך: "+(t.ppl||[]).concat((t.depts||[]).map(x=>"🏢 "+x)).join(", "));
+    if(!same(t.ppl,was.ppl) || !same(t.depts,was.depts)) ch.push("שיוך: "+(t.ppl||[]).concat((t.depts||[]).map(x=>deptIcon(x)+" "+x)).join(", "));
     if(ch.length) out.push({...base, id:t.id+":ed:"+upd, kind:"edit", text:"עודכנו פרטים: "+ch.join(" · ")});
     // files and photos added / removed
     const fl=x=>(x.files||[]).filter(f=>f && !f.del), wasF=new Set(fl(was).map(f=>f.id)), nowF=new Set(fl(t).map(f=>f.id));
