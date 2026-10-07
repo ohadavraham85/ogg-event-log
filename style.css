@@ -1655,3 +1655,6 @@ html.glass .wrap{background:color-mix(in srgb,var(--bg) calc(100% - var(--glass)
 html.glass header.bar{background:color-mix(in srgb,var(--bg) calc(100% - var(--glass) * .8),transparent)}
 @media (prefers-color-scheme:dark){ :root.glass:not([data-theme="light"]) body{background:linear-gradient(180deg,#0E3A63,#0A2A48) fixed} }
 :root.glass[data-theme="dark"] body{background:linear-gradient(180deg,#0E3A63,#0A2A48) fixed}
+/* v2.56: the task update is sent with a paper-plane button */
+.tk-upd-row .tk-send{width:46px;height:46px;padding:0;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;flex:none}
+.tk-upd-row .tk-send svg{width:22px;height:22px;transform:scaleX(-1);margin-inline-end:2px}

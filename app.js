@@ -1897,7 +1897,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.55", APP_DATE="06/10/2026";
+const APP_VER="2.56", APP_DATE="07/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2463,7 +2463,9 @@ function renderLog(t, c){
     const auto = window.cloudMe && window.cloudMe();
     const who=mk("select"); fillSelect(who, pplValues(), reporter(), "— מי מדווח? —");
     const whoTxt=mk("span","tk-upd-who","מדווח: "+reporter());
-    const ok=mk("button","btn primary","שמור עדכון"), no=mk("button","btn ghost","ביטול"); ok.type=no.type="button";
+    const ok=mk("button","btn primary tk-send"), no=mk("button","btn ghost","ביטול"); ok.type=no.type="button";
+    ok.setAttribute("aria-label","שלח עדכון"); ok.title="שלח עדכון";   // a paper plane, like sending a message (points left — Hebrew reads right to left)
+    ok.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z" fill="currentColor"/></svg>';
     ok.onclick=()=>{
       const txt=ta.value.trim(); if(!txt){ toast("כתוב מה התחדש"); ta.focus(); return; }
       const by = auto ? reporter() : who.value;
@@ -2473,7 +2475,7 @@ function renderLog(t, c){
       delete tkDraft[t.id]; t.upd=new Date().toISOString(); tkUpdFor=null; saveTasks(); toast("העדכון נוסף");
     };
     no.onclick=()=>{ delete tkDraft[t.id]; tkUpdFor=null; renderTasks(); };
-    row.append(auto ? whoTxt : who, ok, no); f.append(ta,row); box.appendChild(f);
+    row.append(auto ? whoTxt : who, no, ok); f.append(ta,row); box.appendChild(f);   // the plane at the far end, like a chat
     setTimeout(()=>{ ta.focus({preventScroll:tkFocus===t.id}); ta.setSelectionRange(ta.value.length,ta.value.length); },50);
   } else if(open){
     const u=mk("button","btn upd tk-upd-btn","+ עדכון"); u.type="button";
