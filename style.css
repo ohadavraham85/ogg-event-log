@@ -878,6 +878,26 @@ body.d-drag, body.d-drag *{cursor:grabbing!important;user-select:none!important}
   font:inherit;font-size:15px;font-weight:800;cursor:pointer;text-align:center}
 .sg-nav button[hidden]{display:none}
 .sg-nav button[aria-pressed="true"]{background:var(--water);border-color:var(--water);color:#fff}
+/* security check (🔒) */
+.sec-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--fault);margin-inline-start:6px;vertical-align:middle}
+.sec-dot[hidden]{display:none}
+.sec-sum{display:grid;gap:2px;border:1px solid var(--edge-2);border-radius:12px;padding:10px 12px;margin:0 0 12px;font-size:14px;color:var(--ink-2)}
+.sec-sum b{color:var(--ink);font-size:15px}
+.sec-sum.s-bad{border-color:var(--fault);background:var(--fault-soft)}
+.sec-sum.s-warn{border-color:var(--alarm);background:var(--alarm-soft)}
+.sec-sum.s-ok{border-color:var(--water);background:var(--water-soft)}
+#dlgSec{max-width:560px}
+.sec-list{display:grid;gap:8px;margin-bottom:14px;max-height:60vh;overflow:auto;overscroll-behavior:contain}
+.sec-g{margin:8px 0 0;font-size:14.5px;color:var(--ink-2)}
+.sec-it{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--edge-2);border-inline-start:4px solid var(--c-gen);border-radius:10px;padding:8px 10px;background:var(--panel-2)}
+.sec-it.s-bad{border-inline-start-color:var(--fault);background:var(--fault-soft)}
+.sec-it.s-warn{border-inline-start-color:var(--alarm);background:var(--alarm-soft)}
+.sec-it.s-ok{border-inline-start-color:var(--c-visit)}
+.sec-i{font-size:16px;line-height:1.3;flex:none}
+.sec-b{display:grid;gap:3px;min-width:0;font-size:14px}
+.sec-b b{color:var(--ink);overflow-wrap:anywhere}
+.sec-d{color:var(--ink-2);overflow-wrap:anywhere}
+.sec-fix{color:var(--ink);font-size:13px;overflow-wrap:anywhere}
 @media (max-width:480px){ .sg-nav{grid-template-columns:1fr 1fr} .sg-nav button{font-size:14px;padding:10px 6px} }
 #viewData > .card[hidden]{display:none}
 .mgr-dup{border:1px solid var(--c-flood);background:var(--c-flood-bg);border-radius:10px;margin:0 14px 10px;padding:0 10px}

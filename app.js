@@ -1474,8 +1474,9 @@ function isManager(){ if(!CLOUD_ON) return true; try{ return localStorage.getIte
 function paintSettings(){
   const team=!!$("#cloudCard"), mgr=isManager();
   $("#sgNav [data-sg=team]").hidden=!team;
-  $("#sgNav [data-sg=lists]").hidden=!mgr; $("#sgNav [data-sg=files]").hidden=!mgr;
+  $("#sgNav [data-sg=lists]").hidden=!mgr; $("#sgNav [data-sg=files]").hidden=!mgr; $("#sgNav [data-sg=sec]").hidden=!mgr || TV;
   if((!mgr || isLite()) && (sgCur==="lists"||sgCur==="files")) sgCur = team ? "team" : "general";   // phone view: no lists / files topics
+  if(sgCur==="sec" && (!mgr || TV)) sgCur = team ? "team" : "general";
   if(sgCur==="team" && !team) sgCur = mgr ? "lists" : "general";
   document.querySelectorAll("#sgNav button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.sg===sgCur)));
   document.querySelectorAll("#viewData > .card").forEach(c=>{ c.hidden = (c.dataset.sg||"general")!==sgCur || c.dataset.off==="1" || (c.id==="liteCard" && !LITE_MQ.matches) || (c.id==="tvCard" && !mgr) || (c.id==="newsCard" && !(CLOUD_ON && mgr)); });
@@ -1833,6 +1834,128 @@ function weeklyCheck(){ if(TV) return;
 }
 window.weeklyCheck=weeklyCheck;
 setInterval(weeklyCheck,5*60e3);
+
+/* ================= security check (🔒) =================
+   Managers (and everyone in local mode): a check of how safe the data is — the live security rules in the cloud
+   (cloud.js probes them without writing anything), the team and its roles, the last backup and this device.
+   Runs from settings, and once a day by itself (a toast only when something needs attention). Kept on this
+   device only (ogg-sec-last), and removed on logout. */
+const K_SEC="ogg-sec-last", K_SEC_AUTO="ogg-sec-auto";
+const SEC_ICON={bad:"⛔",warn:"⚠️",ok:"✅",info:"ℹ️"}, SEC_RANK={bad:0,warn:1,ok:2,info:3};
+let secRunning=false;
+function secLast(){ try{ const x=JSON.parse(localStorage.getItem(K_SEC)||"null"); return x && Array.isArray(x.items) ? x : null; }catch(e){ return null; } }
+function secAutoOn(){ try{ return localStorage.getItem(K_SEC_AUTO)!=="0"; }catch(e){ return true; } }
+async function secDevice(){
+  const out=[], add=(g,s,t,d,fix)=>out.push({g,s,t,d:d||"",fix:fix||""});
+  const G3="המכשיר והאפליקציה", G4="גיבוי", G5="לבדוק ידנית במסוף (אי אפשר לבדוק מהאפליקציה)", DAY=864e5;
+  const local=/^(localhost|127\.)/.test(location.hostname);
+  if(location.protocol==="https:") add(G3,"ok","חיבור מוצפן (HTTPS)","כל מה שעובר בין המכשיר לאתר ולענן מוצפן.");
+  else add(G3, local?"info":"bad", local?"פועל מהמחשב המקומי (פיתוח)":"החיבור לא מוצפן", local?"":"האתר נפתח ב-http.", local?"":"לפתוח את היומן רק בכתובת https://");
+  const v=await latestVersion();
+  if(v && newer(v,APP_VER)) add(G3,"warn","יש גרסה חדשה יותר ("+v+")","במכשיר הזה רצה גרסה "+APP_VER+".","הגדרות ← כללי ← גרסה ← בדוק עדכון.");
+  else if(v) add(G3,"ok","האפליקציה מעודכנת","גרסה "+APP_VER+".");
+  else add(G3,"info","לא הצלחתי לבדוק עדכון","אין חיבור לאתר. במכשיר רצה גרסה "+APP_VER+".");
+  if(CLOUD_ON) add(G3,"info","עותק של היומן שמור במכשיר","כדי לעבוד גם בלי אינטרנט. הוא לא מוצפן — מי שפותח את הדפדפן במכשיר הזה יכול לראות אותו. בהתנתקות הוא נמחק.","במכשיר משותף — להתנתק בסוף העבודה (הגדרות ← צוות וחשבון ← התנתק).");
+  else add(G3,"warn","היומן שמור רק בדפדפן הזה","המידע לא מוצפן ולא נמצא בשום מקום אחר — אם הדפדפן יימחק, הוא יאבד.","לחבר קובץ ב-OneDrive (הגדרות ← קבצים וגיבוי) ולהוריד גיבוי באופן קבוע. לא להשאיר את המכשיר פתוח לאחרים.");
+  try{ if(navigator.storage && navigator.storage.persisted){ const p=await navigator.storage.persisted();
+    if(p) add(G3,"ok","הדפדפן לא ימחק את המידע לבד","האחסון במכשיר מסומן כקבוע.");
+    else add(G3, CLOUD_ON?"info":"warn","הדפדפן עלול למחוק את המידע כשחסר מקום", CLOUD_ON?"העותק שבמכשיר יורד מחדש מהענן אם יימחק.":"", "להתקין את האפליקציה למסך הבית — אז האחסון נשמר."); } }catch(e){}
+  try{ if(navigator.storage && navigator.storage.estimate){ const e=await navigator.storage.estimate();
+    if(e && e.usage!=null) add(G3,"info","נפח בשימוש במכשיר", (e.usage/1048576).toFixed(1)+" MB"+(e.quota?" מתוך "+Math.round(e.quota/1048576).toLocaleString("he-IL")+" MB אפשריים":"")+"."); } }catch(e){}
+  const wd=weekDone(), age=wd ? Math.floor((Date.now()-wd)/DAY) : null;
+  if(age===null) add(G4,"warn","עוד לא בוצע גיבוי שבועי במכשיר הזה","","הגדרות ← קבצים וגיבוי ← סיכום וגיבוי שבועי.");
+  else if(age<=8) add(G4,"ok","הגיבוי השבועי בוצע","לפני "+(age? age+" ימים":"פחות מיום")+" ("+new Date(wd).toLocaleDateString("he-IL")+").");
+  else add(G4,"warn","הגיבוי השבועי האחרון לפני "+age+" ימים", new Date(wd).toLocaleDateString("he-IL")+".","הגדרות ← קבצים וגיבוי ← סיכום וגיבוי שבועי.");
+  add(G4,"info","קובצי גיבוי ו-PDF מכילים שמות ורישומים אמיתיים","מה שהורד או נשלח במייל כבר מחוץ לאפליקציה.","לשמור אותם במקום מוגן, לא בתיקיית ההורדות של מחשב משותף.");
+  if(!CLOUD_ON) add(G4, fileHandle?"ok":"warn", fileHandle?"מחובר קובץ גיבוי":"אין קובץ גיבוי מחובר", fileHandle?"כל שמירה נכתבת גם לקובץ "+(fileHandle.name||"")+".":"", fileHandle?"":"הגדרות ← קבצים וגיבוי ← חבר קובץ.");
+  if(CLOUD_ON){
+    add(G5,"info","Authentication ← Settings ← Authorized domains","צריכות להיות רק: כתובת האתר של היומן, ה-firebaseapp.com וה-web.app של הפרויקט (ו-localhost אם מפתחים במחשב).");
+    add(G5,"info","Authentication ← Users","לעבור על הרשימה ולמחוק מיילים לא מוכרים (הם לא יכולים לראות כלום בלי להיות בצוות, אבל אין סיבה שיישארו).");
+    add(G5,"info","Firestore ← Disaster recovery","מומלץ להפעיל Point-in-time recovery או גיבוי יומי מתוזמן — כדי שאפשר יהיה לשחזר רישום שנערך או נמחק בטעות.");
+  }
+  return out;
+}
+async function secRun(silent){
+  if(secRunning) return null; secRunning=true;
+  const b=$("#secRun"), b2=$("#secAgain"); [b,b2].forEach(x=>{ if(x){ x.disabled=true; x.dataset.t=x.dataset.t||x.textContent; x.textContent="בודק…"; } });
+  let items=[];
+  try{
+    if(CLOUD_ON){ if(window.cloudSecCheck) items=items.concat(await window.cloudSecCheck());
+                  else items.push({g:"הענן וכללי האבטחה",s:"warn",t:"החיבור ליומן המשותף עוד לא מוכן",d:"",fix:"לנסות שוב בעוד רגע."}); }
+    items=items.concat(await secDevice());
+  }catch(e){ items.push({g:"הבדיקה",s:"warn",t:"הבדיקה נעצרה באמצע",d:String(e&&e.message||e),fix:"להריץ שוב."}); }
+  finally{ secRunning=false; [b,b2].forEach(x=>{ if(x){ x.disabled=false; x.textContent=x.dataset.t; } }); }
+  const res={at:Date.now(), ver:APP_VER, items};
+  try{ localStorage.setItem(K_SEC,JSON.stringify(res)); }catch(e){}
+  secPaint();
+  if($("#dlgSec").open) secFill(res);
+  const n=items.filter(x=>x.s==="bad"||x.s==="warn").length, bad=items.some(x=>x.s==="bad");
+  if(silent){ if(n) toast((bad?"⛔ ":"⚠️ ")+"בדיקת האבטחה היומית: "+n+" דברים לטפל בהם",{label:"לדוח",fn:secOpen}); }
+  else toast(n ? "הבדיקה הסתיימה — "+n+" דברים לטפל בהם" : "הבדיקה הסתיימה — הכול תקין ✅");
+  return res;
+}
+function secCounts(items){ const c={bad:0,warn:0,ok:0,info:0}; items.forEach(x=>{ c[x.s]=(c[x.s]||0)+1; }); return c; }
+function secGroups(items){ const g=[]; items.forEach(x=>{ let e=g.find(y=>y.name===x.g); if(!e) g.push(e={name:x.g,items:[]}); e.items.push(x); });
+  g.forEach(e=>e.items.sort((a,b)=>SEC_RANK[a.s]-SEC_RANK[b.s])); return g; }
+function secSumText(r){ const c=secCounts(r.items);
+  return (c.bad?"⛔ "+c.bad+" בעיות · ":"")+(c.warn?"⚠️ "+c.warn+" אזהרות · ":"")+"✅ "+c.ok+" תקין"; }
+function secPaint(){
+  const r=secLast(), sum=$("#secSum");
+  $("#secAuto").checked=secAutoOn();
+  $("#secShow").hidden=$("#secDl").hidden=!r;
+  const c=r ? secCounts(r.items) : null;
+  $("#secDot").hidden=!(c && (c.bad||c.warn));
+  sum.textContent=""; sum.className="sec-sum"+(c ? (c.bad?" s-bad":c.warn?" s-warn":" s-ok") : "");
+  if(!r){ sum.textContent="עוד לא הורצה בדיקה במכשיר הזה."; return; }
+  sum.appendChild(mk("b",null,secSumText(r)));
+  sum.appendChild(mk("span",null,"בדיקה אחרונה: "+new Date(r.at).toLocaleString("he-IL",{dateStyle:"short",timeStyle:"short"})));
+}
+function secFill(r){
+  $("#secWhen").textContent=new Date(r.at).toLocaleString("he-IL",{dateStyle:"full",timeStyle:"short"})+" · "+secSumText(r);
+  const box=$("#secList"); box.textContent="";
+  secGroups(r.items).forEach(g=>{
+    box.appendChild(mk("h4","sec-g",g.name));
+    g.items.forEach(x=>{
+      const it=mk("div","sec-it s-"+x.s); it.appendChild(mk("span","sec-i",SEC_ICON[x.s]||""));
+      const b=mk("div","sec-b"); b.appendChild(mk("b",null,x.t)); if(x.d) b.appendChild(mk("span","sec-d",x.d));
+      if(x.fix) b.appendChild(mk("span","sec-fix","מה לעשות: "+x.fix));
+      it.appendChild(b); box.appendChild(it);
+    });
+  });
+}
+function secOpen(){ const r=secLast(); if(!r){ secRun(false).then(x=>{ if(x) secOpen(); }); return; } secFill(r); if(!$("#dlgSec").open) $("#dlgSec").showModal(); }
+function secReport(){
+  const r=secLast(); if(!r) return;
+  const e=v=>String(v).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  const col={bad:"#B8352F",warn:"#8F5A06",ok:"#1C7A46",info:"#4A5A6A"};
+  const d=new Date(r.at), day=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+  const rows=secGroups(r.items).map(g=>"<h2>"+e(g.name)+"</h2>"+g.items.map(x=>
+    '<div class="it" style="border-inline-start-color:'+col[x.s]+'"><b>'+(SEC_ICON[x.s]||"")+" "+e(x.t)+"</b>"+(x.d?"<p>"+e(x.d)+"</p>":"")+(x.fix?'<p class="fx">מה לעשות: '+e(x.fix)+"</p>":"")+"</div>").join("")).join("");
+  const html='<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>דוח אבטחה '+day+'</title>'
+    +'<style>body{font-family:system-ui,Arial,sans-serif;max-width:760px;margin:24px auto;padding:0 16px;color:#16202A;background:#fff}h1{font-size:22px;margin:0 0 4px}'
+    +'.m{color:#566877;margin:0 0 18px}h2{font-size:16px;margin:22px 0 8px;border-bottom:1px solid #DCE3E8;padding-bottom:4px}'
+    +'.it{border:1px solid #DCE3E8;border-inline-start:5px solid;border-radius:8px;padding:8px 12px;margin:0 0 8px;break-inside:avoid}'
+    +'.it p{margin:4px 0 0;color:#566877;overflow-wrap:anywhere}.it .fx{color:#16202A}</style></head><body>'
+    +'<h1>🔒 דוח אבטחה — יומן אירועים ומשימות</h1><p class="m">'+e(d.toLocaleString("he-IL",{dateStyle:"full",timeStyle:"short"}))+" · גרסה "+e(r.ver||APP_VER)+" · "+e(secSumText(r))+"</p>"
+    +rows+'<p class="m" style="margin-top:24px">הדוח מכיל שמות ומיילים של הצוות — לשמור במקום מוגן.</p></body></html>';
+  download("דוח-אבטחה-"+day+".html",html,"text/html");
+}
+function secDaily(){
+  if(TV || !isManager() || !secAutoOn() || secRunning) return;
+  if(CLOUD_ON && !window.CLOUD_READY) return;
+  const r=secLast(); if(r && Date.now()-r.at<864e5) return;
+  secRun(true);
+}
+window.secDaily=secDaily;
+$("#secRun").onclick=()=>secRun(false);
+$("#secAgain").onclick=()=>secRun(false);
+$("#secShow").onclick=secOpen;
+$("#secDl").onclick=$("#secDl2").onclick=secReport;
+$("#secClose").onclick=()=>$("#dlgSec").close();
+$("#secAuto").onchange=()=>{ try{ localStorage.setItem(K_SEC_AUTO,$("#secAuto").checked?"1":"0"); }catch(e){} };
+secPaint();
+if(!CLOUD_ON) Promise.resolve(window.bigReady).catch(()=>{}).then(()=>setTimeout(secDaily,8000));
+setInterval(secDaily,60*60e3);
 document.addEventListener("visibilitychange",()=>{ if(!document.hidden) setTimeout(weeklyCheck,800); });
 wkLast();
 
@@ -1897,7 +2020,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.56", APP_DATE="07/10/2026";
+const APP_VER="2.57", APP_DATE="10/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){

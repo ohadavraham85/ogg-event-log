@@ -274,7 +274,7 @@
       if(fresh.length) announce(fresh);
     }
     // first answer from the server (not the local cache): now we know what the cloud really has
-    if(!initialDone && !snap.metadata.fromCache){ initialDone=true; renderAccount(); window.CLOUD_READY=true; if(window.weeklyCheck) setTimeout(window.weeklyCheck,1000);
+    if(!initialDone && !snap.metadata.fromCache){ initialDone=true; renderAccount(); window.CLOUD_READY=true; if(window.weeklyCheck) setTimeout(window.weeklyCheck,1000); if(window.secDaily) setTimeout(window.secDaily,8000);
       if(window.nosAfterSync) setTimeout(window.nosAfterSync,1500); }
     syncChip(snap.metadata);
   }
@@ -630,6 +630,96 @@
     return {k:"new", t:"טרם הוזמן"};
   }
   window.memberState=memberState;
+
+  /* security check (🔒, managers): probes the live security rules over the REST API. Nothing is ever written:
+     every write probe targets a document that does not exist with "must already exist", so a rule that allows it
+     answers NOT_FOUND (404) and one that blocks it answers PERMISSION_DENIED (403). */
+  window.cloudSecCheck=async()=>{
+    const out=[], add=(g,s,t,d,fix)=>out.push({g,s,t,d:d||"",fix:fix||""});
+    const G1="הענן וכללי האבטחה", G2="הצוות וההרשאות";
+    if(!started || !me || !auth || !auth.currentUser){ add(G1,"warn","לא מחובר ליומן המשותף","הבדיקות מול הענן לא רצו."); return out; }
+    const cfg=window.FIREBASE_CONFIG||{}, dbn=window.FIREBASE_DATABASE||"(default)";
+    const host=window.FIREBASE_EMULATOR ? "http://127.0.0.1:8080" : "https://firestore.googleapis.com";
+    const root="projects/"+cfg.projectId+"/databases/"+dbn+"/documents", base=host+"/v1/"+root, key="key="+encodeURIComponent(cfg.apiKey||"");
+    let tok=""; try{ tok=await auth.currentUser.getIdToken(); }catch(e){}
+    const call=async(method,path,opt={})=>{
+      try{
+        const r=await fetch(path, Object.assign({method, cache:"no-store", headers:Object.assign({"Content-Type":"application/json"}, opt.auth&&tok ? {Authorization:"Bearer "+tok} : {}),
+                                                 body:opt.body?JSON.stringify(opt.body):undefined}, opt.noRef?{referrerPolicy:"no-referrer"}:{}));
+        let j=null; try{ j=await r.json(); }catch(e){}
+        const er=(j && j.error)||{}, why=JSON.stringify(er.details||[])+" "+(er.message||"");
+        return {st:r.status, keyBlocked:r.status===403 && /REFERRER_BLOCKED|referer/i.test(why)};
+      }catch(e){ return {st:0}; }
+    };
+    const rnd="zz_secprobe_"+Math.random().toString(36).slice(2,10);
+    const ok=r=>r.st===200||r.st===404, denied=r=>r.st===403 && !r.keyBlocked;
+
+    // 1. open to the world? (no sign-in at all)
+    const u1=await call("GET",base+"/events?pageSize=1&"+key), u2=await call("GET",base+"/members?pageSize=1&"+key);
+    const u3=await call("PATCH",base+"/"+rnd+"/x?currentDocument.exists=true&"+key,{body:{fields:{a:{stringValue:"probe"}}}});
+    if(u1.st===200 || u2.st===200) add(G1,"bad","המידע פתוח לכל העולם","בלי כניסה בכלל אפשר לקרוא את "+(u1.st===200?"האירועים":"רשימת הצוות")+".",
+      "Firebase Console ← Firestore ← Rules: להדביק את firestore.rules מהמאגר (עם המייל של הבעלים) וללחוץ Publish — מיד.");
+    else if(denied(u1) && denied(u2)) add(G1,"ok","אין גישה בלי כניסה","מי שלא מחובר לא יכול לקרוא אירועים או את רשימת הצוות.");
+    else add(G1,"warn","לא הצלחתי לבדוק גישה בלי כניסה", u1.keyBlocked ? "מפתח ה-API חסם את הבדיקה (האתר רץ מכתובת שלא ברשימת המפתח)." : "אין חיבור לשרת או תשובה לא צפויה ("+u1.st+").");
+    if(u3.st===404) add(G1,"bad","אפשר לכתוב בלי כניסה","הכללים מאפשרים כתיבה למי שלא מחובר.","לפרסם מחדש את firestore.rules מהמאגר.");
+    else if(denied(u3)) add(G1,"ok","אין כתיבה בלי כניסה","מי שלא מחובר לא יכול לכתוב שום דבר.");
+
+    // 2. the rules on the server are the current ones (each part of the app can be read)
+    const parts=[["events","אירועים"],["members","רשימת הצוות"],["board","לוח המודעות"],["presence","מי מחובר"],["feedback","משובים"]];
+    const miss=[];
+    for(const [c,n] of parts){ const r=await call("GET",base+"/"+c+"?pageSize=1",{auth:1}); if(!ok(r)) miss.push(n+(r.st?"":" (אין חיבור)")); }
+    const pr=await call("GET",base+"/private/"+encodeURIComponent(me),{auth:1}); if(!ok(pr)) miss.push("משימות אישיות");
+    const open=u1.st===200 || u2.st===200 || u3.st===404;
+    if(!miss.length){ if(!open) add(G1,"ok","הכללים בענן מעודכנים","כל חלקי האפליקציה נפתחים כמו שצריך — הכללים שפורסמו תואמים לגרסה הזו."); }
+    else add(G1,"bad","הכללים בענן ישנים או חסרים","חסומים: "+miss.join(", ")+". אולי גם מסך המשרד (צופה) יכול לכתוב.",
+      "Firebase Console ← Firestore ← Rules: להדביק את firestore.rules העדכני מהמאגר (להחליף OWNER_EMAIL במייל של הבעלים) וללחוץ Publish.");
+
+    // 3. the rules are strict (signed in as a manager — the most permissive role)
+    const s1=await call("PATCH",base+"/"+rnd+"/x?currentDocument.exists=true",{auth:1,body:{fields:{a:{stringValue:"probe"}}}});
+    const s2=await call("DELETE",base+"/events/"+rnd+"?currentDocument.exists=true",{auth:1});
+    const tw=(by,stamp)=>({writes:[Object.assign({update:{name:root+"/meta/task-"+rnd,fields:Object.assign({id:{stringValue:rnd}},by?{_by:{stringValue:by}}:{})}},
+                                                stamp?{updateTransforms:[{fieldPath:"_upd",setToServerValue:"REQUEST_TIME"}]}:{},{currentDocument:{exists:true}})]});
+    const cm=host+"/v1/"+root+":commit";
+    const s3=await call("POST",cm,{auth:1,body:tw(me,true)}), s4=await call("POST",cm,{auth:1,body:tw("someone-else@example.invalid",true)}), s5=await call("POST",cm,{auth:1,body:tw(me,false)});
+    if(s1.st===404) add(G1,"bad","יש בכללים פתח כללי","אפשר לכתוב לאוסף שהאפליקציה לא מכירה — כנראה כלל 'allow … if true' או כלל רחב מדי.","לפרסם מחדש את firestore.rules מהמאגר במקום מה שיש בענן.");
+    else if(denied(s1)) add(G1,"ok","אין כתיבה מחוץ לאפליקציה","כל מקום שהאפליקציה לא משתמשת בו חסום, גם למנהל.");
+    if(s2.st===404) add(G1,"bad","אפשר למחוק אירועים לצמיתות","הכללים מאפשרים מחיקה מלאה של אירוע (במקום סימון 'נמחק').","לפרסם מחדש את firestore.rules מהמאגר.");
+    else if(denied(s2)) add(G1,"ok","אין מחיקה לצמיתות","אירוע לא נמחק מהענן — רק מסומן כמחוק, ומנהל יכול להחזיר אותו.");
+    if(s3.st===404 && denied(s4) && denied(s5)) add(G1,"ok","כל שינוי חתום","כל כתיבה נושאת את שעת השרת ואת הכותב — אי אפשר לשנות בשם של מישהו אחר.");
+    else if(s3.st===404) add(G1,"bad","אפשר לכתוב בלי חתימה או בשם אחר","הכללים לא מחייבים את שעת השרת ואת הכותב בכל שינוי.","לפרסם מחדש את firestore.rules מהמאגר.");
+    else add(G1,"warn","לא הצלחתי לבדוק את החתימה על שינויים","תשובה לא צפויה מהשרת ("+s3.st+").");
+
+    // 4. the API key only works from this site
+    const k1=window.FIREBASE_EMULATOR ? {st:-1} : await call("GET",base+"/events?pageSize=1&"+key,{noRef:1});
+    if(k1.st===-1){}
+    else if(k1.keyBlocked) add(G1,"ok","מפתח ה-API מוגבל לאתר","בקשות שלא מגיעות מהאתר של היומן נחסמות.");
+    else if(k1.st===403 || k1.st===200) add(G1,"warn","מפתח ה-API לא מוגבל לאתר","כל אחד יכול להשתמש במפתח מכל מקום (המידע עדיין מוגן בכללים, אבל אפשר להעמיס על הפרויקט).",
+      "Google Cloud Console ← APIs & Services ← Credentials ← Browser key ← Application restrictions: Websites — כתובת האתר וכתובת ה-firebaseapp.com של הפרויקט.");
+    else add(G1,"warn","לא הצלחתי לבדוק את הגבלת מפתח ה-API","אין חיבור לשרת.");
+
+    // 5. this device's sync
+    add(G1, pending ? "warn":"ok", pending ? "יש שינויים שעוד לא הגיעו לענן" : "כל השינויים במכשיר הגיעו לענן",
+        pending ? pending+" שמירות ממתינות — בדוק את החיבור לאינטרנט." : "");
+
+    // the team: who can get in, and as what
+    const S=members.map(memberState), name=m=>(m.name? m.name+" ("+m.email+")" : m.email);
+    const adm=members.filter(m=>m.role==="admin"), vw=members.filter(m=>m.role==="viewer");
+    add(G2,"info","בצוות "+members.length+" אנשים", adm.length+" מנהלים, "+vw.length+" צופים (מסך משרד), "+(members.length-adm.length-vw.length)+" חברי צוות.");
+    add(G2, adm.length>3 ? "warn":"info", "מנהלים: "+adm.length, adm.map(name).join(" · "),
+        adm.length>3 ? "מנהל יכול למחוק, לנהל את הצוות ולראות משובים. כדאי שיהיו מעט מנהלים — בהגדרות ← צוות וחשבון אפשר להוריד תפקיד." : "");
+    if(vw.length) add(G2,"info","צופים (מסך משרד)", vw.map(name).join(" · ")+" — רואים הכול ולא יכולים לשנות. המחשב של המסך צריך להיות במקום שרק הצוות מגיע אליו.");
+    const DAY=864e5, stale=members.filter(m=>m.email!==me && seen[m.email] && Date.now()-seen[m.email]>30*DAY);
+    if(stale.length) add(G2,"warn","לא נכנסו יותר מ-30 יום: "+stale.length, stale.map(m=>name(m)+" — "+new Date(seen[m.email]).toLocaleDateString("he-IL")).join(" · "),
+      "מי שעזב או לא צריך יותר גישה — להסיר מהצוות (הגדרות ← צוות וחשבון).");
+    else add(G2,"ok","אין חשבונות נטושים","כל מי שנכנס ליומן היה פעיל ב-30 הימים האחרונים.");
+    const waiting=members.filter((m,i)=>S[i].k==="inv" && m.invitedAt && m.invitedAt.toMillis && Date.now()-m.invitedAt.toMillis()>14*DAY);
+    if(waiting.length) add(G2,"info","הוזמנו לפני יותר משבועיים ועוד לא נכנסו", waiting.map(name).join(" · "),"אם ההזמנה כבר לא רלוונטית — להסיר מהצוות.");
+    const dom={}; members.forEach(m=>{ const d=(m.email.split("@")[1]||""); dom[d]=(dom[d]||0)+1; });
+    const main=Object.keys(dom).sort((a,b)=>dom[b]-dom[a])[0], other=members.filter(m=>(m.email.split("@")[1]||"")!==main);
+    if(main && other.length && members.length>2) add(G2,"info","מיילים מחוץ ל-"+main, other.map(name).join(" · "),"לוודא שזה מכוון (למשל מייל פרטי במקום מייל העבודה).");
+    add(G2,"info","מחובר כ-"+me, role==="admin"?"מנהל":role);
+    return out;
+  };
   function paintMembers(){
     const box=$("#cloudMembers"); if(!box) return; box.textContent="";
     const S=members.map(memberState), cnt=k=>S.filter(x=>x.k===k).length;
@@ -729,7 +819,7 @@
     if(!confirm("להתנתק? העותק של היומן המשותף יימחק מהמכשיר הזה (הוא נשאר בענן).")) return;
     stopSync();
     try{ await F.signOut(auth); }catch(e){}
-    ["ogg-cloud-log","ogg-cloud-lists","ogg-cloud-tasks",K_SYNC,K_SYNC_T,K_ROLE,"ogg-me-todos-"+me].forEach(k=>put(k,null));
+    ["ogg-cloud-log","ogg-cloud-lists","ogg-cloud-tasks",K_SYNC,K_SYNC_T,K_ROLE,"ogg-me-todos-"+me,"ogg-sec-last"].forEach(k=>put(k,null));
     try{ await Promise.all(["ogg-cloud-log","ogg-cloud-tasks"].map(k=>window.kvDel ? window.kvDel(k) : null)); }catch(e){}
     try{ await F.terminate(db); await F.clearIndexedDbPersistence(db); }catch(e){}
     location.reload();
