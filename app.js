@@ -2020,7 +2020,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.57", APP_DATE="10/10/2026";
+const APP_VER="2.58", APP_DATE="11/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -3227,7 +3227,7 @@ let ssPanel=null;
 function closeSS(){ if(ssPanel){ ssPanel.remove(); ssPanel=null; removeEventListener("pointerdown",ssOutside,true); } }
 function ssOutside(e){ if(ssPanel && !ssPanel.contains(e.target) && !e.target.classList.contains("ss-btn")) closeSS(); }
 function openSS(sel,btn){
-  closeSS();
+  closeSS(); ssW=innerWidth;
   const p=mk("div","ss-panel"), q=mk("input","ss-q"), list=mk("div","ss-list");
   q.type="search"; q.placeholder="חיפוש…"; q.autocomplete="off"; p.append(q,list);
   const opts=[...sel.options].map(o=>({v:o.value,t:o.textContent,core:isCore(o.value)}));
@@ -3236,7 +3236,7 @@ function openSS(sel,btn){
   const pick=v=>{
     if(multi && v && v!=="__other"){
       if(sel._picked().includes(v)) sel._unpick(v); else { sel.value=v; sel.dispatchEvent(new Event("change",{bubbles:true})); }
-      q.value=""; paint(); requestAnimationFrame(()=>{ if(p._place) p._place(); }); q.focus({preventScroll:true}); return;
+      q.value=""; paint(); requestAnimationFrame(()=>{ if(p._place) p._place(); }); if(!ssPhone()) q.focus({preventScroll:true}); return;   // phone: the keyboard doesn't jump after each pick
     }
     sel.value=v; sel.dispatchEvent(new Event("change",{bubbles:true})); closeSS(); btn.focus(); };
   let first=null;
@@ -3260,6 +3260,11 @@ function openSS(sel,btn){
   if(multi){ const done=mk("button","btn primary ss-done","סיום ✓"); done.type="button"; done.onclick=()=>{ closeSS(); btn.focus(); }; p.appendChild(done); }
   paint(); document.body.appendChild(p); ssPanel=p; p._btn=btn;
   const place=()=>{
+    if(ssPhone()){   // phone: docked at the top of the visible area, above the keyboard — the keyboard opening doesn't close it
+      const vv=window.visualViewport, vh=vv ? vv.height : innerHeight, top=vv ? vv.offsetTop : 0;
+      p.style.left="8px"; p.style.width=(innerWidth-16)+"px"; p.style.top=(top+8)+"px"; p.style.bottom="";
+      list.style.maxHeight=Math.max(120, vh-16-(multi?112:64))+"px"; return;
+    }
     const r=btn.getBoundingClientRect(), w=Math.max(r.width,Math.min(300,innerWidth-16));
     const below=innerHeight-r.bottom, h=Math.min(380, Math.max(below, r.top)-12);
     p.style.width=w+"px"; p.style.left=Math.max(8,Math.min(r.right-w,innerWidth-w-8))+"px";
@@ -3273,9 +3278,14 @@ function openSS(sel,btn){
 }
 addEventListener("scroll",e=>{            // follow the button while the page scrolls; close only when it leaves the screen
   if(!ssPanel || ssPanel.contains(e.target)) return;
+  if(ssPhone()) return ssPanel._place();
   const r=ssPanel._btn.getBoundingClientRect(); if(r.bottom<0 || r.top>innerHeight) closeSS(); else ssPanel._place();
 },true);
-addEventListener("resize",closeSS);
+// a phone keyboard opening or closing changes the height only — keep the list open; a real resize (turning the phone, a window) closes it
+function ssPhone(){ return innerWidth<=600 || matchMedia("(pointer:coarse)").matches; }
+let ssW=innerWidth;
+addEventListener("resize",()=>{ if(!ssPanel){ ssW=innerWidth; return; } if(Math.abs(innerWidth-ssW)>40){ ssW=innerWidth; closeSS(); } else ssPanel._place(); });
+if(window.visualViewport){ const vvp=()=>{ if(ssPanel && ssPhone()) ssPanel._place(); }; visualViewport.addEventListener("resize",vvp); visualViewport.addEventListener("scroll",vvp); }
 ["#tkPpl","#tkLoc","#tkEq","#tfPpl","#tfLoc"].forEach(id=>enhanceSelect($(id)));
 // people on a task: several are picked one after another — the list stays open
 $("#tkPpl")._picked=()=>tkPplSel; $("#tkPpl")._unpick=v=>{ tkPplSel=tkPplSel.filter(x=>x!==v); paintPplChips(); };
