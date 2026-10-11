@@ -1812,3 +1812,44 @@ dialog.brief-dlg{max-width:720px;width:calc(100% - 20px);max-height:calc(100dvh 
 .br-acts .btn{padding:11px 14px;font-size:15.5px}
 .rp-sig{display:block;max-width:280px;max-height:110px;margin:4px 0}
 @media (max-width:430px){ .br-acts .btn.primary{flex:1 1 100%} .br-acts .btn:not(.primary){flex:1} }
+
+/* the briefing's PDF (white A4 page, fixed colours — it is paper): the paper form's look */
+.bp-page{padding:0 0 26px}
+.bp-head{background:#153341;color:#fff;padding:22px 34px 16px;border-bottom:5px solid #B98A2E;margin-bottom:14px}
+.bp-top{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:12px}
+.bp-logo{height:62px;width:auto;background:#fff;border-radius:9px;padding:4px}
+.bp-eye{font-size:12px;letter-spacing:.12em;color:#E4C47A;font-weight:700}
+.bp-title{font-size:30px;font-weight:900;line-height:1.15}
+.bp-sub{font-size:13px;color:#CFE0E5}
+.bp-fields{display:grid;grid-template-columns:1fr 1fr 1fr 1.6fr;gap:10px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.18);border-radius:9px;padding:9px 12px}
+.bp-f span{display:block;font-size:11px;color:#E4C47A}
+.bp-f b{display:block;font-size:16px;font-weight:800;margin-top:2px}
+.bp-body{padding:0 34px}
+.bp-page .rp-foot{margin:0 34px}
+.bp-sec{display:flex;align-items:center;gap:9px;margin:12px 0 7px}
+.bp-sec i{font-style:normal;width:26px;height:26px;border-radius:50%;background:#153341;color:#E4C47A;font-weight:800;font-size:13px;display:inline-flex;align-items:center;justify-content:center}
+.bp-sec b{font-size:17px;color:#153341;font-weight:800}
+.bp-lbl{font-size:13px;font-weight:800;color:#2C6E7F;margin:8px 0 4px}
+.bp-t{width:100%;border-collapse:collapse;font-size:12px;line-height:1.4;table-layout:fixed}
+.bp-t th{background:#153341;color:#fff;font-weight:700;padding:6px;text-align:right;border:1px solid #1F4658;font-size:11.5px}
+.bp-t td{border:1px solid #D8D2C2;padding:5px 6px;vertical-align:top;overflow-wrap:anywhere;white-space:pre-line}
+.bp-t td.bp-n{font-weight:800}
+.bp-t td.bp-n.in{background:#2F7D5C;color:#fff}
+.bp-t td.bp-n.out{background:#B3462C;color:#fff}
+.bp-t td.bp-st.in{color:#2F7D5C;font-weight:800}
+.bp-t td.bp-st.out{color:#B3462C;font-weight:800}
+.bp-none{font-size:12.5px;color:#6B7A7E;margin:2px 0 6px}
+.bp-txt{border:1px solid #D8D2C2;border-radius:6px;padding:8px 10px;font-size:13px;white-space:pre-line;margin-bottom:8px}
+.bp-ck{display:grid;gap:5px}
+.bp-ci{display:flex;align-items:center;gap:8px;font-size:13px;border:1px solid #D8D2C2;border-radius:6px;padding:6px 9px}
+.bp-box{width:16px;height:16px;border:1.5px solid #153341;border-radius:3px;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;color:#fff;flex:none}
+.bp-ci.on .bp-box{background:#2F7D5C;border-color:#2F7D5C}
+.bp-sig{display:flex;gap:20px;align-items:stretch}
+.bp-sigl{flex:1;display:flex;flex-direction:column;gap:3px;font-size:12.5px;color:#6B7A7E}
+.bp-sigl b{font-size:16px;color:#1C2B2F}
+.bp-sigb{flex:1.3;border:2px solid #153341;border-radius:8px;height:110px;position:relative;display:flex;align-items:center;justify-content:center}
+.bp-sigb img{max-width:95%;max-height:92px}
+.bp-sigb span{position:absolute;bottom:-18px;font-size:11px;color:#6B7A7E}
+.br-fi{display:flex;align-items:center;gap:8px;border-top:1px solid var(--edge-2)}
+.br-fi .br-hi{flex:1;min-width:0;border-top:0}
+.btn.br-fpdf{flex:none}

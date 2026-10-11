@@ -2020,7 +2020,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.64", APP_DATE="11/10/2026";
+const APP_VER="2.65", APP_DATE="11/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -3763,10 +3763,10 @@ function paintBriefCard(){
   const H=(b&&b.hide)||{}, nl=brLinkedTasks(d).filter(t=>!H[t.id]).length; tile(nf(nl),"תקלות וקצוות פתוחים",nl>0);
   tile(nf(brRepTasks(d).filter(t=>!H[t.id]).length),"סבבים להיום");
   body.appendChild(tl);
-  const go=mk("button","btn primary br-go", !b ? "פתח שיחת בוקר" : b.done ? "צפה / הוסף לשיחה של היום" : "המשך את השיחה של היום"); go.type="button";
-  go.onclick=()=>openBrief(d); body.appendChild(go);
-  const hist=Object.values(BRIEFS).filter(x=>x.id!==d).sort((a,c)=>c.id.localeCompare(a.id)).slice(0,3);
-  if(hist.length){ const ul=mk("div","br-hist"); hist.forEach(x=>ul.appendChild(brItem(x,true))); body.appendChild(ul); }
+  // one button: a new briefing (today's draft, if one was started, is that new briefing); saved briefings live in the folder
+  const go=mk("button","btn primary br-go","＋ שיחה חדשה"); go.type="button";
+  go.onclick=()=>{ if(b && b.done){ toast("השיחה של היום כבר נשמרה ונמצאת בתיקייה 📁 — לשיחה בתאריך אחר בוחרים תאריך בתיקייה"); openBriefs(); return; } openBrief(d); };
+  body.appendChild(go);
   const fo=mk("button","btn br-folder","📁 תיקיית שיחות הבוקר ("+nf(Object.keys(BRIEFS).length)+")"); fo.type="button";
   fo.onclick=openBriefs; body.appendChild(fo);
 }
@@ -3776,7 +3776,9 @@ function brItem(x, short){
   r.append(mk("b",null,BR_DAYS[dd.getDay()].replace("יום ","")+" · "+(short?dmy(x.id).slice(0,5):dmy(x.id))+(x.time?" · "+x.time:"")),
     mk("span",null, [x.done?"":"טיוטה", short?"":x.leader, c.in?c.in+" נוכחים":"", c.tasks?c.tasks+" משימות":"", c.ev?c.ev+" ביקורים":""].filter(Boolean).join(" · ")));
   r.onclick=()=>{ if($("#dlgBriefs").open) $("#dlgBriefs").close(); openBrief(x.id); };
-  return r;
+  if(short) return r;
+  const w=mk("div","br-fi"), pdf=mk("button","btn mini br-fpdf","PDF"); pdf.type="button"; pdf.setAttribute("aria-label","PDF של שיחת הבוקר מ-"+dmy(x.id));
+  pdf.onclick=()=>brPdfOut(x, pdf); w.append(r,pdf); return w;
 }
 /* the folder (📁): every briefing, newest first, by month; search by name, topic or note; open any date (new or existing) */
 function openBriefs(){ if(!brCanSee()) return; $("#brfQ").value=""; $("#brfDate").value=ymd(new Date()); paintBriefs(); $("#dlgBriefs").showModal(); }
@@ -4028,49 +4030,84 @@ function brSigInit(){
   $("#brSigClr").onclick=()=>{ c.getContext("2d").clearRect(0,0,c.width,c.height); if(brCur){ brCur.sig=""; brTouch(); } };
 })();
 
-/* PDF of the briefing: the same A4 pages as the weekly summary (html2canvas → JPEG → PDF), shared or saved */
+/* PDF of the briefing, for keeping: laid out like the paper form — a header band with the date, day, time and leader,
+   numbered sections, the attendance table with green / red names, the topics with who leads them and what they became,
+   the safety checklist and the signature. A4 pages (html2canvas → JPEG → PDF), the same engine as the weekly summary. */
 async function briefPdf(b){
   await loadH2C(); try{ await document.fonts.ready; }catch(e){}
   const dd=new Date(b.id+"T12:00"), host=mk("div","rp-host"); document.body.appendChild(host);
   const pages=[]; let body;
-  const newPage=()=>{ const pg=mk("div","rp-page"); host.appendChild(pg); pages.push(pg);
-    const hd=mk("div","rp-head"), tx=mk("div","rp-tx"), lg=mk("img","rp-logo"); lg.src="icons/logo-header.png"; lg.alt="";
-    tx.append(mk("div","rp-title","שיחת בוקר"), mk("div","rp-range",appTitle()+" · "+BR_DAYS[dd.getDay()]+" "+dmy(b.id)+(b.time?" · "+b.time:"")+(b.leader?" · מוביל: "+b.leader:"")));
-    hd.append(tx,lg); pg.appendChild(hd); body=mk("div","rp-body"); pg.appendChild(body); pg.appendChild(mk("div","rp-foot")); };
+  const newPage=()=>{ const pg=mk("div","rp-page bp-page"); host.appendChild(pg); pages.push(pg);
+    const hd=mk("div","bp-head"), top=mk("div","bp-top"), lg=mk("img","bp-logo"), tx=mk("div","bp-tt");
+    lg.src="icons/logo-header.png"; lg.alt="";
+    tx.append(mk("div","bp-eye","טופס תדריך יומי"), mk("div","bp-title","שיחת בוקר"), mk("div","bp-sub",appTitle()));
+    top.append(tx,lg); hd.appendChild(top);
+    const f=mk("div","bp-fields");
+    [["תאריך",dmy(b.id)],["יום בשבוע",BR_DAYS[dd.getDay()]],["שעה",b.time||""],["מנהל / מוביל השיחה",b.leader||""]].forEach(([l,v])=>{
+      const c=mk("div","bp-f"); c.append(mk("span",null,l), mk("b",null,v||"—")); f.appendChild(c); });
+    hd.appendChild(f); pg.appendChild(hd);
+    body=mk("div","rp-body bp-body"); pg.appendChild(body); pg.appendChild(mk("div","rp-foot")); };
   const fits=()=>body.scrollHeight<=body.clientHeight;
-  const place=el=>{ body.appendChild(el); if(!fits() && body.childElementCount>1){ el.remove(); newPage(); body.appendChild(el); } };
-  const table=(caption, cols, rows)=>{ if(!rows.length) return;
-    const start=cont=>{ const t=mk("table","rp-t"), tr=mk("tr"); cols.forEach(c=>tr.appendChild(mk("th",null,c))); t.appendChild(tr);
-      const w=mk("div","rp-sec"); w.append(mk("h3",null,caption+(cont?" (המשך)":"")),t); return w; };
-    let sec=start(false); place(sec); let t=sec.querySelector("table");
-    rows.forEach(r=>{ const tr=mk("tr"); r.forEach(v=>tr.appendChild(mk("td",null,v))); t.appendChild(tr);
-      if(!fits()){ tr.remove(); newPage(); sec=start(true); body.appendChild(sec); t=sec.querySelector("table"); t.appendChild(tr); } }); };
+  let pend=null;                       // a section title waits for its first block, so a title never ends a page alone
+  const place=el=>{ if(pend){ const w=mk("div"); w.append(pend,el); pend=null; el=w; }
+    body.appendChild(el); if(!fits() && body.childElementCount>1){ el.remove(); newPage(); body.appendChild(el); } };
+  const sec=(n,t)=>{ const h=mk("div","bp-sec"); h.append(mk("i",null,String(n)), mk("b",null,t)); return h; };
+  const table=(head, cols, rows, cellCls)=>{ if(!rows.length) return;
+    const start=cont=>{ const w=mk("div","bp-tw"); if(head) w.appendChild(typeof head==="string" ? mk("div","bp-lbl",head+(cont?" (המשך)":"")) : head);
+      const t=mk("table","bp-t"), tr=mk("tr"); cols.forEach(([c,wd])=>{ const th=mk("th",null,c); if(wd) th.style.width=wd; tr.appendChild(th); }); t.appendChild(tr); w.appendChild(t); return w; };
+    let w=start(false); place(w); let t=w.querySelector("table"); head=typeof head==="string" ? head : null;
+    rows.forEach((r,ri)=>{ const tr=mk("tr"); r.forEach((v,ci)=>{ const td=mk("td",cellCls ? cellCls(ri,ci) : null,v); tr.appendChild(td); }); t.appendChild(tr);
+      if(!fits()){ tr.remove(); newPage(); w=start(true); body.appendChild(w); t=w.querySelector("table"); t.appendChild(tr); } }); };
   newPage();
-  const ppl=brPeople(b).filter(n=>b.att[n]);
-  table("1. נוכחות צוות",["שם","תפקיד","נוכחות","סיבה","הערות"], ppl.map(n=>{ const a=b.att[n]; return [n, roleOf(n), a.s==="in"?"נוכח":a.s==="out"?"נעדר":"", a.r||"", a.n||""]; }));
-  const tref=x=>{ const t=x.tid && tasks.find(y=>y.id===x.tid), e=x.eid && events.find(y=>y.id===x.eid); return t ? "משימה "+snOf(t) : e ? "אירוע "+snOf(e) : ""; };
-  const lt=brLinkedTasks(b.id).concat(brRepTasks(b.id)).filter(t=>!(b.hide||{})[t.id]);
-  table("2. משימות פתוחות שנדונו",["משימה","אחראי","יעד","סטטוס","הערה"], lt.map(t=>[(snOf(t)?snOf(t)+" ":"")+(t.title||""), (t.ppl||[])[0]||"", t.due?dmy(t.due):"", tkStat(t), (b.notes||{})[t.id]||""]));
-  [["faults","תקלות פתוחות וסגירת קצוות"],["maint","אחזקות קבועות וסבבים"],["plan","תוכנית עבודה להיום"],["contr","קבלני משנה וגורמי חוץ"]].forEach(([k,l])=>
-    table("2. "+l,["נושא","מוביל","נרשם כ","הערה"], (b.rows[k]||[]).filter(x=>(x.text||"").trim()).map(x=>[x.text, x.owner||"", tref(x), x.note||""])));
-  const sf=mk("div","rp-sec"); sf.appendChild(mk("h3",null,"3. דגשי בטיחות"));
-  if(b.safety) sf.appendChild(mk("div","rp-d",b.safety));
-  BR_CHECKS.forEach((c,i)=>sf.appendChild(mk("div",null,((b.checks||[])[i]?"☑ ":"☐ ")+c))); place(sf);
-  table("4. פתוח לצוות",["נושא","פירוט","אחראי","תאריך","נרשם כ","הערה"], (b.rows.open||[]).filter(x=>(x.text||"").trim()).map(x=>[x.text, x.detail||"", x.owner||"", x.date?dmy(x.date):"", tref(x), x.note||""]));
-  const sg=mk("div","rp-sec"); sg.appendChild(mk("h3",null,"5. אישור וחתימה"));
-  if(b.sig){ const im=mk("img","rp-sig"); im.src=b.sig; im.alt="חתימה"; sg.appendChild(im); }
-  sg.appendChild(mk("div",null,(b.leader||"")+(b.doneAt?" · "+fmtWhen(b.doneAt):""))); place(sg);
+  const ref=x=>{ const t=x.tid && tasks.find(y=>y.id===x.tid), e=x.eid && events.find(y=>y.id===x.eid); return t ? "משימה "+snOf(t) : e ? "אירוע "+snOf(e) : ""; };
+  // 1. attendance
+  const ppl=brPeople(b).filter(n=>b.att[n]), c=brCounts(b);
+  pend=(sec(1,"נוכחות צוות"+(c.in+c.out ? " · "+c.in+" נוכחים, "+c.out+" נעדרים" : "")));
+  const ar=ppl.map(n=>{ const a=b.att[n]; return [n, roleOf(n), a.s==="in"?"נוכח":a.s==="out"?"נעדר":"", a.r||"", a.n||""]; });
+  if(ar.length) table(null,[["שם","18%"],["תפקיד","18%"],["נוכחות","12%"],["סיבת היעדרות / אילוץ","20%"],["הערות",""]], ar,
+    (ri,ci)=>ci===0 ? "bp-n "+(b.att[ppl[ri]].s==="in"?"in":b.att[ppl[ri]].s==="out"?"out":"") : ci===2 ? "bp-st "+(b.att[ppl[ri]].s||"") : null);
+  else place(mk("p","bp-none","לא סומנה נוכחות."));
+  // 2. tasks and work plan
+  pend=sec(2,"סטטוס משימות ותוכנית עבודה");
+  const H=b.hide||{}, N=b.notes||{};
+  const lt=brLinkedTasks(b.id).filter(t=>!H[t.id]), rt=brRepTasks(b.id).filter(t=>!H[t.id]);
+  const trow=t=>[(snOf(t)?snOf(t)+" ":"")+(t.title||""), (t.ppl||[])[0]||(t.depts||[]).join(", "), t.due?dmy(t.due):"", tkStat(t), N[t.id]||""];
+  const tcols=[["נושא",""],["מוביל משימה","17%"],["יעד","11%"],["סטטוס","10%"],["הערה","22%"]];
+  const rrow=x=>[x.text, x.owner||"", ref(x), x.note||""], rcols=[["נושא",""],["מוביל משימה","18%"],["נרשם כ","14%"],["הערה","24%"]];
+  const free=k=>(b.rows[k]||[]).filter(x=>(x.text||"").trim());
+  [["תקלות פתוחות וסגירת קצוות", lt, "faults"],["אחזקות קבועות וסבבים", rt, "maint"]].forEach(([l,list,k])=>{
+    if(!list.length && !free(k).length) return;
+    table(l, tcols, list.map(trow)); table(list.length ? null : l, rcols, free(k).map(rrow)); });
+  [["plan","תוכנית עבודה להיום"],["contr","קבלני משנה וגורמי חוץ"]].forEach(([k,l])=>table(l, k==="contr" ? [["נושא",""],["מלווה","18%"],["נרשם כ","14%"],["הערה","24%"]] : rcols, free(k).map(rrow)));
+  if(!lt.length && !rt.length && !["faults","maint","plan","contr"].some(k=>free(k).length)) place(mk("p","bp-none","אין נושאים."));
+  // 3. safety
+  const sf=mk("div","bp-blk"); sf.appendChild(sec(3,"דגשי בטיחות להיום"));
+  if(b.safety) sf.appendChild(mk("div","bp-txt",b.safety));
+  const ck=mk("div","bp-ck"); BR_CHECKS.forEach((t,i)=>{ const on=!!(b.checks||[])[i], r=mk("div","bp-ci"+(on?" on":"")); r.append(mk("span","bp-box",on?"✓":""), mk("span",null,t)); ck.appendChild(r); });
+  sf.appendChild(ck); place(sf);
+  // 4. open floor
+  pend=sec(4,"פתוח לצוות וסגירת קצוות");
+  const op=free("open");
+  if(op.length) table(null,[["נושא","20%"],["פירוט",""],["גורם אחראי","15%"],["תאריך","11%"],["נרשם כ","11%"],["הערה","17%"]], op.map(x=>[x.text, x.detail||"", x.owner||"", x.date?dmy(x.date):"", ref(x), x.note||""]));
+  else place(mk("p","bp-none","אין נושאים."));
+  // 5. approval and signature
+  const sg=mk("div","bp-blk"); sg.appendChild(sec(5,"אישור וחתימה"));
+  const sr=mk("div","bp-sig"), sl=mk("div","bp-sigl");
+  sl.append(mk("span",null,"מוביל השיחה"), mk("b",null,b.leader||"—"), mk("span",null,b.done ? "נשמרה "+fmtWhen(b.doneAt||"") : "טיוטה — לא נסגרה"));
+  const sb=mk("div","bp-sigb"); if(b.sig){ const im=mk("img"); im.src=b.sig; im.alt="חתימה"; sb.appendChild(im); } sb.appendChild(mk("span",null,"חתימה"));
+  sr.append(sl,sb); sg.appendChild(sr); place(sg);
   const made=new Date().toLocaleString("he-IL",{dateStyle:"short",timeStyle:"short"});
-  pages.forEach((pg,i)=>{ pg.querySelector(".rp-foot").textContent="עמוד "+(i+1)+" מתוך "+pages.length+" · הופק "+made; });
+  pages.forEach((pg,i)=>{ pg.querySelector(".rp-foot").textContent="שיחת בוקר "+dmy(b.id)+" · עמוד "+(i+1)+" מתוך "+pages.length+" · הופק "+made+" · לשימוש פנימי"; });
   const out=[]; await Promise.all([...host.querySelectorAll("img")].map(im=>im.decode().catch(()=>{})));
-  try{ for(const pg of pages){ const c=await html2canvas(pg,{scale:2,backgroundColor:"#ffffff",logging:false});
-      const bin=atob(c.toDataURL("image/jpeg",.86).split(",")[1]), u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i);
-      out.push({bytes:u,w:c.width,h:c.height}); } }
+  try{ for(const pg of pages){ const cv=await html2canvas(pg,{scale:2,backgroundColor:"#ffffff",logging:false});
+      const bin=atob(cv.toDataURL("image/jpeg",.88).split(",")[1]), u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i);
+      out.push({bytes:u,w:cv.width,h:cv.height}); } }
   finally{ host.remove(); }
   return new File([pdfFromJpegs(out)],"שיחת-בוקר-"+b.id+".pdf",{type:"application/pdf"});
 }
-$("#brPdf").onclick=async()=>{ if(!brCur) return; const btn=$("#brPdf"); btn.disabled=true; btn.textContent="מכין…";
-  try{ const f=await briefPdf(brCur); await shareOrSave(f,"שיחת בוקר "+dmy(brCur.id),"שיחת בוקר "+dmy(brCur.id)); }
+async function brPdfOut(b, btn){ const lbl=btn.textContent; btn.disabled=true; btn.textContent="מכין…";
+  try{ const f=await briefPdf(b); await shareOrSave(f,"שיחת בוקר "+dmy(b.id),"שיחת בוקר "+dmy(b.id)); }
   catch(e){ toast("יצירת ה-PDF נכשלה"); }
-  finally{ btn.disabled=false; btn.textContent="PDF"; } };
+  finally{ btn.disabled=false; btn.textContent=lbl; } }
+$("#brPdf").onclick=()=>{ if(brCur) brPdfOut(brCur, $("#brPdf")); };
 paintBriefCard();
