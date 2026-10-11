@@ -2020,7 +2020,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.67", APP_DATE="11/10/2026";
+const APP_VER="2.68", APP_DATE="11/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -3764,9 +3764,16 @@ function paintBriefCard(){
   tile(nf(brRepTasks(d).filter(t=>!H[t.id]).length),"סבבים להיום");
   body.appendChild(tl);
   // one button: a new briefing (today's draft, if one was started, is that new briefing); saved briefings live in the folder
-  const go=mk("button","btn primary br-go","＋ שיחה חדשה"); go.type="button";
-  go.onclick=()=>{ if(b && b.done){ toast("השיחה של היום כבר נשמרה ונמצאת בתיקייה 📁 — לשיחה בתאריך אחר בוחרים תאריך בתיקייה"); openBriefs(); return; } openBrief(d); };
+  // a new briefing: today's — or, once today's is saved, the next day that has none (a draft for tomorrow)
+  let nd=d; if(b && b.done){ const x=new Date(d+"T12:00"); do{ x.setDate(x.getDate()+1); nd=ymd(x); }while(BRIEFS[nd] && BRIEFS[nd].done); }
+  const tmr=ymd(new Date(new Date(d+"T12:00").getTime()+864e5));
+  const when=nd===tmr ? "מחר" : "-"+dmy(nd).slice(0,5);
+  const go=mk("button","btn primary br-go", nd===d ? (b ? "המשך את השיחה של היום" : "＋ שיחה חדשה") : BRIEFS[nd] ? "המשך את הטיוטה ל"+when : "＋ שיחה חדשה ל"+when); go.type="button";
+  go.onclick=()=>openBrief(nd);
   body.appendChild(go);
+  // drafts prepared ahead (tomorrow and later): one tap to continue
+  const ahead=Object.values(BRIEFS).filter(x=>x.id>d && !x.done && x.id!==nd).sort((x,y)=>x.id.localeCompare(y.id));
+  if(ahead.length){ const ul=mk("div","br-hist"); ahead.forEach(x=>ul.appendChild(brItem(x,true))); body.appendChild(ul); }
   const fo=mk("button","btn br-folder","📁 תיקיית שיחות הבוקר ("+nf(Object.keys(BRIEFS).length)+")"); fo.type="button";
   fo.onclick=openBriefs; body.appendChild(fo);
 }
