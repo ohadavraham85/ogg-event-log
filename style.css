@@ -1875,3 +1875,4 @@ dialog.brief-dlg{max-width:720px;width:calc(100% - 20px);max-height:calc(100dvh 
 .br-pick{margin:6px 0 4px}
 .br-pick .ss-btn{width:100%}
 .br-lr.br-evr .bd-del.br-del{align-self:flex-start}
+.btn.br-clean{display:block;margin-top:8px;white-space:normal;text-align:start;color:var(--fault);border-color:var(--fault)}

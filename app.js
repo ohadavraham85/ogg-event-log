@@ -2020,7 +2020,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.71", APP_DATE="11/10/2026";
+const APP_VER="2.72", APP_DATE="11/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -3707,7 +3707,8 @@ if($("#newsAll")){ try{ $("#newsAll").checked=localStorage.getItem("ogg-news-all
 
 /* ===== morning briefing (🗒️ שיחת בוקר): managers only — a card on the dashboard and a form in a window.
    Attendance comes from the people list (with role), the open faults and today's recurring rounds come from the tasks,
-   and on "סיים ושמור" every new row becomes a real task (or a "ביקור" event for contractors), linked back to the briefing.
+   topics written in the briefing (work plan, open floor) stay in the briefing only — nothing is opened in the log from them;
+   only tasks / events picked from the log are linked (their status can change from here).
    One briefing per day (id = the date; changing the date moves it). Team log: briefs/<date> in the cloud, readable by managers only
    (cloud.js, firestore.rules); this device keeps all of them too (IndexedDB when localStorage is full) — the folder (📁) lists them. */
 var BRIEFS=(()=>{ try{ const o=JSON.parse(localStorage.getItem("ogg-briefs")||"{}"); return o && typeof o==="object" ? o : {}; }catch(e){ return {}; } })();
@@ -3929,13 +3930,15 @@ function brTaskRow(t, b){
 function paintBrTasks(){
   const b=brCur, box=$("#brTk"); box.textContent="";
   if(!b.tks){ b.tks={}; if(b.upd) brPicked(Object.assign({},b,{tks:undefined})).forEach(t=>{ b.tks[t.id]=1; }); }   // older briefing: keep what it showed
-  const picked=Object.keys(b.tks).map(id=>tasks.find(t=>t.id===id)).filter(Boolean);
+  const own=t=>t.brief===b.id;                                     // opened from this briefing's topics: already shown there
+  Object.keys(b.tks).forEach(id=>{ const t=tasks.find(x=>x.id===id); if(t && own(t)) delete b.tks[id]; });
+  const picked=[...new Set(Object.keys(b.tks))].map(id=>tasks.find(t=>t.id===id)).filter(Boolean);
   $("#brTkSum").textContent="משימות לדיון"+(picked.length?" ("+picked.length+")":"");
   if(!picked.length) box.appendChild(mk("p","hint br-none","עדיין לא נבחרו משימות. בוחרים מהרשימה למטה."));
   picked.forEach(t=>box.appendChild(brTaskRow(t,b)));
   const sug=brLinkedTasks(b.id).concat(brRepTasks(b.id)), sid=new Set(sug.map(t=>t.id));
   const rest=tasks.filter(t=>tkOpen(t) && !t.priv && !sid.has(t.id)).sort((a,c)=>tkSortKey(a).localeCompare(tkSortKey(c)));
-  const left=sug.concat(rest).filter(t=>!b.tks[t.id]);
+  const left=sug.concat(rest).filter(t=>!b.tks[t.id] && !own(t));
   const sel=$("#brTkAdd"); sel.textContent="";
   const o0=mk("option",null,"+ הוסף משימה לדיון ("+left.length+" פתוחות)"); o0.value=""; sel.appendChild(o0);
   left.forEach(t=>{ const late=t.due && t.due<b.id, o=mk("option",null,(sid.has(t.id)?"⚠ ":"")+(snOf(t)?snOf(t)+" ":"")+(t.title||"")+" · "+([(t.ppl||[])[0], late?"באיחור":"", prioOf(t)==="דחופה"?"דחופה":"", tkStat(t)==="בטיפול"?"בטיפול":""].filter(Boolean).join(", ")||tkStat(t)));
@@ -4006,8 +4009,7 @@ function paintBrRows(k){
 }
 function brPending(b){ const r=b.rows, out={tasks:0, ev:0, st:Object.keys(b.linked||{}).filter(id=>{ const t=tasks.find(x=>x.id===id); return t && tkOpen(t) && tkStat(t)!==b.linked[id]; }).length};
   out.ed=0;
-  Object.keys(BR_SECS).forEach(k=>(r[k]||[]).forEach(x=>{ if(!x.tid && !x.eid && (x.text||"").trim()){ if(BR_SECS[k].ev) out.ev++; else out.tasks++; }
-    else if(brEdits(k,x)) out.ed++; }));
+  Object.keys(BR_SECS).forEach(k=>(r[k]||[]).forEach(x=>{ if(brEdits(k,x)) out.ed++; }));
   return out; }
 /* a row that already became a task / event and was changed here since: what to write back (title, assignee, due date / event text) */
 function brEdits(k,x){
@@ -4026,13 +4028,19 @@ function brEdits(k,x){
 function paintBrSum(){
   const b=brCur, S=$("#brSum"); if(!b || !S) return; S.textContent="";
   const p=brPending(b), li=[];
-  if(p.tasks) li.push(p.tasks+" משימות חדשות ייפתחו, עם \"נפתחה בשיחת בוקר "+dmy(b.id).slice(0,5)+"\"");
-  if(p.ev) li.push(p.ev+" אירועי ביקור יירשמו ביומן");
+
   if(p.st) li.push("הסטטוס של "+p.st+" משימות יתעדכן");
   if(p.ed) li.push(p.ed+" משימות / אירועים שכבר נוצרו יתעדכנו לפי השינויים כאן");
   const c=brCounts(b);
-  S.appendChild(mk("b",null, li.length ? "בשמירה:" : b.done ? "השיחה נשמרה"+(c.tasks||c.ev?" · נוצרו "+[c.tasks?c.tasks+" משימות":"", c.ev?c.ev+" ביקורים":""].filter(Boolean).join(" ו-"):"")+"." : "אין עדיין משימות או ביקורים חדשים לשמירה."));
+  S.appendChild(mk("b",null, li.length ? "בשמירה ביומן:" : b.done ? "השיחה נשמרה." : "הנושאים שנכתבו כאן נשמרים בשיחה בלבד — לא נפתחות מהם משימות ביומן."));
   if(li.length){ const ul=mk("ul"); li.forEach(t=>ul.appendChild(mk("li",null,t))); S.appendChild(ul); }
+  // tasks that earlier versions opened in the log from this briefing's topics: one tap removes them (the topics stay here)
+  const made=Object.keys(BR_SECS).flatMap(k=>(b.rows[k]||[]).filter(x=>x.tid && tasks.some(t=>t.id===x.tid)));
+  if(made.length && isManager()){ const cl=mk("button","btn mini br-clean","הסר מהיומן "+made.length+" משימות שנפתחו מהשיחה (הנושאים נשארים כאן)"); cl.type="button";
+    cl.onclick=async()=>{ if(!await confirmDel("להסיר מהיומן את המשימות שנפתחו משיחת הבוקר?", made.map(x=>"• "+x.text).join("\n")+"\nהנושאים נשארים בשיחה.")) return;
+      const ids=new Set(made.map(x=>x.tid)); tasks=tasks.filter(t=>!ids.has(t.id)); made.forEach(x=>{ delete x.tid; });
+      if(b.tks) ids.forEach(id=>delete b.tks[id]); saveTasks(); brSave(b,true); paintBrief(); toast(ids.size+" משימות הוסרו מהיומן"); };
+    S.appendChild(cl); }
   $("#brDone").textContent = b.done ? (li.length?"שמור את השינויים":"סגור") : "סיים ושמור שיחה";
   $("#brLater").hidden=!!b.done;
 }
@@ -4053,25 +4061,13 @@ function brFinish(){
     else { const e=d.e, ch=d.ch; if(ch.desc!==undefined) e.desc=ch.desc;
       if(ch.owner!==undefined){ const rest=(e.ppl||[]).slice(1).filter(n=>n!==ch.owner); e.ppl=ch.owner ? [ch.owner].concat(rest) : rest; }
       e.ts=now; eu=true; } }));
-  Object.keys(BR_SECS).forEach(k=>{ const S=BR_SECS[k];
-    b.rows[k]=(b.rows[k]||[]).filter(x=>x.tid || x.eid || (x.text||"").trim());
-    b.rows[k].forEach(x=>{ if(x.tid || x.eid) return; const text=x.text.trim(), owner=x.owner||"";
-      if(S.ev){
-        const e={id:newId(), type:["ביקור"], loc:[], eq:[], ppl:owner?[owner]:[], stat:["נסגר"], title:"", desc:text, act:"",
-          when:b.id+"T"+(b.time||"07:00"), ts:now, closedAt:nowLocal(), closedBy:reporter()||"", brief:b.id};
-        events.unshift(e); x.eid=e.id; ne++; return; }
-      const due = k==="open" ? (x.date||"") : k==="faults" ? "" : b.id;
-      const t={id:newId(), status:"פתוחה", created:now, log:[], openedBy:reporter()||"", openedMail:(window.cloudMe && window.cloudMe())||"",
-        title:text, desc:[(x.detail||"").trim(), "נפתחה בשיחת בוקר "+dmy(b.id)].filter(Boolean).join("\n"), type:S.type, prio:"רגילה", urgent:false,
-        ppl:owner?[owner]:[], loc:[], eq:[], due, start:"", depts:[], upd:now, brief:b.id};
-      tkLog(t,"המשימה נפתחה בשיחת בוקר "+on+(owner?" · אחראי: "+owner:""),"",true); tasks.push(t); x.tid=t.id; nt++; });
-  });
+  Object.keys(BR_SECS).forEach(k=>{ b.rows[k]=(b.rows[k]||[]).filter(x=>x.tid || x.eid || (x.text||"").trim()); });   // topics stay in the briefing
   if(ne || eu){ events.sort((a,c)=>(c.when||"").localeCompare(a.when||"")); persist(); renderAll(); }
   if(nt || ns || nu) saveTasks();
   if(!b.done){ b.done=true; b.doneAt=nowLocal(); b.by=reporter()||""; }
   brSave(b,true); brTouched=false;
   $("#dlgBrief").close(); paintBriefCard();
-  toast("שיחת הבוקר נשמרה"+(nt?" · "+nt+" משימות נפתחו":"")+(ne?" · "+ne+" ביקורים נרשמו":"")+(ns?" · "+ns+" סטטוסים עודכנו":"")+(nu?" · "+nu+" עודכנו":""));
+  toast("שיחת הבוקר נשמרה"+(ns?" · "+ns+" סטטוסים עודכנו ביומן":"")+(nu?" · "+nu+" עודכנו":""));
 }
 $("#brDone").onclick=brFinish;
 $("#brLater").onclick=()=>{ if(brCur){ brSave(brCur,true); brTouched=false; } $("#dlgBrief").close(); toast("הטיוטה נשמרה"); };
