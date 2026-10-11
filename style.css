@@ -1772,8 +1772,19 @@ dialog.brief-dlg{max-width:720px;width:calc(100% - 20px);max-height:calc(100dvh 
 .br-flist{display:grid}
 .br-mon{font-size:13px;font-weight:900;color:var(--water);margin:12px 2px 2px}
 .br-delb{display:block;margin:6px auto 0;background:none;border:0;font:inherit;font-size:13px;font-weight:700;color:var(--fault);text-decoration:underline;cursor:pointer;padding:6px}
+.br-evw{margin:10px 0 2px;border:1px solid var(--edge-2);border-radius:10px;padding:0 10px}
+.br-evw summary{font-size:14px;font-weight:800;padding:9px 0;cursor:pointer}
+.br-evw[open] summary{border-bottom:1px solid var(--edge-2);margin-bottom:6px}
+.br-evr .br-lt b{font-weight:600}
+.br-evr.on .br-lt b{font-weight:800}
+.br-evck{flex:none}
+.br-evck input{accent-color:var(--water)}
 .br-unhide{background:none;border:0;font:inherit;font-size:12.5px;font-weight:700;color:var(--water);padding:6px 2px;cursor:pointer;text-decoration:underline}
 .br-addp{margin-top:8px}
+.br-newp{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) auto auto;gap:6px;align-items:center;margin-top:6px}
+.br-newp[hidden]{display:none}
+.br-newp .txt{padding:7px 9px;font-size:14px;border-radius:9px}
+@media (max-width:430px){ .br-newp{grid-template-columns:minmax(0,1fr) minmax(0,1fr)} .br-newp .txt{grid-column:1 / -1} }
 .br-sub{font-size:14px;font-weight:800;margin:10px 0 4px}
 .br-sub span{font-size:12px;font-weight:500;color:var(--ink-3)}
 .br-none{margin:2px 2px 6px}

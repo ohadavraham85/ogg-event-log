@@ -2020,7 +2020,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.65", APP_DATE="11/10/2026";
+const APP_VER="2.66", APP_DATE="11/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -3786,7 +3786,7 @@ function paintBriefs(){
   const L=$("#brfList"); L.textContent="";
   const q=$("#brfQ").value.trim().toLowerCase();
   const all=Object.values(BRIEFS).sort((a,c)=>c.id.localeCompare(a.id));
-  const hit=all.filter(x=>!q || JSON.stringify([x.leader,x.att,x.rows,x.safety,x.notes,dmy(x.id)]).toLowerCase().includes(q));
+  const hit=all.filter(x=>!q || JSON.stringify([x.leader,x.att,x.rows,x.safety,x.notes,x.evs,dmy(x.id)]).toLowerCase().includes(q));
   $("#brfCount").textContent=all.length ? (q ? hit.length+" מתוך "+all.length+" שיחות" : all.length+" שיחות") : "";
   if(!hit.length){ L.appendChild(mk("p","hint",all.length?"לא נמצאה שיחה שמתאימה לחיפוש.":"עדיין אין שיחות בוקר. בוחרים תאריך ולוחצים \"פתח\".")); return; }
   let mon="";
@@ -3824,13 +3824,30 @@ function paintBrief(){
   fillSelect(ls, pplValues(), b.leader, "מוביל השיחה *");
   ls.onchange=()=>{ b.leader=ls.value; ls.classList.remove("bad"); brTouch(); };
   M.appendChild(ls);
-  paintBrAtt(); paintBrLinked(); Object.keys(BR_SECS).forEach(paintBrRows);
+  paintBrAtt(); paintBrLinked(); paintBrEvents(); Object.keys(BR_SECS).forEach(paintBrRows);
   $("#brSafety").value=b.safety||""; $("#brSafety").oninput=()=>{ b.safety=$("#brSafety").value; brTouch(); };
   const C=$("#brChecks"); C.textContent="";
   BR_CHECKS.forEach((t,i)=>{ const l=mk("label","tk-chk br-ck"), c=mk("input"); c.type="checkbox"; c.checked=!!(b.checks||[])[i];
     c.onchange=()=>{ b.checks=b.checks||[]; b.checks[i]=c.checked; brTouch(); }; l.append(c, document.createTextNode(t)); C.appendChild(l); });
   paintBrSum();
 }
+/* a new worker, added from the briefing: into the people list of the app (with the role; ⭐ team when there is one,
+   so they stay on the attendance list) — the same list the events and tasks use, never into the code */
+function brAddPerson(){
+  const n=$("#brNpName").value.trim().replace(/\s+/g," "), r=$("#brNpRole").value.trim();
+  if(!n){ $("#brNpName").focus(); return; }
+  if(!lists.ppl.includes(n)){ lists._custom_ppl.push(n); lists.ppl.push(n); }
+  const h=(lists._hide_ppl||[]).indexOf(n); if(h>=0) lists._hide_ppl.splice(h,1);
+  if(r){ lists._roles_ppl=lists._roles_ppl||{}; lists._roles_ppl[n]=r; }
+  if((lists._core_ppl||[]).length && !lists._core_ppl.includes(n)) lists._core_ppl.push(n);
+  persist(); renderMgr();
+  if(brCur){ if(!brCur.att[n]) brCur.att[n]={}; brTouch(); paintBrAtt(); Object.keys(BR_SECS).forEach(paintBrRows); }
+  $("#brNpName").value=""; $("#brNpRole").value=""; $("#brNewP").hidden=true;
+  toast(n+" נוסף לרשימת האנשים"+(r?" · "+r:""));
+}
+$("#brNpOk").onclick=brAddPerson;
+$("#brNpName").onkeydown=$("#brNpRole").onkeydown=e=>{ if(e.key==="Enter"){ e.preventDefault(); brAddPerson(); } };
+$("#brNpNo").onclick=()=>{ $("#brNpName").value=""; $("#brNpRole").value=""; $("#brNewP").hidden=true; };
 /* changing the date moves the briefing (its id is the date); a date that already has one is refused */
 function brMoveDate(nd){
   const b=brCur; if(!nd || nd===b.id){ $("#brDate").value=b.id; return; }
@@ -3868,8 +3885,10 @@ function paintBrAtt(){                     // the paper form's table: name · ro
     r.append(nm,ro,st,c4,c5); A.appendChild(r); });
   const sel=$("#brAddP"), have=brPeople(b);
   fillSelect(sel, pplValues().filter(v=>!have.includes(v)), "", "+ הוסף אדם לנוכחות");
-  sel.hidden=sel.options.length<2;
-  sel.onchange=()=>{ if(!sel.value) return; b.att[sel.value]={s:"in"}; brTouch(); paintBrAtt(); Object.keys(BR_SECS).forEach(paintBrRows); };
+  const nw=mk("option",null,"＋ אדם חדש (לא ברשימה)…"); nw.value="__new"; sel.appendChild(nw);
+  sel.onchange=()=>{ if(!sel.value) return;
+    if(sel.value==="__new"){ sel.value=""; $("#brNewP").hidden=false; const dl=$("#dlRoles"); dl.textContent=""; [...new Set(Object.values(lists._roles_ppl||{}))].sort((x,y)=>x.localeCompare(y,"he")).forEach(r=>{ const o=mk("option"); o.value=r; dl.appendChild(o); }); $("#brNpName").focus(); return; }
+    b.att[sel.value]={s:"in"}; brTouch(); paintBrAtt(); Object.keys(BR_SECS).forEach(paintBrRows); };
 }
 /* a note for the briefing only: shown here and in the PDF, never written into the task or the event */
 function brNoteIn(get, set, label){ const n=mk("input","txt br-note"); n.value=get()||""; n.maxLength=300;
@@ -3902,6 +3921,23 @@ function paintBrLinked(){
     if(hid.length){ const u=mk("button","br-unhide",hid.length+" הוסתרו · הצג שוב"); u.type="button";
       u.onclick=()=>{ hid.forEach(t=>delete b.hide[t.id]); brTouch(); paintBrLinked(); }; box.appendChild(u); }
   });
+}
+/* last week's events (7 days up to the briefing's date) — an option: the ones ticked "לדיון" join the briefing (and its PDF) */
+function brWeekEvents(d){ const from=ymd(new Date(new Date(d+"T12:00").getTime()-7*864e5));
+  return events.filter(e=>{ const w=(e.when||"").slice(0,10); return w && w>=from && w<=d && e.brief!==d && !e._del; })
+    .sort((a,c)=>(c.when||"").localeCompare(a.when||"")); }
+function paintBrEvents(){
+  const b=brCur, box=$("#brEv"); box.textContent=""; const list=brWeekEvents(b.id), E=b.evs||{}, on=list.filter(e=>e.id in E).length;
+  $("#brEvSum").textContent="אירועים מהשבוע האחרון ("+list.length+")"+(on?" · "+on+" לדיון":"");
+  if(!list.length){ box.appendChild(mk("p","hint br-none","אין אירועים בשבוע שלפני השיחה.")); return; }
+  list.forEach(e=>{ const r=mk("div","br-lr br-evr"+(e.id in E?" on":"")), tx=mk("div","br-lt");
+    tx.appendChild(mk("b",null,(snOf(e)?snOf(e)+" ":"")+((e.type||[]).join(", ")||"אירוע")+" · "+(e.title||e.desc||"").slice(0,90)));
+    tx.appendChild(mk("small",null,[fmtWhen(e.when), (e.loc||[]).concat(e.eq||[]).join(", "), (e.ppl||[]).join(", "), isOpen(e)?"פתוח":"נסגר"].filter(Boolean).join(" · ")));
+    const l=mk("label","br-rad in br-evck"), c=mk("input"); c.type="checkbox"; c.checked=e.id in E;
+    c.onchange=()=>{ b.evs=b.evs||{}; if(c.checked) b.evs[e.id]=b.evs[e.id]||""; else delete b.evs[e.id]; brTouch(); paintBrEvents(); };
+    l.append(c, document.createTextNode(" לדיון")); r.append(tx,l);
+    if(e.id in E) r.appendChild(brNoteIn(()=>E[e.id], v=>{ b.evs[e.id]=v; }, e.title||e.desc||""));
+    box.appendChild(r); });
 }
 function paintBrRows(k){
   const b=brCur, S=BR_SECS[k], box=$("#brR-"+k); if(!box) return; box.textContent="";
@@ -4061,7 +4097,7 @@ async function briefPdf(b){
   newPage();
   const ref=x=>{ const t=x.tid && tasks.find(y=>y.id===x.tid), e=x.eid && events.find(y=>y.id===x.eid); return t ? "משימה "+snOf(t) : e ? "אירוע "+snOf(e) : ""; };
   // 1. attendance
-  const ppl=brPeople(b).filter(n=>b.att[n]), c=brCounts(b);
+  const ppl=brPeople(b).filter(n=>b.att[n] && (b.att[n].s || b.att[n].r || b.att[n].n)), c=brCounts(b);
   pend=(sec(1,"נוכחות צוות"+(c.in+c.out ? " · "+c.in+" נוכחים, "+c.out+" נעדרים" : "")));
   const ar=ppl.map(n=>{ const a=b.att[n]; return [n, roleOf(n), a.s==="in"?"נוכח":a.s==="out"?"נעדר":"", a.r||"", a.n||""]; });
   if(ar.length) table(null,[["שם","18%"],["תפקיד","18%"],["נוכחות","12%"],["סיבת היעדרות / אילוץ","20%"],["הערות",""]], ar,
@@ -4078,6 +4114,9 @@ async function briefPdf(b){
   [["תקלות פתוחות וסגירת קצוות", lt, "faults"],["אחזקות קבועות וסבבים", rt, "maint"]].forEach(([l,list,k])=>{
     if(!list.length && !free(k).length) return;
     table(l, tcols, list.map(trow)); table(list.length ? null : l, rcols, free(k).map(rrow)); });
+  const ev=Object.keys(b.evs||{}).map(id=>events.find(e=>e.id===id)).filter(Boolean).sort((a,c)=>(c.when||"").localeCompare(a.when||""));
+  table("אירועים מהשבוע האחרון שנדונו",[["אירוע",""],["מתי","14%"],["מיקום","16%"],["סטטוס","9%"],["הערה","22%"]],
+    ev.map(e=>[(snOf(e)?snOf(e)+" ":"")+((e.type||[]).join(", "))+" · "+(e.title||e.desc||""), fmtWhen(e.when), (e.loc||[]).join(", "), isOpen(e)?"פתוח":"נסגר", b.evs[e.id]||""]));
   [["plan","תוכנית עבודה להיום"],["contr","קבלני משנה וגורמי חוץ"]].forEach(([k,l])=>table(l, k==="contr" ? [["נושא",""],["מלווה","18%"],["נרשם כ","14%"],["הערה","24%"]] : rcols, free(k).map(rrow)));
   if(!lt.length && !rt.length && !["faults","maint","plan","contr"].some(k=>free(k).length)) place(mk("p","bp-none","אין נושאים."));
   // 3. safety
