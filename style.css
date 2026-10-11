@@ -1867,3 +1867,8 @@ dialog.brief-dlg{max-width:720px;width:calc(100% - 20px);max-height:calc(100dvh 
 .br-fi{display:flex;align-items:center;gap:8px;border-top:1px solid var(--edge-2)}
 .br-fi .br-hi{flex:1;min-width:0;border-top:0}
 .btn.br-fpdf{flex:none}
+
+/* the briefing: what was ticked "לדיון" and the rows written in are coloured, so the chosen topics stand out */
+.br-lr.br-evr.on{background:var(--water-soft);border-radius:10px;border-bottom-color:transparent;padding:7px 9px;margin:3px 0}
+.br-row.on{background:var(--water-soft);border-radius:11px;padding:6px;margin:0 -6px}
+.br-row.on .txt,.br-lr.br-evr.on .txt{background:var(--panel)}

@@ -2020,7 +2020,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.69", APP_DATE="11/10/2026";
+const APP_VER="2.70", APP_DATE="11/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -3965,15 +3965,15 @@ function paintBrEvents(){
 function paintBrRows(k){
   const b=brCur, S=BR_SECS[k], box=$("#brR-"+k); if(!box) return; box.textContent="";
   let rows=b.rows[k];
-  // faults / maintenance as free rows left the form (topics are picked from the open tasks and last week's events);
+  // faults / maintenance / contractors as free rows left the form (topics are picked from the open tasks and last week's events);
   // they still show on a briefing that has them from before
   const grp=$("#brG-"+k);
   if(grp){ rows=b.rows[k]=rows.filter(x=>x.tid || x.eid || (x.text||"").trim()); grp.hidden=!rows.length; if(!rows.length) return; }
   const add=focus=>{ rows.push({id:newId(), text:"", owner:""}); brTouch(); paintBrRows(k); if(focus){ const ins=box.querySelectorAll(".br-tx"); if(ins.length) ins[ins.length-1].focus(); } };
   rows.forEach((x,i)=>{
-    const r=mk("div","br-row"+(x.tid||x.eid?" made":""));
+    const r=mk("div","br-row"+(x.tid||x.eid?" made":"")+((x.text||"").trim()?" on":""));
     const tx=mk("input","txt br-tx"); tx.value=x.text||""; tx.placeholder=S.ph; tx.setAttribute("aria-label",S.ph+" "+(i+1)); tx.maxLength=300;
-    tx.oninput=()=>{ x.text=tx.value; brTouch(); };
+    tx.oninput=()=>{ x.text=tx.value; r.classList.toggle("on",!!tx.value.trim()); brTouch(); };
     tx.onkeydown=e=>{ if(e.key==="Enter"){ e.preventDefault(); add(true); }
       else if(e.key==="Backspace" && !tx.value && !x.tid && !x.eid && rows.length>1){ e.preventDefault(); rows.splice(i,1); brTouch(); paintBrRows(k);
         const ins=box.querySelectorAll(".br-tx"); if(ins.length) ins[Math.max(0,i-1)].focus(); } };
