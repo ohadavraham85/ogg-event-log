@@ -715,6 +715,7 @@ html.sp-open,html.sp-open body{overflow:hidden}
 .tk-tag{font-size:12.5px;font-weight:800;padding:2px 9px;border-radius:99px;background:var(--panel-2);color:var(--ink-2);border:1px solid var(--edge-2)}
 .tk-tag.u{background:var(--c-fault-bg);color:var(--c-fault);border-color:transparent}
 .tk-tag.w{background:var(--c-maint-bg);color:var(--c-maint);border-color:transparent}
+.tk-tag.hold{background:#64748b;color:#fff;border-color:transparent}
 .tk-tag.late{background:var(--c-fault);color:#fff;border-color:transparent}
 .tk-tag.ok{background:var(--water-soft);color:var(--water);border-color:transparent}
 .tk-m{font-size:13.5px;color:var(--ink-2);margin-top:4px;overflow-wrap:anywhere}
@@ -877,6 +878,26 @@ body.d-drag, body.d-drag *{cursor:grabbing!important;user-select:none!important}
   font:inherit;font-size:15px;font-weight:800;cursor:pointer;text-align:center}
 .sg-nav button[hidden]{display:none}
 .sg-nav button[aria-pressed="true"]{background:var(--water);border-color:var(--water);color:#fff}
+/* security check (🔒) */
+.sec-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--fault);margin-inline-start:6px;vertical-align:middle}
+.sec-dot[hidden]{display:none}
+.sec-sum{display:grid;gap:2px;border:1px solid var(--edge-2);border-radius:12px;padding:10px 12px;margin:0 0 12px;font-size:14px;color:var(--ink-2)}
+.sec-sum b{color:var(--ink);font-size:15px}
+.sec-sum.s-bad{border-color:var(--fault);background:var(--fault-soft)}
+.sec-sum.s-warn{border-color:var(--alarm);background:var(--alarm-soft)}
+.sec-sum.s-ok{border-color:var(--water);background:var(--water-soft)}
+#dlgSec{max-width:560px}
+.sec-list{display:grid;gap:8px;margin-bottom:14px;max-height:60vh;overflow:auto;overscroll-behavior:contain}
+.sec-g{margin:8px 0 0;font-size:14.5px;color:var(--ink-2)}
+.sec-it{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--edge-2);border-inline-start:4px solid var(--c-gen);border-radius:10px;padding:8px 10px;background:var(--panel-2)}
+.sec-it.s-bad{border-inline-start-color:var(--fault);background:var(--fault-soft)}
+.sec-it.s-warn{border-inline-start-color:var(--alarm);background:var(--alarm-soft)}
+.sec-it.s-ok{border-inline-start-color:var(--c-visit)}
+.sec-i{font-size:16px;line-height:1.3;flex:none}
+.sec-b{display:grid;gap:3px;min-width:0;font-size:14px}
+.sec-b b{color:var(--ink);overflow-wrap:anywhere}
+.sec-d{color:var(--ink-2);overflow-wrap:anywhere}
+.sec-fix{color:var(--ink);font-size:13px;overflow-wrap:anywhere}
 @media (max-width:480px){ .sg-nav{grid-template-columns:1fr 1fr} .sg-nav button{font-size:14px;padding:10px 6px} }
 #viewData > .card[hidden]{display:none}
 .mgr-dup{border:1px solid var(--c-flood);background:var(--c-flood-bg);border-radius:10px;margin:0 14px 10px;padding:0 10px}
@@ -1617,3 +1638,43 @@ html.tv body{background:var(--tvbg)}
 .tk.done{opacity:.92}
 .ss-opt.picked{font-weight:800}
 .ss-done{width:calc(100% - 16px);margin:6px 8px 8px}
+/* v2.49: departments as a drop-down (managers); "אישיות" view button */
+#tkDeptSel{font:inherit;font-size:14px;font-weight:800;color:var(--c-maint);background:var(--panel);border:1.5px solid var(--edge);
+  border-radius:10px;padding:7px 10px;max-width:100%;cursor:pointer}
+#tkDeptSel.on{border-color:var(--c-maint);background:var(--c-maint-bg)}
+#tkSeg .seg-priv[aria-pressed="true"]{color:#7c3aed}
+/* v2.52: quick edit — a tag on a task opens a small window for just that detail */
+.tk .qk{cursor:pointer}
+.tk .tk-tags .qk .tk-tag,.tk .tk-eqtag.qk{transition:box-shadow .12s}
+@media (hover:hover){
+  .tk .tk-tags .qk:hover .tk-tag,.tk .tk-eqtag.qk:hover{box-shadow:0 0 0 2px var(--water)}
+  .tk .tk-m.qk:hover{color:var(--water)}
+  #viewTasks.rows .tk:not(.x) .tk-tags .sl.qk:empty:hover::after{content:"＋";color:var(--water);font-weight:800;opacity:.6;margin:auto}
+}
+#viewTasks.rows .tk:not(.x) .tk-tags .sl.qk{min-height:24px;border-radius:8px}
+#dlgQk{width:min(460px,calc(100vw - 24px));max-width:460px}
+#dlgQk .qk-sub{font-size:13.5px;color:var(--ink-2);margin:-2px 0 12px;overflow-wrap:anywhere}
+#dlgQk .qk-sec{margin-bottom:12px}
+#dlgQk .qk-lbl{font-size:13px;font-weight:800;color:var(--ink-2);margin-bottom:6px}
+#dlgQk .qk-chips{display:flex;flex-wrap:wrap;gap:6px;max-height:min(42vh,320px);overflow:auto;padding:2px}
+#dlgQk .qk-c{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#dlgQk .qk-new{border-style:dashed}
+#dlgQk .qk-none{font-size:13px;color:var(--ink-2)}
+#dlgQk .qk-q{width:100%;box-sizing:border-box;font:inherit;font-size:15px;padding:8px 10px;border:1.5px solid var(--edge);border-radius:10px;background:var(--panel);color:var(--ink);margin-bottom:8px}
+#dlgQk .qk-date{display:flex;gap:8px;align-items:center}
+#dlgQk .qk-date input{flex:1;min-width:0;font:inherit;font-size:15px;padding:8px 10px;border:1.5px solid var(--edge);border-radius:10px;background:var(--panel);color:var(--ink)}
+#dlgQk .qk-done{margin-top:10px;width:100%}
+#dlgQk .qk-row{display:flex;flex-wrap:wrap;gap:8px}
+#dlgQk .qk-full{margin-inline-start:auto}
+/* v2.55: "שקיפות הרקע" — the light page turns see-through over a blue backdrop (cards stay solid) */
+.glass-f{display:flex;justify-content:space-between;gap:10px;font-size:14px;font-weight:700;margin-top:12px;color:var(--ink-2)}
+.glass-f b{color:var(--water);direction:ltr}
+#glassR{width:100%;accent-color:var(--water);margin:6px 0 0}
+html.glass body{background:linear-gradient(180deg,#1A73B8 0%,#1565A8 45%,#0E4C80 100%) fixed}
+html.glass .wrap{background:color-mix(in srgb,var(--bg) calc(100% - var(--glass)),transparent);min-height:100vh;box-sizing:border-box}
+html.glass header.bar{background:color-mix(in srgb,var(--bg) calc(100% - var(--glass) * .8),transparent)}
+@media (prefers-color-scheme:dark){ :root.glass:not([data-theme="light"]) body{background:linear-gradient(180deg,#0E3A63,#0A2A48) fixed} }
+:root.glass[data-theme="dark"] body{background:linear-gradient(180deg,#0E3A63,#0A2A48) fixed}
+/* v2.56: the task update is sent with a paper-plane button */
+.tk-upd-row .tk-send{width:46px;height:46px;padding:0;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;flex:none}
+.tk-upd-row .tk-send svg{width:22px;height:22px;transform:scaleX(-1);margin-inline-end:2px}

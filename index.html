@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;900&family=Rubik:wght@500;600;700&family=Assistant:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=2.49">
+<link rel="stylesheet" href="style.css?v=2.58">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0E7C86">
 <meta name="color-scheme" content="light dark">
@@ -112,9 +112,9 @@
       <img class="logo" src="icons/logo-header.png" alt="מבט&quot;י — מפעלי ביוב וטיהור ירושלים" width="101" height="137">
       <div class="mark">יומן אירועים ומשימות <span class="sub">מט"ש אוג</span></div>
       <div class="clock" id="clock" aria-live="off"><span class="c-hello" id="cHello" hidden></span><span class="c-day" id="cDay"></span><span class="c-date" id="cDate"></span><b class="c-time" id="cTime"></b></div>
-      <span class="ver" id="verChip" title="גרסה">v2.49</span>
-      <button class="icon-btn inbox-btn" id="inboxBtn" aria-label="הודעות" title="הודעות" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2.5 2.5 0 0 0 2.48-2h-4.9A2.5 2.5 0 0 0 12 22zm7-6V11a7 7 0 0 0-5.5-6.84V3.5a1.5 1.5 0 0 0-3 0v.66A7 7 0 0 0 5 11v5l-2 2v1h18v-1z" fill="currentColor"/></svg><span class="newcnt" id="inboxN" hidden></span></button>
-      <button class="icon-btn" id="refreshBtn" aria-label="רענון" title="רענון — טעינה מחדש ובדיקת עדכון"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.48-5.66" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M20.5 3.5v5h-5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <span class="ver" id="verChip" title="גרסה">v2.58</span>
+      <button class="icon-btn inbox-btn" id="inboxBtn" aria-label="הודעות" title="הודעות" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm7-6V11a7 7 0 0 0-5.5-6.84V3.5a1.5 1.5 0 0 0-3 0v.66A7 7 0 0 0 5 11v5l-2 2v1h18v-1z" fill="currentColor"/></svg><span class="newcnt" id="inboxN" hidden></span></button>
+      <button class="icon-btn" id="refreshBtn" aria-label="רענון" title="רענון — טעינה מחדש ובדיקת עדכון"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M20.5 3.5v5h-5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       <button class="icon-btn" id="themeBtn" aria-label="מצב תצוגה">☾</button>
       <button class="icon-btn help-btn" id="helpBtn" type="button" aria-label="עזרה — הדרכה ותרשים התהליך" title="עזרה — הדרכה ותרשים התהליך">?</button>
       <button class="icon-btn" id="setBtn" aria-label="הגדרות" title="הגדרות" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.5 7.5 0 0 0-1.7-1L15 3.3h-4l-.4 2.6a7.5 7.5 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.5 7.5 0 0 0 1.7 1l.4 2.6h4l.4-2.6a7.5 7.5 0 0 0 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg></button>
@@ -261,12 +261,13 @@
   <section id="viewTasks" hidden>
     <div class="dsh-head">
       <h2>משימות</h2>
-      <div class="seg tk-dseg" id="tkDeptSeg" role="group" aria-label="הצגה לפי מחלקה" hidden></div>
+      <div class="tk-dseg" id="tkDeptSeg" hidden><select id="tkDeptSel" aria-label="הצגה לפי מחלקה"></select></div>
       <div class="seg" id="tkSeg" role="group" aria-label="תצוגה">
         <button type="button" data-v="mine" aria-pressed="false" id="tkSegMine">המשימות שלי</button>
         <button type="button" data-v="opened" aria-pressed="false">שפתחתי</button>
         <button type="button" data-v="open" aria-pressed="true">פתוחות</button>
         <button type="button" data-v="done" aria-pressed="false">הושלמו</button>
+        <button type="button" data-v="priv" aria-pressed="false" class="seg-priv">🔒 אישיות</button>
       </div>
     </div>
     <div class="tk-me" id="tkMe"></div>
@@ -357,6 +358,7 @@
       <button type="button" data-sg="lists">📋 ניהול רשימות</button>
       <button type="button" data-sg="team" hidden>👥 צוות וחשבון</button>
       <button type="button" data-sg="files">💾 קבצים וגיבוי</button>
+      <button type="button" data-sg="sec">🔒 אבטחה<i class="sec-dot" id="secDot" hidden></i></button>
       <button type="button" data-sg="general">⚙ כללי</button>
     </nav>
     <div class="card" data-sg="general" id="newsCard">
@@ -385,6 +387,8 @@
       <h3>ערכת צבעים</h3>
       <p>צבע הכפתורים, הלשוניות וההדגשות. נשמר במכשיר הזה (בהיר/כהה — בכפתור שבכותרת).</p>
       <div class="acc-list" id="accList" role="group" aria-label="ערכת צבעים"></div>
+      <label class="glass-f" for="glassR"><span>שקיפות הרקע — רואים את הכחול מאחור</span><b id="glassV">0%</b></label>
+      <input type="range" id="glassR" min="0" max="80" step="5" value="0" aria-describedby="glassV">
     </div>
     <div class="card" data-sg="general">
       <h3>מה יש ביומן</h3>
@@ -422,6 +426,13 @@
       <p class="hint" id="wkLast"></p>
     </div>
 
+    <div class="card" data-sg="sec" id="secCard">
+      <h3>🔒 בדיקת אבטחה</h3>
+      <p>בודקת שהמידע מוגן: שהיומן לא פתוח למי שלא בצוות, שהכללים בענן מעודכנים ומחמירים, שמפתח הגישה מוגבל לאתר, מי בצוות ובאיזה תפקיד, מתי היה הגיבוי האחרון ומצב המכשיר הזה. הבדיקה רק קוראת — היא לא משנה שום נתון.</p>
+      <div class="sec-sum" id="secSum"></div>
+      <div class="row"><button class="btn primary" id="secRun" type="button">הרץ בדיקה עכשיו</button><button class="btn" id="secShow" type="button" hidden>הצג דוח מלא</button><button class="btn" id="secDl" type="button" hidden>הורד דוח</button></div>
+      <label class="tk-chk"><input type="checkbox" id="secAuto"> בדיקה אוטומטית פעם ביום (הודעה רק אם נמצאה בעיה)</label>
+    </div>
     <div class="card" data-sg="general">
       <h3>אייקון האפליקציה</h3>
       <p>לחיצה ארוכה על אייקון האפליקציה פותחת קיצורים: רישום אירוע, דשבורד, אירועים פתוחים.</p>
@@ -438,7 +449,7 @@
 
     <div class="card" data-sg="general">
       <h3>גרסה</h3>
-      <p id="verLine">גרסה 2.49 · 05/10/2026</p>
+      <p id="verLine">גרסה 2.58 · 11/10/2026</p>
       <div class="row"><button class="btn" id="reloadApp">בדוק עדכון</button></div>
     </div>
 
@@ -457,6 +468,7 @@
 <div class="savebar" id="savebar">
   <div class="inner">
     <button class="btn ghost" id="clearBtn">נקה</button>
+    <button class="btn ghost danger" id="delEvBtn" hidden>מחיקה</button>
     <button class="btn primary" id="saveBtn">שמור אירוע</button>
   </div>
 </div>
@@ -500,6 +512,13 @@
   <p class="del-warn" id="delWarn" hidden>⚠ אישור שני: המחיקה סופית ואי אפשר לבטל אותה.</p>
   <label class="tk-f del-type" id="delTypeWrap" hidden><span>כדי לאשר, הקלד: <b>מחק</b></span><input id="delType" autocomplete="off"></label>
   <div class="row"><button class="btn danger" id="delOk">המשך למחיקה</button><button class="btn ghost" id="delNo">ביטול</button></div>
+</dialog>
+
+<dialog id="dlgQk" aria-labelledby="qkTitle">
+  <h3 id="qkTitle" tabindex="-1" autofocus></h3>
+  <div class="qk-sub" id="qkSub"></div>
+  <div id="qkBody"></div>
+  <div class="row qk-row"><button class="btn primary" id="qkOk" type="button">שמור</button><button class="btn ghost" id="qkNo" type="button">ביטול</button><button class="btn ghost qk-full" id="qkFull" type="button">עריכה מלאה</button></div>
 </dialog>
 
 <dialog id="dlgFlow" aria-labelledby="flTitle">
@@ -552,6 +571,13 @@
   <p class="inb-hint" id="inbHint"></p>
   <div class="inb-list" id="inbList"></div>
   <div class="row"><button class="btn primary" id="inbClose">קראתי</button><button class="btn" id="inbAll" type="button"></button></div>
+</dialog>
+
+<dialog id="dlgSec" aria-labelledby="secTitle">
+  <h3 id="secTitle" tabindex="-1" autofocus>🔒 דוח אבטחה</h3>
+  <p id="secWhen"></p>
+  <div class="sec-list" id="secList"></div>
+  <div class="row"><button class="btn primary" id="secClose" type="button">סגור</button><button class="btn" id="secAgain" type="button">הרץ שוב</button><button class="btn" id="secDl2" type="button">הורד דוח</button></div>
 </dialog>
 
 <button type="button" class="fb-btn" id="fbBtn" aria-label="שליחת משוב" title="משוב — צילום המסך והערה">💬</button>
@@ -607,9 +633,9 @@
     <button class="btn ghost" id="wkClose" hidden>סגור</button></div>
 </dialog>
 
-<script src="firebase-config.js?v=2.49"></script>
-<script src="app.js?v=2.49"></script>
-<script src="cloud.js?v=2.49"></script>
+<script src="firebase-config.js?v=2.58"></script>
+<script src="app.js?v=2.58"></script>
+<script src="cloud.js?v=2.58"></script>
 <script>
 if("serviceWorker" in navigator){
   window.addEventListener("load",()=>{ navigator.serviceWorker.register("sw.js").catch(()=>{}); });
