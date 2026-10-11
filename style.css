@@ -1779,6 +1779,9 @@ dialog.brief-dlg{max-width:720px;width:calc(100% - 20px);max-height:calc(100dvh 
 .br-evr.on .br-lt b{font-weight:800}
 .br-evck{flex:none}
 .br-evck input{accent-color:var(--water)}
+.br-tkx{flex:1 1 100%;display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px;align-items:center}
+.br-tkx .br-note{grid-column:auto}
+#brTkQ{margin:2px 0 4px}
 .br-unhide{background:none;border:0;font:inherit;font-size:12.5px;font-weight:700;color:var(--water);padding:6px 2px;cursor:pointer;text-decoration:underline}
 .br-addp{margin-top:8px}
 .br-newp{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) auto auto;gap:6px;align-items:center;margin-top:6px}
@@ -1822,7 +1825,7 @@ dialog.brief-dlg{max-width:720px;width:calc(100% - 20px);max-height:calc(100dvh 
 .br-acts{position:sticky;bottom:-12px;background:var(--panel);padding:8px 0 4px}
 .br-acts .btn{padding:11px 14px;font-size:15.5px}
 .rp-sig{display:block;max-width:280px;max-height:110px;margin:4px 0}
-@media (max-width:430px){ .br-acts .btn.primary{flex:1 1 100%} .br-acts .btn:not(.primary){flex:1} }
+@media (max-width:430px){ .br-acts .btn.primary{flex:1 1 100%} .br-acts .btn:not(.primary){flex:1;padding-inline:8px} }
 
 /* the briefing's PDF (white A4 page, fixed colours — it is paper): the paper form's look */
 .bp-page{padding:0 0 26px}

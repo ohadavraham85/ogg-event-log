@@ -2020,7 +2020,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.66", APP_DATE="11/10/2026";
+const APP_VER="2.67", APP_DATE="11/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -3824,7 +3824,8 @@ function paintBrief(){
   fillSelect(ls, pplValues(), b.leader, "מוביל השיחה *");
   ls.onchange=()=>{ b.leader=ls.value; ls.classList.remove("bad"); brTouch(); };
   M.appendChild(ls);
-  paintBrAtt(); paintBrLinked(); paintBrEvents(); Object.keys(BR_SECS).forEach(paintBrRows);
+  $("#brTkQ").value=""; paintBrAtt(); paintBrTasks(); paintBrEvents();
+  $("#brTkW").open=Object.keys(brCur.tks||{}).length>0; $("#brEvW").open=Object.keys(brCur.evs||{}).length>0; Object.keys(BR_SECS).forEach(paintBrRows);
   $("#brSafety").value=b.safety||""; $("#brSafety").oninput=()=>{ b.safety=$("#brSafety").value; brTouch(); };
   const C=$("#brChecks"); C.textContent="";
   BR_CHECKS.forEach((t,i)=>{ const l=mk("label","tk-chk br-ck"), c=mk("input"); c.type="checkbox"; c.checked=!!(b.checks||[])[i];
@@ -3894,34 +3895,49 @@ function paintBrAtt(){                     // the paper form's table: name · ro
 function brNoteIn(get, set, label){ const n=mk("input","txt br-note"); n.value=get()||""; n.maxLength=300;
   n.placeholder="הערה לשיחה (לא נכנסת למשימה)"; n.setAttribute("aria-label","הערה לשיחה: "+label);
   n.oninput=()=>{ set(n.value); brTouch(); }; return n; }
-function brTaskRow(t, b){
-  const r=mk("div","br-lr"), tx=mk("div","br-lt");
+/* open tasks — an option, like last week's events: the ones ticked "לדיון" join the briefing; for those the status can change
+   (written to the task on save) and a note added (the briefing only). The suggested ones (late, urgent, in progress, rounds due) come first.
+   Briefings saved before this (no b.tks) keep what they showed then: the suggested lists minus the hidden ones. */
+function brPicked(b){
+  if(b.tks) return Object.keys(b.tks).map(id=>tasks.find(t=>t.id===id)).filter(Boolean);
+  const H=b.hide||{}; return brLinkedTasks(b.id).concat(brRepTasks(b.id)).filter(t=>!H[t.id]);
+}
+function brTaskRow(t, b, sug){
+  const on=!!(b.tks||{})[t.id], r=mk("div","br-lr br-evr"+(on?" on":"")), tx=mk("div","br-lt");
   tx.appendChild(mk("b",null,(snOf(t)?snOf(t)+" ":"")+(t.title||"(ללא כותרת)")));
   const late=t.due && t.due<b.id;
-  tx.appendChild(mk("small",null,[(t.ppl||[])[0]||(t.depts||[]).join(", "), t.due?(late?"באיחור · ":"יעד ")+dmy(t.due).slice(0,5):"", t.rep?repLabel(t.rep):"", prioOf(t)!=="רגילה"?prioOf(t):""].filter(Boolean).join(" · ")));
-  const s=mk("select","br-st"); s.setAttribute("aria-label","סטטוס "+(t.title||""));
-  const cur=(b.linked||{})[t.id] || tkStat(t);
-  fillSelect(s, ["פתוחה","בטיפול","בהמתנה"], cur);
-  s.classList.toggle("chg", cur!==tkStat(t));
-  s.onchange=()=>{ b.linked=b.linked||{}; if(s.value===tkStat(t)) delete b.linked[t.id]; else b.linked[t.id]=s.value; s.classList.toggle("chg", s.value!==tkStat(t)); brTouch(); };
+  tx.appendChild(mk("small",null,[(t.ppl||[])[0]||(t.depts||[]).join(", "), tkStat(t), t.due?(late?"באיחור · ":"יעד ")+dmy(t.due).slice(0,5):"", t.rep?repLabel(t.rep):"", prioOf(t)!=="רגילה"?prioOf(t):""].filter(Boolean).join(" · ")));
   if(late) r.classList.add("late");
-  const x=mk("button","bd-del br-del","✕"); x.type="button"; x.title="הסתר מהרשימה של השיחה הזו"; x.setAttribute("aria-label","הסתר את "+(t.title||"המשימה")+" מהרשימה");
-  x.onclick=()=>{ b.hide=b.hide||{}; b.hide[t.id]=1; if(b.linked) delete b.linked[t.id]; brTouch(); paintBrLinked(); };
-  r.append(tx,s,x);
-  r.appendChild(brNoteIn(()=>(b.notes||{})[t.id], v=>{ b.notes=b.notes||{}; if(v.trim()) b.notes[t.id]=v; else delete b.notes[t.id]; }, t.title||""));
+  const l=mk("label","br-rad in br-evck"), c=mk("input"); c.type="checkbox"; c.checked=on;
+  c.onchange=()=>{ b.tks=b.tks||{}; if(c.checked) b.tks[t.id]=1; else { delete b.tks[t.id]; if(b.linked) delete b.linked[t.id]; } brTouch(); paintBrTasks(); };
+  l.append(c, document.createTextNode(" לדיון")); r.append(tx,l);
+  if(on){
+    const s=mk("select","br-st"); s.setAttribute("aria-label","סטטוס "+(t.title||""));
+    const cur=(b.linked||{})[t.id] || tkStat(t);
+    fillSelect(s, ["פתוחה","בטיפול","בהמתנה"], cur); s.classList.toggle("chg", cur!==tkStat(t));
+    s.onchange=()=>{ b.linked=b.linked||{}; if(s.value===tkStat(t)) delete b.linked[t.id]; else b.linked[t.id]=s.value; s.classList.toggle("chg", s.value!==tkStat(t)); brTouch(); };
+    const w=mk("div","br-tkx"); w.appendChild(s);
+    w.appendChild(brNoteIn(()=>(b.notes||{})[t.id], v=>{ b.notes=b.notes||{}; if(v.trim()) b.notes[t.id]=v; else delete b.notes[t.id]; }, t.title||""));
+    r.appendChild(w); }
   return r;
 }
-function paintBrLinked(){
-  const b=brCur, L=$("#brLinked"), P=$("#brRep"); L.textContent=""; P.textContent="";
-  const H=b.hide||{}, all=[brLinkedTasks(b.id), brRepTasks(b.id)];
-  [[L,all[0],"אין משימות פתוחות שבאיחור, דחופות או בטיפול."],[P,all[1],"אין משימות חוזרות שמתוכננות עד היום."]].forEach(([box,list,none])=>{
-    const vis=list.filter(t=>!H[t.id]), hid=list.filter(t=>H[t.id]);
-    if(!vis.length) box.appendChild(mk("p","hint br-none",hid.length ? "כל המשימות ברשימה הזו הוסתרו." : none));
-    vis.forEach(t=>box.appendChild(brTaskRow(t,b)));
-    if(hid.length){ const u=mk("button","br-unhide",hid.length+" הוסתרו · הצג שוב"); u.type="button";
-      u.onclick=()=>{ hid.forEach(t=>delete b.hide[t.id]); brTouch(); paintBrLinked(); }; box.appendChild(u); }
-  });
+function paintBrTasks(){
+  const b=brCur, box=$("#brTk"); box.textContent="";
+  if(!b.tks){ b.tks={}; if(b.upd) brPicked(Object.assign({},b,{tks:undefined})).forEach(t=>{ b.tks[t.id]=1; }); }   // older briefing: keep what it showed
+  const sug=brLinkedTasks(b.id).concat(brRepTasks(b.id)), sid=new Set(sug.map(t=>t.id));
+  const rest=tasks.filter(t=>tkOpen(t) && !t.priv && !sid.has(t.id)).sort((a,c)=>tkSortKey(a).localeCompare(tkSortKey(c)));
+  const picked=Object.keys(b.tks).map(id=>tasks.find(t=>t.id===id)).filter(t=>t && !tkOpen(t));   // ticked earlier, done since
+  const all=sug.concat(rest, picked), on=all.filter(t=>b.tks[t.id]).length;
+  $("#brTkSum").textContent="משימות פתוחות ("+all.filter(tkOpen).length+")"+(on?" · "+on+" לדיון":"");
+  const q=$("#brTkQ").value.trim().toLowerCase();
+  const show=all.filter(t=>!q || [snOf(t),t.title,t.desc,(t.ppl||[]).join(" "),t.type].join(" ").toLowerCase().includes(q));
+  if(!show.length){ box.appendChild(mk("p","hint br-none", q ? "לא נמצאה משימה." : "אין משימות פתוחות.")); return; }
+  let last="";
+  show.forEach(t=>{ const g=sid.has(t.id) ? "מומלצות לדיון — באיחור, דחופות, בטיפול וסבבים של היום" : tkOpen(t) ? "שאר המשימות הפתוחות" : "הושלמו מאז";
+    if(g!==last){ last=g; box.appendChild(mk("div","br-mon",g)); }
+    box.appendChild(brTaskRow(t,b)); });
 }
+$("#brTkQ").oninput=()=>{ if(brCur) paintBrTasks(); };
 /* last week's events (7 days up to the briefing's date) — an option: the ones ticked "לדיון" join the briefing (and its PDF) */
 function brWeekEvents(d){ const from=ymd(new Date(new Date(d+"T12:00").getTime()-7*864e5));
   return events.filter(e=>{ const w=(e.when||"").slice(0,10); return w && w>=from && w<=d && e.brief!==d && !e._del; })
@@ -4086,14 +4102,16 @@ async function briefPdf(b){
   const fits=()=>body.scrollHeight<=body.clientHeight;
   let pend=null;                       // a section title waits for its first block, so a title never ends a page alone
   const place=el=>{ if(pend){ const w=mk("div"); w.append(pend,el); pend=null; el=w; }
-    body.appendChild(el); if(!fits() && body.childElementCount>1){ el.remove(); newPage(); body.appendChild(el); } };
+    body.appendChild(el); if(!fits() && body.childElementCount>1){ el.remove(); newPage(); body.appendChild(el); } return el; };
   const sec=(n,t)=>{ const h=mk("div","bp-sec"); h.append(mk("i",null,String(n)), mk("b",null,t)); return h; };
   const table=(head, cols, rows, cellCls)=>{ if(!rows.length) return;
     const start=cont=>{ const w=mk("div","bp-tw"); if(head) w.appendChild(typeof head==="string" ? mk("div","bp-lbl",head+(cont?" (המשך)":"")) : head);
       const t=mk("table","bp-t"), tr=mk("tr"); cols.forEach(([c,wd])=>{ const th=mk("th",null,c); if(wd) th.style.width=wd; tr.appendChild(th); }); t.appendChild(tr); w.appendChild(t); return w; };
-    let w=start(false); place(w); let t=w.querySelector("table"); head=typeof head==="string" ? head : null;
+    let w=start(false); const box=place(w); let t=w.querySelector("table"); head=typeof head==="string" ? head : null;
     rows.forEach((r,ri)=>{ const tr=mk("tr"); r.forEach((v,ci)=>{ const td=mk("td",cellCls ? cellCls(ri,ci) : null,v); tr.appendChild(td); }); t.appendChild(tr);
-      if(!fits()){ tr.remove(); newPage(); w=start(true); body.appendChild(w); t=w.querySelector("table"); t.appendChild(tr); } }); };
+      if(!fits()){
+        if(ri===0 && body.childElementCount>1){ box.remove(); newPage(); body.appendChild(box); return; }   // a header alone at the bottom: move the whole table
+        tr.remove(); newPage(); w=start(true); body.appendChild(w); t=w.querySelector("table"); t.appendChild(tr); } }); };
   newPage();
   const ref=x=>{ const t=x.tid && tasks.find(y=>y.id===x.tid), e=x.eid && events.find(y=>y.id===x.eid); return t ? "משימה "+snOf(t) : e ? "אירוע "+snOf(e) : ""; };
   // 1. attendance
@@ -4105,20 +4123,18 @@ async function briefPdf(b){
   else place(mk("p","bp-none","לא סומנה נוכחות."));
   // 2. tasks and work plan
   pend=sec(2,"סטטוס משימות ותוכנית עבודה");
-  const H=b.hide||{}, N=b.notes||{};
-  const lt=brLinkedTasks(b.id).filter(t=>!H[t.id]), rt=brRepTasks(b.id).filter(t=>!H[t.id]);
-  const trow=t=>[(snOf(t)?snOf(t)+" ":"")+(t.title||""), (t.ppl||[])[0]||(t.depts||[]).join(", "), t.due?dmy(t.due):"", tkStat(t), N[t.id]||""];
+  const N=b.notes||{}, pk=brPicked(b);
+  const trow=t=>[(snOf(t)?snOf(t)+" ":"")+(t.title||""), (t.ppl||[])[0]||(t.depts||[]).join(", "), t.due?dmy(t.due):"", tkOpen(t)?tkStat(t):"הושלמה", N[t.id]||""];
   const tcols=[["נושא",""],["מוביל משימה","17%"],["יעד","11%"],["סטטוס","10%"],["הערה","22%"]];
   const rrow=x=>[x.text, x.owner||"", ref(x), x.note||""], rcols=[["נושא",""],["מוביל משימה","18%"],["נרשם כ","14%"],["הערה","24%"]];
   const free=k=>(b.rows[k]||[]).filter(x=>(x.text||"").trim());
-  [["תקלות פתוחות וסגירת קצוות", lt, "faults"],["אחזקות קבועות וסבבים", rt, "maint"]].forEach(([l,list,k])=>{
-    if(!list.length && !free(k).length) return;
-    table(l, tcols, list.map(trow)); table(list.length ? null : l, rcols, free(k).map(rrow)); });
+  table("משימות פתוחות שנדונו", tcols, pk.map(trow));
+  [["faults","תקלות פתוחות וסגירת קצוות"],["maint","אחזקות קבועות וסבבים"]].forEach(([k,l])=>table(l, rcols, free(k).map(rrow)));
   const ev=Object.keys(b.evs||{}).map(id=>events.find(e=>e.id===id)).filter(Boolean).sort((a,c)=>(c.when||"").localeCompare(a.when||""));
   table("אירועים מהשבוע האחרון שנדונו",[["אירוע",""],["מתי","14%"],["מיקום","16%"],["סטטוס","9%"],["הערה","22%"]],
     ev.map(e=>[(snOf(e)?snOf(e)+" ":"")+((e.type||[]).join(", "))+" · "+(e.title||e.desc||""), fmtWhen(e.when), (e.loc||[]).join(", "), isOpen(e)?"פתוח":"נסגר", b.evs[e.id]||""]));
   [["plan","תוכנית עבודה להיום"],["contr","קבלני משנה וגורמי חוץ"]].forEach(([k,l])=>table(l, k==="contr" ? [["נושא",""],["מלווה","18%"],["נרשם כ","14%"],["הערה","24%"]] : rcols, free(k).map(rrow)));
-  if(!lt.length && !rt.length && !["faults","maint","plan","contr"].some(k=>free(k).length)) place(mk("p","bp-none","אין נושאים."));
+  if(!pk.length && !ev.length && !["faults","maint","plan","contr"].some(k=>free(k).length)) place(mk("p","bp-none","אין נושאים."));
   // 3. safety
   const sf=mk("div","bp-blk"); sf.appendChild(sec(3,"דגשי בטיחות להיום"));
   if(b.safety) sf.appendChild(mk("div","bp-txt",b.safety));
@@ -4144,9 +4160,19 @@ async function briefPdf(b){
   finally{ host.remove(); }
   return new File([pdfFromJpegs(out)],"שיחת-בוקר-"+b.id+".pdf",{type:"application/pdf"});
 }
+/* PDF: opens to view (a new tab with the browser's PDF viewer — save / print / share from there). The tab is opened right on the
+   tap (a tab opened later is blocked), shows "מכין…", then gets the file. No tab (blocked, or an app view): the file is saved. */
 async function brPdfOut(b, btn){ const lbl=btn.textContent; btn.disabled=true; btn.textContent="מכין…";
-  try{ const f=await briefPdf(b); await shareOrSave(f,"שיחת בוקר "+dmy(b.id),"שיחת בוקר "+dmy(b.id)); }
-  catch(e){ toast("יצירת ה-PDF נכשלה"); }
+  let w=null; try{ w=window.open("","_blank"); if(w){ w.document.title="שיחת בוקר "+dmy(b.id);
+    w.document.body.innerHTML='<p style="font:18px system-ui,sans-serif;text-align:center;margin-top:30vh" dir="rtl">מכין את ה-PDF…</p>'; } }catch(e){ w=null; }
+  try{ const f=await briefPdf(b), url=URL.createObjectURL(f);
+    if(w && !w.closed){ w.location.href=url; setTimeout(()=>URL.revokeObjectURL(url),120000); }
+    else { URL.revokeObjectURL(url); saveBlob(f); toast("ה-PDF נשמר בהורדות"); } }
+  catch(e){ if(w && !w.closed) w.close(); toast("יצירת ה-PDF נכשלה"); }
   finally{ btn.disabled=false; btn.textContent=lbl; } }
+/* share: the share sheet with the file (WhatsApp, mail…); where there is none, the file is saved */
+$("#brShare").onclick=async()=>{ if(!brCur) return; const btn=$("#brShare"), lbl=btn.textContent; btn.disabled=true; btn.textContent="מכין…";
+  try{ const f=await briefPdf(brCur); await shareOrSave(f,"שיחת בוקר "+dmy(brCur.id),"שיחת בוקר "+dmy(brCur.id)); }
+  catch(e){ toast("יצירת ה-PDF נכשלה"); } finally{ btn.disabled=false; btn.textContent=lbl; } };
 $("#brPdf").onclick=()=>{ if(brCur) brPdfOut(brCur, $("#brPdf")); };
 paintBriefCard();
