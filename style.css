@@ -1678,3 +1678,19 @@ html.glass header.bar{background:color-mix(in srgb,var(--bg) calc(100% - var(--g
 /* v2.56: the task update is sent with a paper-plane button */
 .tk-upd-row .tk-send{width:46px;height:46px;padding:0;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;flex:none}
 .tk-upd-row .tk-send svg{width:22px;height:22px;transform:scaleX(-1);margin-inline-end:2px}
+
+/* "i" — what's new in this version */
+.info-btn{position:relative;font:italic 900 18px/1 Georgia,"Times New Roman",serif;color:var(--water)}
+.info-dot{position:absolute;top:-3px;inset-inline-end:-3px;width:11px;height:11px;border-radius:99px;background:var(--c-fault,#d33);border:2px solid var(--panel)}
+.info-dot[hidden]{display:none}
+#dlgNews{width:min(560px,calc(100vw - 32px))}
+.news-list{display:grid;gap:8px;margin-bottom:14px;max-height:62vh;overflow:auto}
+.news-it{border:1px solid var(--edge);border-radius:12px;padding:9px 12px;background:var(--panel)}
+.news-it.new{background:color-mix(in srgb,var(--water) 9%,var(--panel))}
+.news-it.cur{border-color:var(--water)}
+.news-h{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;margin-bottom:3px}
+.news-h b{font-size:14.5px;color:var(--ink)}
+.news-h span{font-size:12.5px;color:var(--ink-2)}
+.news-h .news-tag{font-size:11.5px;font-weight:800;color:#fff;background:var(--water);border-radius:99px;padding:1px 8px}
+.news-t{font-size:14px;line-height:1.5;color:var(--ink);overflow-wrap:anywhere}
+.news-empty{color:var(--ink-2);font-size:14px}

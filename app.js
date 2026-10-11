@@ -2020,7 +2020,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.58", APP_DATE="11/10/2026";
+const APP_VER="2.59", APP_DATE="11/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2037,6 +2037,46 @@ async function latestVersion(){
 }
 const newer=(a,b)=>{ const x=a.split(".").map(Number), y=b.split(".").map(Number);
   for(let i=0;i<Math.max(x.length,y.length);i++){ if((x[i]||0)!==(y[i]||0)) return (x[i]||0)>(y[i]||0); } return false; };
+/* "i" in the header — what changed in each version. The list is the version table in README.md (every version adds a row
+   there), read when the window opens; the service worker keeps the last copy for offline. A version not seen yet on this
+   device lights a dot on "i" and, after an update, a toast offers to show what's new. */
+const K_SEENVER="ogg-seen-ver";
+let seenVer=""; try{ seenVer=localStorage.getItem(K_SEENVER)||""; }catch(e){}
+const newsSeen=v=>seenVer ? !newer(v,seenVer) : v!==APP_VER;   // first time: only this version counts as new
+async function newsRows(){
+  const r=await fetch("README.md?v="+APP_VER); if(!r.ok) throw new Error(r.status);
+  const out=[];
+  (await r.text()).split("\n").forEach(l=>{ const m=l.match(/^\|\s*(\d+(?:\.\d+)+)\s*\|\s*([\d/]+)\s*\|\s*(.*?)\s*\|\s*$/);
+    if(m) out.push({v:m[1], d:m[2], t:m[3].replace(/\*\*|`/g,"").replace(/\\\|/g,"|")}); });
+  return out.filter(x=>!newer(x.v,APP_VER)).sort((a,b)=>newer(a.v,b.v)?-1:newer(b.v,a.v)?1:0);
+}
+let newsAll=false;
+async function openNews(){
+  const d=$("#dlgNews"), box=$("#newsList");
+  $("#newsTitle").textContent="מה חדש · גרסה "+APP_VER;
+  box.textContent=""; box.appendChild(mk("p","news-empty","טוען…"));
+  $("#newsMore").hidden=true;
+  if(!d.open) d.showModal();
+  let rows=[]; try{ rows=await newsRows(); }catch(e){}
+  box.textContent="";
+  if(!rows.length){ box.appendChild(mk("p","news-empty","לא הצלחתי לטעון את רשימת השינויים — צריך רשת בפעם הראשונה.")); }
+  const show=newsAll ? rows : rows.slice(0, Math.max(5, rows.filter(x=>!newsSeen(x.v)).length));
+  show.forEach(x=>{
+    const it=mk("div","news-it"+(x.v===APP_VER?" cur":"")+(newsSeen(x.v)?"":" new"));
+    const h=mk("div","news-h"); h.appendChild(mk("b",null,"גרסה "+x.v)); h.appendChild(mk("span",null,x.d));
+    if(x.v===APP_VER) h.appendChild(mk("span","news-tag","הגרסה שלך")); else if(!newsSeen(x.v)) h.appendChild(mk("span","news-tag","חדש"));
+    it.append(h, mk("div","news-t",x.t)); box.appendChild(it);
+  });
+  $("#newsMore").hidden=newsAll || show.length>=rows.length;
+  seenVer=APP_VER; try{ localStorage.setItem(K_SEENVER,APP_VER); }catch(e){}
+  $("#infoDot").hidden=true;
+}
+$("#infoBtn").onclick=()=>{ newsAll=false; openNews(); };
+$("#newsMore").onclick=()=>{ newsAll=true; openNews(); };
+$("#newsClose").onclick=()=>$("#dlgNews").close();
+$("#infoDot").hidden=seenVer===APP_VER;
+// after an update (this device already knew an older version): say so once, with a way to see what changed
+if(seenVer && newer(APP_VER,seenVer)) setTimeout(()=>toast("עודכן לגרסה "+APP_VER,{label:"מה חדש?", fn:()=>{ newsAll=false; openNews(); }}),2500);
 async function hardUpdate(){
   const cur=["Dash","New","List","Data","Tasks","Cal"].find(v=>!$("#view"+v).hidden)||"Dash";
   try{ sessionStorage.setItem("ogg-refresh",cur); }catch(e){}
