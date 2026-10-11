@@ -2020,7 +2020,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.61", APP_DATE="11/10/2026";
+const APP_VER="2.62", APP_DATE="11/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -3754,8 +3754,8 @@ function paintBriefCard(){
   const tl=mk("div","br-tiles");
   const tile=(n,l,hot)=>{ const x=mk("div","br-tile"+(hot?" hot":"")); x.append(mk("b",null,n),mk("span",null,l)); tl.appendChild(x); };
   tile(rc && (rc.in+rc.out) ? rc.in+"/"+(rc.in+rc.out) : "—", ref===b && b ? "נוכחים היום" : "נוכחים בשיחה הקודמת");
-  const nl=brLinkedTasks(d).length; tile(nf(nl),"תקלות וקצוות פתוחים",nl>0);
-  tile(nf(brRepTasks(d).length),"סבבים להיום");
+  const H=(b&&b.hide)||{}, nl=brLinkedTasks(d).filter(t=>!H[t.id]).length; tile(nf(nl),"תקלות וקצוות פתוחים",nl>0);
+  tile(nf(brRepTasks(d).filter(t=>!H[t.id]).length),"סבבים להיום");
   body.appendChild(tl);
   const go=mk("button","btn primary br-go", !b ? "פתח שיחת בוקר" : b.done ? "צפה / הוסף לשיחה של היום" : "המשך את השיחה של היום"); go.type="button";
   go.onclick=()=>openBrief(d); body.appendChild(go);
@@ -3797,24 +3797,27 @@ function paintBrief(){
     c.onchange=()=>{ b.checks=b.checks||[]; b.checks[i]=c.checked; brTouch(); }; l.append(c, document.createTextNode(t)); C.appendChild(l); });
   paintBrSum();
 }
-function paintBrAtt(){
+function paintBrAtt(){                     // the paper form's table: name · role · present/absent · reason · notes
   const b=brCur, A=$("#brAtt"); A.textContent="";
-  brPeople(b).forEach(n=>{ const a=b.att[n]||{}, c=mk("button","br-chip"+(a.s==="in"?" in":a.s==="out"?" out":"")); c.type="button";
-    c.appendChild(mk("b",null,n)); const role=roleOf(n); if(role) c.appendChild(mk("small",null,role));
-    if(a.s==="out" && a.r) c.appendChild(mk("small",null,"· "+a.r));
-    c.setAttribute("aria-pressed", a.s ? "true" : "false"); c.title=a.s==="in"?"נוכח":a.s==="out"?"נעדר":"לא סומן";
-    c.onclick=()=>{ const cur=b.att[n]||{}; if(!cur.s) b.att[n]=Object.assign(cur,{s:"in"}); else if(cur.s==="in") b.att[n]=Object.assign(cur,{s:"out"});
-      else { delete cur.s; delete cur.r; if(cur.n) b.att[n]=cur; else delete b.att[n]; }
+  const hd=mk("div","br-ar br-ah"); hd.setAttribute("role","row");
+  ["שם","תפקיד","נוכחות","סיבת היעדרות / אילוץ","הערות"].forEach(h=>{ const c=mk("div",null,h); c.setAttribute("role","columnheader"); hd.appendChild(c); });
+  A.appendChild(hd);
+  brPeople(b).forEach((n,i)=>{ const a=b.att[n]||{}, r=mk("div","br-ar"); r.setAttribute("role","row");
+    const nm=mk("div","br-an"+(a.s==="in"?" in":a.s==="out"?" out":"")), ro=mk("div","br-aro",roleOf(n));
+    nm.appendChild(mk("span",null,n)); if(roleOf(n)) nm.appendChild(mk("small","br-anr",roleOf(n)));      // the role under the name: phones only
+    const st=mk("div","br-ast"), set=v=>{ const cur=b.att[n]||{};
+      if(cur.s===v){ delete cur.s; if(v==="out") delete cur.r; } else { cur.s=v; if(v==="in") delete cur.r; }
+      if(cur.s || cur.n) b.att[n]=cur; else delete b.att[n];
       brTouch(); paintBrAtt(); Object.keys(BR_SECS).forEach(paintBrRows); };
-    A.appendChild(c); });
-  const AB=$("#brAbs"); AB.textContent="";
-  Object.keys(b.att).filter(n=>b.att[n].s==="out").forEach(n=>{ const a=b.att[n], r=mk("div","br-absr");
-    r.appendChild(mk("b",null,n));
-    const rs=mk("select"); rs.setAttribute("aria-label","סיבת היעדרות של "+n); fillSelect(rs, BR_REASONS, a.r, "סיבת היעדרות");
-    rs.onchange=()=>{ a.r=rs.value; brTouch(); paintBrAtt(); };
-    const nt=mk("input","txt"); nt.placeholder="הערות"; nt.value=a.n||""; nt.setAttribute("aria-label","הערות על "+n);
-    nt.oninput=()=>{ a.n=nt.value; brTouch(); };
-    r.append(rs,nt); AB.appendChild(r); });
+    [["in","נוכח"],["out","נעדר"]].forEach(([v,l])=>{ const lb=mk("label","br-rad "+v), rd=mk("input"); rd.type="radio"; rd.name="brAtt"+i; rd.checked=a.s===v;
+      rd.onclick=e=>{ e.preventDefault(); set(v); }; lb.append(rd, document.createTextNode(" "+l)); st.appendChild(lb); });
+    const rs=mk("select","br-ars"); rs.setAttribute("aria-label","סיבת היעדרות של "+n); fillSelect(rs, BR_REASONS, a.r, "");
+    rs.onchange=()=>{ const cur=b.att[n]||{}; cur.r=rs.value; if(rs.value) cur.s="out"; b.att[n]=cur; brTouch(); paintBrAtt(); Object.keys(BR_SECS).forEach(paintBrRows); };
+    const nt=mk("input","txt br-ant"); nt.placeholder="הערות"; nt.value=a.n||""; nt.setAttribute("aria-label","הערות על "+n);
+    nt.oninput=()=>{ const cur=b.att[n]||{}; cur.n=nt.value; if(cur.s || cur.n) b.att[n]=cur; else delete b.att[n]; brTouch(); };
+    [nm,ro,st].forEach(c=>c.setAttribute("role","cell"));
+    const c4=mk("div"), c5=mk("div"); c4.setAttribute("role","cell"); c5.setAttribute("role","cell"); c4.appendChild(rs); c5.appendChild(nt);
+    r.append(nm,ro,st,c4,c5); A.appendChild(r); });
   const sel=$("#brAddP"), have=brPeople(b);
   fillSelect(sel, pplValues().filter(v=>!have.includes(v)), "", "+ הוסף אדם לנוכחות");
   sel.hidden=sel.options.length<2;
@@ -3831,15 +3834,20 @@ function brTaskRow(t, b){
   s.classList.toggle("chg", cur!==tkStat(t));
   s.onchange=()=>{ b.linked=b.linked||{}; if(s.value===tkStat(t)) delete b.linked[t.id]; else b.linked[t.id]=s.value; s.classList.toggle("chg", s.value!==tkStat(t)); brTouch(); };
   if(late) r.classList.add("late");
-  r.append(tx,s); return r;
+  const x=mk("button","bd-del br-del","✕"); x.type="button"; x.title="הסתר מהרשימה של השיחה הזו"; x.setAttribute("aria-label","הסתר את "+(t.title||"המשימה")+" מהרשימה");
+  x.onclick=()=>{ b.hide=b.hide||{}; b.hide[t.id]=1; if(b.linked) delete b.linked[t.id]; brTouch(); paintBrLinked(); };
+  r.append(tx,s,x); return r;
 }
 function paintBrLinked(){
   const b=brCur, L=$("#brLinked"), P=$("#brRep"); L.textContent=""; P.textContent="";
-  const lt=brLinkedTasks(b.id), rt=brRepTasks(b.id);
-  if(!lt.length) L.appendChild(mk("p","hint br-none","אין משימות פתוחות שבאיחור, דחופות או בטיפול."));
-  lt.forEach(t=>L.appendChild(brTaskRow(t,b)));
-  if(!rt.length) P.appendChild(mk("p","hint br-none","אין משימות חוזרות שמתוכננות עד היום."));
-  rt.forEach(t=>P.appendChild(brTaskRow(t,b)));
+  const H=b.hide||{}, all=[brLinkedTasks(b.id), brRepTasks(b.id)];
+  [[L,all[0],"אין משימות פתוחות שבאיחור, דחופות או בטיפול."],[P,all[1],"אין משימות חוזרות שמתוכננות עד היום."]].forEach(([box,list,none])=>{
+    const vis=list.filter(t=>!H[t.id]), hid=list.filter(t=>H[t.id]);
+    if(!vis.length) box.appendChild(mk("p","hint br-none",hid.length ? "כל המשימות ברשימה הזו הוסתרו." : none));
+    vis.forEach(t=>box.appendChild(brTaskRow(t,b)));
+    if(hid.length){ const u=mk("button","br-unhide",hid.length+" הוסתרו · הצג שוב"); u.type="button";
+      u.onclick=()=>{ hid.forEach(t=>delete b.hide[t.id]); brTouch(); paintBrLinked(); }; box.appendChild(u); }
+  });
 }
 function paintBrRows(k){
   const b=brCur, S=BR_SECS[k], box=$("#brR-"+k); if(!box) return; box.textContent="";
@@ -3956,7 +3964,7 @@ async function briefPdf(b){
   const ppl=brPeople(b).filter(n=>b.att[n]);
   table("1. נוכחות צוות",["שם","תפקיד","נוכחות","סיבה","הערות"], ppl.map(n=>{ const a=b.att[n]; return [n, roleOf(n), a.s==="in"?"נוכח":a.s==="out"?"נעדר":"", a.r||"", a.n||""]; }));
   const tref=x=>{ const t=x.tid && tasks.find(y=>y.id===x.tid), e=x.eid && events.find(y=>y.id===x.eid); return t ? "משימה "+snOf(t) : e ? "אירוע "+snOf(e) : ""; };
-  const lt=brLinkedTasks(b.id).concat(brRepTasks(b.id));
+  const lt=brLinkedTasks(b.id).concat(brRepTasks(b.id)).filter(t=>!(b.hide||{})[t.id]);
   table("2. משימות פתוחות שנדונו",["משימה","אחראי","יעד","סטטוס"], lt.map(t=>[(snOf(t)?snOf(t)+" ":"")+(t.title||""), (t.ppl||[])[0]||"", t.due?dmy(t.due):"", tkStat(t)]));
   [["faults","תקלות פתוחות וסגירת קצוות"],["maint","אחזקות קבועות וסבבים"],["plan","תוכנית עבודה להיום"],["contr","קבלני משנה וגורמי חוץ"]].forEach(([k,l])=>
     table("2. "+l,["נושא","מוביל","נרשם כ"], (b.rows[k]||[]).filter(x=>(x.text||"").trim()).map(x=>[x.text, x.owner||"", tref(x)])));
