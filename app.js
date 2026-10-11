@@ -2020,7 +2020,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.68", APP_DATE="11/10/2026";
+const APP_VER="2.69", APP_DATE="11/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -3964,7 +3964,11 @@ function paintBrEvents(){
 }
 function paintBrRows(k){
   const b=brCur, S=BR_SECS[k], box=$("#brR-"+k); if(!box) return; box.textContent="";
-  const rows=b.rows[k];
+  let rows=b.rows[k];
+  // faults / maintenance as free rows left the form (topics are picked from the open tasks and last week's events);
+  // they still show on a briefing that has them from before
+  const grp=$("#brG-"+k);
+  if(grp){ rows=b.rows[k]=rows.filter(x=>x.tid || x.eid || (x.text||"").trim()); grp.hidden=!rows.length; if(!rows.length) return; }
   const add=focus=>{ rows.push({id:newId(), text:"", owner:""}); brTouch(); paintBrRows(k); if(focus){ const ins=box.querySelectorAll(".br-tx"); if(ins.length) ins[ins.length-1].focus(); } };
   rows.forEach((x,i)=>{
     const r=mk("div","br-row"+(x.tid||x.eid?" made":""));
@@ -3992,6 +3996,7 @@ function paintBrRows(k){
     r.appendChild(brNoteIn(()=>x.note, v=>{ x.note=v; }, x.text||S.ph));
     box.appendChild(r);
   });
+  if(grp) return;
   const more=mk("button","btn mini ghost br-more","+ שורה"); more.type="button"; more.onclick=()=>add(true);
   if(!rows.length) add(false); else box.appendChild(more);
 }
