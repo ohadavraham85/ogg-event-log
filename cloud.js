@@ -164,9 +164,11 @@
     if(unsubBriefs || get(K_ROLE)!=="admin") return;
     unsubBriefs=F.onSnapshot(F.collection(db,"briefs"), snap=>{
       const items=[]; snap.docs.forEach(d=>{ try{ const b=JSON.parse(d.data().data||"null"); if(b && b.id===d.id) items.push(b); }catch(e){} });
-      if(window.briefsApply) window.briefsApply(items);
+      const gone=snap.docChanges().filter(c=>c.type==="removed").map(c=>c.doc.id);          // deleted, or moved to another date
+      if(window.briefsApply) window.briefsApply(items, gone);
     }, ()=>{});
   }
+  window.cloudBriefDel=async id=>{ if(!started || !me || get(K_ROLE)!=="admin") return false; try{ await F.deleteDoc(F.doc(db,"briefs",id)); return true; }catch(e){ return false; } };
   window.cloudBriefPut=async b=>{ if(!started || !me || get(K_ROLE)!=="admin") return false;
     try{ await F.setDoc(F.doc(db,"briefs",b.id),{data:JSON.stringify(b),date:b.id,done:!!b.done,_upd:F.serverTimestamp(),_by:me}); return true; }catch(e){ return false; } };
   /* notice board (📌): board/<id> — the whole team and the office screen read it, managers post and remove */

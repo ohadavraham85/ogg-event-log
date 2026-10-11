@@ -2020,7 +2020,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.63", APP_DATE="11/10/2026";
+const APP_VER="2.64", APP_DATE="11/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -3708,8 +3708,8 @@ if($("#newsAll")){ try{ $("#newsAll").checked=localStorage.getItem("ogg-news-all
 /* ===== morning briefing (🗒️ שיחת בוקר): managers only — a card on the dashboard and a form in a window.
    Attendance comes from the people list (with role), the open faults and today's recurring rounds come from the tasks,
    and on "סיים ושמור" every new row becomes a real task (or a "ביקור" event for contractors), linked back to the briefing.
-   One briefing per day (id = the date). Team log: briefs/<date> in the cloud, readable by managers only (cloud.js, firestore.rules);
-   this device only: kept here. The last 60 stay on the device. */
+   One briefing per day (id = the date; changing the date moves it). Team log: briefs/<date> in the cloud, readable by managers only
+   (cloud.js, firestore.rules); this device keeps all of them too (IndexedDB when localStorage is full) — the folder (📁) lists them. */
 var BRIEFS=(()=>{ try{ const o=JSON.parse(localStorage.getItem("ogg-briefs")||"{}"); return o && typeof o==="object" ? o : {}; }catch(e){ return {}; } })();
 var brCur=null, brTouched=false, brCloudT=null;
 const BR_REASONS=["חופש","מחלה","עבודה מרחוק / מתקן אחר","מילואים","הדרכה / קורס","עזיבה מוקדמת","אחר"];
@@ -3718,18 +3718,24 @@ const BR_SECS={faults:{type:"תקלה", ph:"תקלה או קצה פתוח"}, mai
   contr:{ph:"קבלן / גורם חוץ, מה ומתי", ev:true}, open:{type:"כללי", ph:"נושא", detail:true}};
 const BR_DAYS=["יום ראשון","יום שני","יום שלישי","יום רביעי","יום חמישי","יום שישי","שבת"];
 function brCanSee(){ return !TV && isManager() && !isViewer(); }
-function brStore(){ try{ const ids=Object.keys(BRIEFS).sort().reverse(); ids.slice(60).forEach(k=>delete BRIEFS[k]);
-  localStorage.setItem("ogg-briefs",JSON.stringify(BRIEFS)); }catch(e){} }
+function brStore(){ saveBig("ogg-briefs",JSON.stringify(BRIEFS)); }
+(async()=>{ try{ if(!localStorage.getItem("ogg-briefs")){ const v=await loadBig("ogg-briefs"); if(v){ const o=JSON.parse(v);
+  if(o && typeof o==="object"){ Object.keys(o).forEach(k=>{ if(!BRIEFS[k]) BRIEFS[k]=o[k]; }); paintBriefCard(); } } } }catch(e){} })();
+async function brDelete(id){
+  delete BRIEFS[id]; brStore();
+  if(CLOUD_ON && window.cloudBriefDel && !await window.cloudBriefDel(id)) toast("המחיקה מהענן נכשלה");
+}
 function brSave(b, cloudNow){
   b.upd=new Date().toISOString(); BRIEFS[b.id]=b; brStore();
   if(CLOUD_ON && window.cloudBriefPut){ clearTimeout(brCloudT);
     const go=async()=>{ if(!await window.cloudBriefPut(b)) toast("שיחת הבוקר נשמרה רק במכשיר — אולי צריך לפרסם את כללי האבטחה המעודכנים"); };
     if(cloudNow) return go(); brCloudT=setTimeout(go,2500); }
 }
-window.briefsApply=list=>{ (list||[]).forEach(b=>{ if(!b || !b.id) return; const l=BRIEFS[b.id];
+window.briefsApply=(list, gone)=>{ (gone||[]).forEach(id=>{ if(!(brCur && brCur.id===id && $("#dlgBrief").open)) delete BRIEFS[id]; });   // deleted or moved on another device
+  (list||[]).forEach(b=>{ if(!b || !b.id) return; const l=BRIEFS[b.id];
     if(brCur && brCur.id===b.id && $("#dlgBrief").open) return;            // being edited here: keep what is on the screen
     if(!l || String(l.upd||"")<=String(b.upd||"")) BRIEFS[b.id]=b; });
-  brStore(); paintBriefCard(); };
+  brStore(); paintBriefCard(); if($("#dlgBriefs").open) paintBriefs(); };
 function brNew(d){ const now=new Date(), p=n=>String(n).padStart(2,"0");
   return {id:d, date:d, time:p(now.getHours())+":"+p(now.getMinutes()), leader:myName()||"", att:{}, linked:{},
     rows:{faults:[],maint:[],plan:[],contr:[],open:[]}, safety:"", checks:BR_CHECKS.map(()=>false), sig:"", done:false}; }
@@ -3759,15 +3765,36 @@ function paintBriefCard(){
   body.appendChild(tl);
   const go=mk("button","btn primary br-go", !b ? "פתח שיחת בוקר" : b.done ? "צפה / הוסף לשיחה של היום" : "המשך את השיחה של היום"); go.type="button";
   go.onclick=()=>openBrief(d); body.appendChild(go);
-  const hist=Object.values(BRIEFS).filter(x=>x.id!==d).sort((a,c)=>c.id.localeCompare(a.id)).slice(0,5);
-  if(hist.length){ const ul=mk("div","br-hist");
-    hist.forEach(x=>{ const c=brCounts(x), r=mk("button","br-hi"); r.type="button";
-      const dd=new Date(x.id+"T12:00");
-      r.append(mk("b",null,BR_DAYS[dd.getDay()].replace("יום ","")+" · "+dmy(x.id).slice(0,5)+(x.time?" · "+x.time:"")),
-        mk("span",null, (x.done?"":"טיוטה · ")+[c.tasks?c.tasks+" משימות":"", c.ev?c.ev+" ביקורים":"", c.in?c.in+" נוכחים":""].filter(Boolean).join(" · ")));
-      r.onclick=()=>openBrief(x.id); ul.appendChild(r); });
-    body.appendChild(ul); }
+  const hist=Object.values(BRIEFS).filter(x=>x.id!==d).sort((a,c)=>c.id.localeCompare(a.id)).slice(0,3);
+  if(hist.length){ const ul=mk("div","br-hist"); hist.forEach(x=>ul.appendChild(brItem(x,true))); body.appendChild(ul); }
+  const fo=mk("button","btn br-folder","📁 תיקיית שיחות הבוקר ("+nf(Object.keys(BRIEFS).length)+")"); fo.type="button";
+  fo.onclick=openBriefs; body.appendChild(fo);
 }
+/* one briefing in a list: day · date · time, then who led it and what came out of it */
+function brItem(x, short){
+  const c=brCounts(x), r=mk("button","br-hi"); r.type="button"; const dd=new Date(x.id+"T12:00");
+  r.append(mk("b",null,BR_DAYS[dd.getDay()].replace("יום ","")+" · "+(short?dmy(x.id).slice(0,5):dmy(x.id))+(x.time?" · "+x.time:"")),
+    mk("span",null, [x.done?"":"טיוטה", short?"":x.leader, c.in?c.in+" נוכחים":"", c.tasks?c.tasks+" משימות":"", c.ev?c.ev+" ביקורים":""].filter(Boolean).join(" · ")));
+  r.onclick=()=>{ if($("#dlgBriefs").open) $("#dlgBriefs").close(); openBrief(x.id); };
+  return r;
+}
+/* the folder (📁): every briefing, newest first, by month; search by name, topic or note; open any date (new or existing) */
+function openBriefs(){ if(!brCanSee()) return; $("#brfQ").value=""; $("#brfDate").value=ymd(new Date()); paintBriefs(); $("#dlgBriefs").showModal(); }
+function paintBriefs(){
+  const L=$("#brfList"); L.textContent="";
+  const q=$("#brfQ").value.trim().toLowerCase();
+  const all=Object.values(BRIEFS).sort((a,c)=>c.id.localeCompare(a.id));
+  const hit=all.filter(x=>!q || JSON.stringify([x.leader,x.att,x.rows,x.safety,x.notes,dmy(x.id)]).toLowerCase().includes(q));
+  $("#brfCount").textContent=all.length ? (q ? hit.length+" מתוך "+all.length+" שיחות" : all.length+" שיחות") : "";
+  if(!hit.length){ L.appendChild(mk("p","hint",all.length?"לא נמצאה שיחה שמתאימה לחיפוש.":"עדיין אין שיחות בוקר. בוחרים תאריך ולוחצים \"פתח\".")); return; }
+  let mon="";
+  hit.forEach(x=>{ const m=x.id.slice(0,7); if(m!==mon){ mon=m;
+      L.appendChild(mk("div","br-mon",new Date(x.id+"T12:00").toLocaleDateString("he-IL",{month:"long",year:"numeric"}))); }
+    L.appendChild(brItem(x,false)); });
+}
+$("#brfQ").oninput=paintBriefs;
+$("#brfClose").onclick=()=>$("#dlgBriefs").close();
+$("#brfOpen").onclick=()=>{ const d=$("#brfDate").value; if(!d){ $("#brfDate").focus(); return; } $("#dlgBriefs").close(); openBrief(d); };
 
 /* ---- the form ---- */
 function brPeople(b){ const off=lists._hide_ppl||[], core=(lists._core_ppl||[]).filter(v=>!off.includes(v));
@@ -3785,7 +3812,12 @@ function paintBrief(){
   const b=brCur, dd=new Date(b.id+"T12:00");
   $("#brTitle").textContent="שיחת בוקר"+(b.done?" ✓":"");
   const M=$("#brMeta"); M.textContent="";
-  M.append(mk("span",null,BR_DAYS[dd.getDay()]+" · "+dmy(b.id)), mk("span",null,"שעה "+(b.time||"")));
+  const dl=mk("label","br-mf"), di=mk("input"); di.type="date"; di.id="brDate"; di.value=b.id; di.required=true;
+  dl.append(mk("span",null,BR_DAYS[dd.getDay()]), di);
+  di.onchange=()=>brMoveDate(di.value);
+  const tl=mk("label","br-mf"), ti=mk("input"); ti.type="time"; ti.id="brTime"; ti.value=b.time||"";
+  tl.append(mk("span",null,"שעה"), ti); ti.onchange=()=>{ b.time=ti.value; brTouch(); };
+  M.append(dl,tl);
   const ls=mk("select","br-leader"); ls.id="brLeader"; ls.setAttribute("aria-label","מנהל / מוביל השיחה");
   fillSelect(ls, pplValues(), b.leader, "מוביל השיחה *");
   ls.onchange=()=>{ b.leader=ls.value; ls.classList.remove("bad"); brTouch(); };
@@ -3796,6 +3828,20 @@ function paintBrief(){
   BR_CHECKS.forEach((t,i)=>{ const l=mk("label","tk-chk br-ck"), c=mk("input"); c.type="checkbox"; c.checked=!!(b.checks||[])[i];
     c.onchange=()=>{ b.checks=b.checks||[]; b.checks[i]=c.checked; brTouch(); }; l.append(c, document.createTextNode(t)); C.appendChild(l); });
   paintBrSum();
+}
+/* changing the date moves the briefing (its id is the date); a date that already has one is refused */
+function brMoveDate(nd){
+  const b=brCur; if(!nd || nd===b.id){ $("#brDate").value=b.id; return; }
+  if(BRIEFS[nd]){ toast("כבר יש שיחת בוקר ב-"+dmy(nd)+" — אפשר לפתוח אותה מהתיקייה 📁"); $("#brDate").value=b.id; return; }
+  const old=b.id, had=!!BRIEFS[old];
+  b.id=b.date=nd;
+  let ct=0, ce=0;
+  tasks.forEach(t=>{ if(t.brief===old){ t.brief=nd; t.upd=new Date().toISOString(); ct++; } });
+  events.forEach(e=>{ if(e.brief===old){ e.brief=nd; e.ts=new Date().toISOString(); ce++; } });
+  if(ct) saveTasks(); if(ce) persist();
+  if(had) brDelete(old);
+  brSave(b,true); brTouched=false; paintBrief(); paintBriefCard();
+  toast("השיחה הועברה ל-"+dmy(nd));
 }
 function paintBrAtt(){                     // the paper form's table: name · role · present/absent · reason · notes
   const b=brCur, A=$("#brAtt"); A.textContent="";
@@ -3877,7 +3923,9 @@ function paintBrRows(k){
     if(x.tid || x.eid){ const ref=x.tid ? tasks.find(t=>t.id===x.tid) : events.find(e=>e.id===x.eid);
       const tg=mk("button","br-made", x.tid ? "✓ משימה "+(ref&&snOf(ref)||"") : "✓ אירוע "+(ref&&snOf(ref)||"")); tg.type="button";
       tg.onclick=()=>{ $("#dlgBrief").close(); if(x.tid) goTask(x.tid); else evGo(x.eid); };
-      [tx,ow].forEach(el=>el.disabled=true); r.querySelectorAll("input,select").forEach(el=>el.disabled=true); r.appendChild(tg); }
+      r.appendChild(tg);
+      const del=mk("button","bd-del br-del","✕"); del.type="button"; del.title="הסר מהשיחה — "+(x.tid?"המשימה":"האירוע")+" נשאר"+(x.tid?"ת":"");
+      del.setAttribute("aria-label",del.title); del.onclick=()=>{ rows.splice(i,1); brTouch(); paintBrRows(k); }; r.appendChild(del); }
     else if(rows.length>1 || x.text){ const del=mk("button","bd-del br-del","✕"); del.type="button"; del.setAttribute("aria-label","הסר שורה");
       del.onclick=()=>{ rows.splice(i,1); brTouch(); paintBrRows(k); }; r.appendChild(del); }
     r.appendChild(brNoteIn(()=>x.note, v=>{ x.note=v; }, x.text||S.ph));
@@ -3887,14 +3935,31 @@ function paintBrRows(k){
   if(!rows.length) add(false); else box.appendChild(more);
 }
 function brPending(b){ const r=b.rows, out={tasks:0, ev:0, st:Object.keys(b.linked||{}).filter(id=>{ const t=tasks.find(x=>x.id===id); return t && tkOpen(t) && tkStat(t)!==b.linked[id]; }).length};
-  Object.keys(BR_SECS).forEach(k=>(r[k]||[]).forEach(x=>{ if(!x.tid && !x.eid && (x.text||"").trim()){ if(BR_SECS[k].ev) out.ev++; else out.tasks++; } }));
+  out.ed=0;
+  Object.keys(BR_SECS).forEach(k=>(r[k]||[]).forEach(x=>{ if(!x.tid && !x.eid && (x.text||"").trim()){ if(BR_SECS[k].ev) out.ev++; else out.tasks++; }
+    else if(brEdits(k,x)) out.ed++; }));
   return out; }
+/* a row that already became a task / event and was changed here since: what to write back (title, assignee, due date / event text) */
+function brEdits(k,x){
+  const text=(x.text||"").trim(); if(!text) return null;
+  if(x.tid){ const t=tasks.find(y=>y.id===x.tid); if(!t) return null; const ch={};
+    if(t.title!==text) ch.title=text;
+    if(((t.ppl||[])[0]||"")!==(x.owner||"")) ch.owner=x.owner||"";
+    if(k==="open" && (t.due||"")!==(x.date||"")) ch.due=x.date||"";
+    return Object.keys(ch).length ? {t,ch} : null; }
+  if(x.eid){ const e=events.find(y=>y.id===x.eid); if(!e) return null; const ch={};
+    if((e.desc||"")!==text) ch.desc=text;
+    if(((e.ppl||[])[0]||"")!==(x.owner||"")) ch.owner=x.owner||"";
+    return Object.keys(ch).length ? {e,ch} : null; }
+  return null;
+}
 function paintBrSum(){
   const b=brCur, S=$("#brSum"); if(!b || !S) return; S.textContent="";
   const p=brPending(b), li=[];
   if(p.tasks) li.push(p.tasks+" משימות חדשות ייפתחו, עם \"נפתחה בשיחת בוקר "+dmy(b.id).slice(0,5)+"\"");
   if(p.ev) li.push(p.ev+" אירועי ביקור יירשמו ביומן");
   if(p.st) li.push("הסטטוס של "+p.st+" משימות יתעדכן");
+  if(p.ed) li.push(p.ed+" משימות / אירועים שכבר נוצרו יתעדכנו לפי השינויים כאן");
   const c=brCounts(b);
   S.appendChild(mk("b",null, li.length ? "בשמירה:" : b.done ? "השיחה נשמרה"+(c.tasks||c.ev?" · נוצרו "+[c.tasks?c.tasks+" משימות":"", c.ev?c.ev+" ביקורים":""].filter(Boolean).join(" ו-"):"")+"." : "אין עדיין משימות או ביקורים חדשים לשמירה."));
   if(li.length){ const ul=mk("ul"); li.forEach(t=>ul.appendChild(mk("li",null,t))); S.appendChild(ul); }
@@ -3908,6 +3973,16 @@ function brFinish(){
   Object.keys(b.linked||{}).forEach(id=>{ const t=tasks.find(x=>x.id===id), v=b.linked[id];
     if(t && tkOpen(t) && tkStat(t)!==v){ t.status=v; t.upd=now; tkLog(t,"סטטוס: "+v+" (בשיחת בוקר "+on+")","",true); ns++; } });
   b.linked={};
+  let nu=0, eu=false;
+  Object.keys(BR_SECS).forEach(k=>(b.rows[k]||[]).forEach(x=>{ const d=brEdits(k,x); if(!d) return; nu++;
+    if(d.t){ const t=d.t, ch=d.ch, parts=[];
+      if(ch.title!==undefined){ t.title=ch.title; parts.push("כותרת"); }
+      if(ch.owner!==undefined){ const rest=(t.ppl||[]).slice(1).filter(n=>n!==ch.owner); t.ppl=ch.owner ? [ch.owner].concat(rest) : rest; parts.push("אחראי"+(ch.owner?": "+ch.owner:"")); }
+      if(ch.due!==undefined){ t.due=ch.due; parts.push("תאריך יעד"); }
+      t.upd=now; tkLog(t,"עודכן בשיחת בוקר "+on+": "+parts.join(", "),"",true); }
+    else { const e=d.e, ch=d.ch; if(ch.desc!==undefined) e.desc=ch.desc;
+      if(ch.owner!==undefined){ const rest=(e.ppl||[]).slice(1).filter(n=>n!==ch.owner); e.ppl=ch.owner ? [ch.owner].concat(rest) : rest; }
+      e.ts=now; eu=true; } }));
   Object.keys(BR_SECS).forEach(k=>{ const S=BR_SECS[k];
     b.rows[k]=(b.rows[k]||[]).filter(x=>x.tid || x.eid || (x.text||"").trim());
     b.rows[k].forEach(x=>{ if(x.tid || x.eid) return; const text=x.text.trim(), owner=x.owner||"";
@@ -3921,17 +3996,20 @@ function brFinish(){
         ppl:owner?[owner]:[], loc:[], eq:[], due, start:"", depts:[], upd:now, brief:b.id};
       tkLog(t,"המשימה נפתחה בשיחת בוקר "+on+(owner?" · אחראי: "+owner:""),"",true); tasks.push(t); x.tid=t.id; nt++; });
   });
-  if(ne){ events.sort((a,c)=>(c.when||"").localeCompare(a.when||"")); persist(); renderAll(); }
-  if(nt || ns) saveTasks();
+  if(ne || eu){ events.sort((a,c)=>(c.when||"").localeCompare(a.when||"")); persist(); renderAll(); }
+  if(nt || ns || nu) saveTasks();
   if(!b.done){ b.done=true; b.doneAt=nowLocal(); b.by=reporter()||""; }
   brSave(b,true); brTouched=false;
   $("#dlgBrief").close(); paintBriefCard();
-  toast("שיחת הבוקר נשמרה"+(nt?" · "+nt+" משימות נפתחו":"")+(ne?" · "+ne+" ביקורים נרשמו":"")+(ns?" · "+ns+" סטטוסים עודכנו":""));
+  toast("שיחת הבוקר נשמרה"+(nt?" · "+nt+" משימות נפתחו":"")+(ne?" · "+ne+" ביקורים נרשמו":"")+(ns?" · "+ns+" סטטוסים עודכנו":"")+(nu?" · "+nu+" עודכנו":""));
 }
 $("#brDone").onclick=brFinish;
 $("#brLater").onclick=()=>{ if(brCur){ brSave(brCur,true); brTouched=false; } $("#dlgBrief").close(); toast("הטיוטה נשמרה"); };
 $("#brClose").onclick=()=>$("#dlgBrief").close();
-$("#dlgBrief").addEventListener("close",()=>{ if(brCur && brTouched){ brSave(brCur,true); brTouched=false; } paintBriefCard(); });
+$("#brDel").onclick=async()=>{ const b=brCur; if(!b) return;
+  if(!await confirmDel("למחוק את שיחת הבוקר?", "שיחת הבוקר מ-"+dmy(b.id)+(b.time?" "+b.time:"")+". משימות ואירועים שנוצרו בה נשארים.")) return;
+  brCur=null; brTouched=false; clearTimeout(brCloudT); $("#dlgBrief").close(); await brDelete(b.id); paintBriefCard(); if($("#dlgBriefs").open) paintBriefs(); toast("שיחת הבוקר נמחקה"); };
+$("#dlgBrief").addEventListener("close",()=>{ if(brCur && brTouched){ brSave(brCur,true); brTouched=false; } paintBriefCard(); if($("#dlgBriefs").open) paintBriefs(); });
 
 /* signature: drawn with a finger or the mouse, kept as a small picture in the briefing */
 function brSigInit(){
