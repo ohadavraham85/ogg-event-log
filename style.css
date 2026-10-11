@@ -1876,3 +1876,28 @@ dialog.brief-dlg{max-width:720px;width:calc(100% - 20px);max-height:calc(100dvh 
 .br-pick .ss-btn{width:100%}
 .br-lr.br-evr .bd-del.br-del{align-self:flex-start}
 .btn.br-clean{display:block;margin-top:8px;white-space:normal;text-align:start;color:var(--fault);border-color:var(--fault)}
+
+/* ===== briefing, section 2 and 4 made easy to scan: numbered sub-sections, a number on every item,
+   one colour per kind (tasks blue, events orange, work plan green, open floor purple) as a stripe on the start edge ===== */
+.br-sub{display:flex;align-items:center;gap:7px;flex-wrap:wrap;font-size:14.5px;margin:16px 0 6px;padding-bottom:4px;border-bottom:2px solid var(--br-c,var(--edge))}
+.br-sub i{font-style:normal;font-size:12px;font-weight:900;color:var(--panel);background:var(--br-c,var(--water));border-radius:6px;padding:1px 6px;flex:none}
+.br-sub .br-cnt{font-size:11.5px;font-weight:900;color:var(--br-c,var(--water));background:var(--br-bg,var(--water-soft));border-radius:99px;padding:0 8px;margin-inline-start:auto}
+.br-s-tk{--br-c:var(--c-maint);--br-bg:var(--c-maint-bg)}
+.br-s-ev{--br-c:var(--c-flood);--br-bg:var(--c-flood-bg)}
+.br-s-pl{--br-c:var(--c-visit);--br-bg:var(--c-visit-bg)}
+.br-s-op{--br-c:var(--c-power);--br-bg:var(--c-power-bg)}
+#brTk{--br-c:var(--c-maint);--br-bg:var(--c-maint-bg)}
+#brEv{--br-c:var(--c-flood);--br-bg:var(--c-flood-bg)}
+#brR-plan{--br-c:var(--c-visit);--br-bg:var(--c-visit-bg)}
+#brR-open{--br-c:var(--c-power);--br-bg:var(--c-power-bg)}
+#brTk,#brEv,#brR-plan,#brR-open{counter-reset:bri;display:grid;gap:8px}
+#brTk>.br-lr,#brEv>.br-lr,#brR-plan>.br-row,#brR-open>.br-row{counter-increment:bri;position:relative;
+  background:var(--br-bg);border:1px solid color-mix(in srgb,var(--br-c) 30%,transparent);border-inline-start:5px solid var(--br-c);
+  border-radius:10px;padding:8px 10px;padding-inline-start:40px;margin:0}
+#brTk>.br-lr::before,#brEv>.br-lr::before,#brR-plan>.br-row::before,#brR-open>.br-row::before{content:counter(bri);position:absolute;inset-inline-start:8px;top:9px;
+  width:23px;height:23px;border-radius:50%;background:var(--br-c);color:var(--panel);font-size:12px;font-weight:900;display:flex;align-items:center;justify-content:center}
+#brTk>.br-lr .txt,#brEv>.br-lr .txt,#brR-plan>.br-row .txt,#brR-open>.br-row .txt{background:var(--panel)}
+#brTk>.br-lr.late{border-inline-start-color:var(--c-fault)}
+.br-notebtn{background:none;border:0;font:inherit;font-size:12.5px;font-weight:700;color:var(--br-c,var(--water));padding:2px 0;cursor:pointer;justify-self:start;text-decoration:underline;text-underline-offset:3px}
+.br-row .br-notebtn{grid-column:1 / -1}
+.br-tkx .br-notebtn{grid-column:auto}

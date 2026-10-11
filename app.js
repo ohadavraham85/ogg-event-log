@@ -2020,7 +2020,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.72", APP_DATE="11/10/2026";
+const APP_VER="2.73", APP_DATE="11/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -3899,9 +3899,15 @@ function paintBrAtt(){                     // the paper form's table: name · ro
     b.att[sel.value]={s:"in"}; brTouch(); paintBrAtt(); Object.keys(BR_SECS).forEach(paintBrRows); };
 }
 /* a note for the briefing only: shown here and in the PDF, never written into the task or the event */
+/* a numbered sub-section title: "2.1 משימות לדיון" + how many */
+function brSubHead(el, no, title, n){ el.textContent=""; el.append(mk("i",null,no), document.createTextNode(title)); if(n) el.appendChild(mk("b","br-cnt",String(n))); }
+/* a note stays a small "+ הערה" link until it is used, so the rows stay short */
 function brNoteIn(get, set, label){ const n=mk("input","txt br-note"); n.value=get()||""; n.maxLength=300;
   n.placeholder="הערה לשיחה (לא נכנסת למשימה)"; n.setAttribute("aria-label","הערה לשיחה: "+label);
-  n.oninput=()=>{ set(n.value); brTouch(); }; return n; }
+  n.oninput=()=>{ set(n.value); brTouch(); };
+  if(n.value) return n;
+  const btn=mk("button","br-notebtn","+ הערה"); btn.type="button"; btn.setAttribute("aria-label","הוסף הערה לשיחה: "+label);
+  btn.onclick=()=>{ btn.replaceWith(n); n.focus(); }; return btn; }
 /* open tasks — an option, like last week's events: the ones ticked "לדיון" join the briefing; for those the status can change
    (written to the task on save) and a note added (the briefing only). The suggested ones (late, urgent, in progress, rounds due) come first.
    Briefings saved before this (no b.tks) keep what they showed then: the suggested lists minus the hidden ones. */
@@ -3933,7 +3939,7 @@ function paintBrTasks(){
   const own=t=>t.brief===b.id;                                     // opened from this briefing's topics: already shown there
   Object.keys(b.tks).forEach(id=>{ const t=tasks.find(x=>x.id===id); if(t && own(t)) delete b.tks[id]; });
   const picked=[...new Set(Object.keys(b.tks))].map(id=>tasks.find(t=>t.id===id)).filter(Boolean);
-  $("#brTkSum").textContent="משימות לדיון"+(picked.length?" ("+picked.length+")":"");
+  brSubHead($("#brTkSum"),"2.1","משימות לדיון",picked.length);
   if(!picked.length) box.appendChild(mk("p","hint br-none","עדיין לא נבחרו משימות. בוחרים מהרשימה למטה."));
   picked.forEach(t=>box.appendChild(brTaskRow(t,b)));
   const sug=brLinkedTasks(b.id).concat(brRepTasks(b.id)), sid=new Set(sug.map(t=>t.id));
@@ -3953,7 +3959,7 @@ function brWeekEvents(d){ const from=ymd(new Date(new Date(d+"T12:00").getTime()
 function paintBrEvents(){
   const b=brCur, box=$("#brEv"); box.textContent=""; b.evs=b.evs||{}; const E=b.evs;
   const picked=Object.keys(E).map(id=>events.find(e=>e.id===id)).filter(Boolean).sort((a,c)=>(c.when||"").localeCompare(a.when||""));
-  $("#brEvSum").textContent="אירועים מהשבוע האחרון לדיון"+(picked.length?" ("+picked.length+")":"");
+  brSubHead($("#brEvSum"),"2.2","אירועים מהשבוע האחרון לדיון",picked.length);
   if(!picked.length) box.appendChild(mk("p","hint br-none","עדיין לא נבחרו אירועים. בוחרים מהרשימה למטה."));
   picked.forEach(e=>{ const r=mk("div","br-lr br-evr on"), tx=mk("div","br-lt");
     tx.appendChild(mk("b",null,(snOf(e)?snOf(e)+" ":"")+((e.type||[]).join(", ")||"אירוע")+" · "+(e.title||e.desc||"").slice(0,90)));
