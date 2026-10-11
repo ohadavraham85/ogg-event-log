@@ -2020,7 +2020,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.73", APP_DATE="11/10/2026";
+const APP_VER="2.74", APP_DATE="11/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -4117,15 +4117,16 @@ async function briefPdf(b){
       const c=mk("div","bp-f"); c.append(mk("span",null,l), mk("b",null,v||"—")); f.appendChild(c); });
     hd.appendChild(f); pg.appendChild(hd);
     body=mk("div","rp-body bp-body"); pg.appendChild(body); pg.appendChild(mk("div","rp-foot")); };
-  const fits=()=>body.scrollHeight<=body.clientHeight;
+  const fits=()=>{ const l=body.lastElementChild; return !l || l.getBoundingClientRect().bottom <= body.getBoundingClientRect().bottom-6; };   // the last block ends above the page bottom (6px to spare)
   let pend=null;                       // a section title waits for its first block, so a title never ends a page alone
   const place=el=>{ if(pend){ const w=mk("div"); w.append(pend,el); pend=null; el=w; }
     body.appendChild(el); if(!fits() && body.childElementCount>1){ el.remove(); newPage(); body.appendChild(el); } return el; };
   const sec=(n,t)=>{ const h=mk("div","bp-sec"); h.append(mk("i",null,String(n)), mk("b",null,t)); return h; };
-  const table=(head, cols, rows, cellCls)=>{ if(!rows.length) return;
-    const start=cont=>{ const w=mk("div","bp-tw"); if(head) w.appendChild(typeof head==="string" ? mk("div","bp-lbl",head+(cont?" (המשך)":"")) : head);
+  const table=(head, cols, rows, cellCls, kind)=>{ if(!rows.length) return;
+    const start=cont=>{ const w=mk("div","bp-tw"+(kind?" bp-k-"+kind:""));
+      if(head){ const h=typeof head==="string" ? mk("div","bp-lbl",head) : (cont ? head.cloneNode(true) : head); if(cont) h.appendChild(document.createTextNode(" (המשך)")); w.appendChild(h); }
       const t=mk("table","bp-t"), tr=mk("tr"); cols.forEach(([c,wd])=>{ const th=mk("th",null,c); if(wd) th.style.width=wd; tr.appendChild(th); }); t.appendChild(tr); w.appendChild(t); return w; };
-    let w=start(false); const box=place(w); let t=w.querySelector("table"); head=typeof head==="string" ? head : null;
+    let w=start(false); const box=place(w); let t=w.querySelector("table");
     rows.forEach((r,ri)=>{ const tr=mk("tr"); r.forEach((v,ci)=>{ const td=mk("td",cellCls ? cellCls(ri,ci) : null,v); tr.appendChild(td); }); t.appendChild(tr);
       if(!fits()){
         if(ri===0 && body.childElementCount>1){ box.remove(); newPage(); body.appendChild(box); return; }   // a header alone at the bottom: move the whole table
@@ -4139,19 +4140,22 @@ async function briefPdf(b){
   if(ar.length) table(null,[["שם","18%"],["תפקיד","18%"],["נוכחות","12%"],["סיבת היעדרות / אילוץ","20%"],["הערות",""]], ar,
     (ri,ci)=>ci===0 ? "bp-n "+(b.att[ppl[ri]].s==="in"?"in":b.att[ppl[ri]].s==="out"?"out":"") : ci===2 ? "bp-st "+(b.att[ppl[ri]].s||"") : null);
   else place(mk("p","bp-none","לא סומנה נוכחות."));
-  // 2. tasks and work plan
+  // 2. tasks and work plan — the same sub-sections, numbers and colours as the form
   pend=sec(2,"סטטוס משימות ותוכנית עבודה");
   const N=b.notes||{}, pk=brPicked(b);
-  const trow=t=>[(snOf(t)?snOf(t)+" ":"")+(t.title||""), (t.ppl||[])[0]||(t.depts||[]).join(", "), t.due?dmy(t.due):"", tkOpen(t)?tkStat(t):"הושלמה", N[t.id]||""];
-  const tcols=[["נושא",""],["מוביל משימה","17%"],["יעד","11%"],["סטטוס","10%"],["הערה","22%"]];
-  const rrow=x=>[x.text, x.owner||"", ref(x), x.note||""], rcols=[["נושא",""],["מוביל משימה","18%"],["נרשם כ","14%"],["הערה","24%"]];
+  const lbl=(no,t,kind)=>{ const h=mk("div","bp-lbl bp-k-"+kind); h.append(mk("i",null,no), document.createTextNode(t)); return h; };
+  const num=rows=>rows.map((r,i)=>[String(i+1)].concat(r)), nc=(ri,ci)=>ci===0 ? "bp-no" : null;
+  const old=x=>ref(x) ? " ("+ref(x)+")" : "";                     // an older briefing that still opened tasks: which one
   const free=k=>(b.rows[k]||[]).filter(x=>(x.text||"").trim());
-  table("משימות פתוחות שנדונו", tcols, pk.map(trow));
-  [["faults","תקלות פתוחות וסגירת קצוות"],["maint","אחזקות קבועות וסבבים"]].forEach(([k,l])=>table(l, rcols, free(k).map(rrow)));
+  table(lbl("2.1","משימות לדיון","tk"), [["#","5%"],["משימה",""],["מוביל משימה","16%"],["יעד","10%"],["סטטוס","10%"],["הערה","22%"]],
+    num(pk.map(t=>[(snOf(t)?snOf(t)+" ":"")+(t.title||""), (t.ppl||[])[0]||(t.depts||[]).join(", "), t.due?dmy(t.due):"", tkOpen(t)?tkStat(t):"הושלמה", N[t.id]||""])), nc, "tk");
   const ev=Object.keys(b.evs||{}).map(id=>events.find(e=>e.id===id)).filter(Boolean).sort((a,c)=>(c.when||"").localeCompare(a.when||""));
-  table("אירועים מהשבוע האחרון שנדונו",[["אירוע",""],["מתי","14%"],["מיקום","16%"],["סטטוס","9%"],["הערה","22%"]],
-    ev.map(e=>[(snOf(e)?snOf(e)+" ":"")+((e.type||[]).join(", "))+" · "+(e.title||e.desc||""), fmtWhen(e.when), (e.loc||[]).join(", "), isOpen(e)?"פתוח":"נסגר", b.evs[e.id]||""]));
-  [["plan","תוכנית עבודה להיום"],["contr","קבלני משנה וגורמי חוץ"]].forEach(([k,l])=>table(l, k==="contr" ? [["נושא",""],["מלווה","18%"],["נרשם כ","14%"],["הערה","24%"]] : rcols, free(k).map(rrow)));
+  table(lbl("2.2","אירועים מהשבוע האחרון","ev"), [["#","5%"],["אירוע",""],["מתי","14%"],["מיקום","15%"],["סטטוס","9%"],["הערה","22%"]],
+    num(ev.map(e=>[(snOf(e)?snOf(e)+" ":"")+((e.type||[]).join(", "))+" · "+(e.title||e.desc||""), fmtWhen(e.when), (e.loc||[]).join(", "), isOpen(e)?"פתוח":"נסגר", b.evs[e.id]||""])), nc, "ev");
+  table(lbl("2.3","תוכנית עבודה להיום","pl"), [["#","5%"],["נושא",""],["מוביל משימה","20%"],["הערה","30%"]],
+    num(free("plan").map(x=>[x.text+old(x), x.owner||"", x.note||""])), nc, "pl");
+  [["faults","תקלות פתוחות וסגירת קצוות"],["maint","אחזקות קבועות וסבבים"],["contr","קבלני משנה וגורמי חוץ"]].forEach(([k,l])=>     // from older briefings only
+    table(lbl("·",l+" (משיחה קודמת)","old"), [["#","5%"],["נושא",""],["מוביל","20%"],["הערה","30%"]], num(free(k).map(x=>[x.text+old(x), x.owner||"", x.note||""])), nc, "old"));
   if(!pk.length && !ev.length && !["faults","maint","plan","contr"].some(k=>free(k).length)) place(mk("p","bp-none","אין נושאים."));
   // 3. safety
   const sf=mk("div","bp-blk"); sf.appendChild(sec(3,"דגשי בטיחות להיום"));
@@ -4161,7 +4165,8 @@ async function briefPdf(b){
   // 4. open floor
   pend=sec(4,"פתוח לצוות וסגירת קצוות");
   const op=free("open");
-  if(op.length) table(null,[["נושא","20%"],["פירוט",""],["גורם אחראי","15%"],["תאריך","11%"],["נרשם כ","11%"],["הערה","17%"]], op.map(x=>[x.text, x.detail||"", x.owner||"", x.date?dmy(x.date):"", ref(x), x.note||""]));
+  if(op.length) table(null,[["#","5%"],["נושא","20%"],["פירוט",""],["גורם אחראי","15%"],["תאריך","11%"],["הערה","20%"]],
+    num(op.map(x=>[x.text+old(x), x.detail||"", x.owner||"", x.date?dmy(x.date):"", x.note||""])), nc, "op");
   else place(mk("p","bp-none","אין נושאים."));
   // 5. approval and signature
   const sg=mk("div","bp-blk"); sg.appendChild(sec(5,"אישור וחתימה"));
