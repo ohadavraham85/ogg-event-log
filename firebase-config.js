@@ -14,3 +14,7 @@ window.FIREBASE_CONFIG = {
 /* Optional: the Firestore database to use. Leave null for the project's default database; set a name
    (e.g. "event-log") to keep the log in its own database when the project also serves another app. */
 window.FIREBASE_DATABASE = null;
+/* Push to phones (task messages while the app is closed): the "Key pair" from Firebase console → Project settings →
+   Cloud Messaging → Web Push certificates. Public, not secret. null = no push (the rest of the team log works as before).
+   Also needs the Cloud Function in functions/ deployed (README → "התראות פוש"). */
+window.FIREBASE_VAPID_KEY = null;

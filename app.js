@@ -1083,7 +1083,7 @@ function dashTasks(cards, from){
     if(hot.length){
       const ul=mk("div","dt-hot");
       hot.forEach(t=>{
-        const r=mk("button","dt-row"); r.type="button"; r.onclick=()=>goTasks({});
+        const r=mk("button","dt-row"); r.type="button"; r.onclick=()=>goTask(t.id);   // opens this task itself
         const p=prioOf(t); r.style.borderInlineStartColor="var(--c-"+PRIO_HUE[p]+")";
         r.appendChild(mk("span","dt-t",t.title||""));
         const meta=[p!=="רגילה"?p:"", t.due ? (t.due<today?"באיחור · ":t.due===today?"היום · ":"")+dmy(t.due).slice(0,5) : "", (t.ppl||[])[0]||""].filter(Boolean).join(" · ");
@@ -2020,7 +2020,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.58", APP_DATE="11/10/2026";
+const APP_VER="2.61", APP_DATE="11/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2037,6 +2037,46 @@ async function latestVersion(){
 }
 const newer=(a,b)=>{ const x=a.split(".").map(Number), y=b.split(".").map(Number);
   for(let i=0;i<Math.max(x.length,y.length);i++){ if((x[i]||0)!==(y[i]||0)) return (x[i]||0)>(y[i]||0); } return false; };
+/* "i" in the header — what changed in each version. The list is the version table in README.md (every version adds a row
+   there), read when the window opens; the service worker keeps the last copy for offline. A version not seen yet on this
+   device lights a dot on "i" and, after an update, a toast offers to show what's new. */
+const K_SEENVER="ogg-seen-ver";
+let seenVer=""; try{ seenVer=localStorage.getItem(K_SEENVER)||""; }catch(e){}
+const newsSeen=v=>seenVer ? !newer(v,seenVer) : v!==APP_VER;   // first time: only this version counts as new
+async function newsRows(){
+  const r=await fetch("README.md?v="+APP_VER); if(!r.ok) throw new Error(r.status);
+  const out=[];
+  (await r.text()).split("\n").forEach(l=>{ const m=l.match(/^\|\s*(\d+(?:\.\d+)+)\s*\|\s*([\d/]+)\s*\|\s*(.*?)\s*\|\s*$/);
+    if(m) out.push({v:m[1], d:m[2], t:m[3].replace(/\*\*|`/g,"").replace(/\\\|/g,"|")}); });
+  return out.filter(x=>!newer(x.v,APP_VER)).sort((a,b)=>newer(a.v,b.v)?-1:newer(b.v,a.v)?1:0);
+}
+let newsAll=false;
+async function openNews(){
+  const d=$("#dlgNews"), box=$("#newsList");
+  $("#newsTitle").textContent="מה חדש · גרסה "+APP_VER;
+  box.textContent=""; box.appendChild(mk("p","news-empty","טוען…"));
+  $("#newsMore").hidden=true;
+  if(!d.open) d.showModal();
+  let rows=[]; try{ rows=await newsRows(); }catch(e){}
+  box.textContent="";
+  if(!rows.length){ box.appendChild(mk("p","news-empty","לא הצלחתי לטעון את רשימת השינויים — צריך רשת בפעם הראשונה.")); }
+  const show=newsAll ? rows : rows.slice(0, Math.max(5, rows.filter(x=>!newsSeen(x.v)).length));
+  show.forEach(x=>{
+    const it=mk("div","news-it"+(x.v===APP_VER?" cur":"")+(newsSeen(x.v)?"":" new"));
+    const h=mk("div","news-h"); h.appendChild(mk("b",null,"גרסה "+x.v)); h.appendChild(mk("span",null,x.d));
+    if(x.v===APP_VER) h.appendChild(mk("span","news-tag","הגרסה שלך")); else if(!newsSeen(x.v)) h.appendChild(mk("span","news-tag","חדש"));
+    it.append(h, mk("div","news-t",x.t)); box.appendChild(it);
+  });
+  $("#newsMore").hidden=newsAll || show.length>=rows.length;
+  seenVer=APP_VER; try{ localStorage.setItem(K_SEENVER,APP_VER); }catch(e){}
+  $("#infoDot").hidden=true;
+}
+$("#infoBtn").onclick=()=>{ newsAll=false; openNews(); };
+$("#newsMore").onclick=()=>{ newsAll=true; openNews(); };
+$("#newsClose").onclick=()=>$("#dlgNews").close();
+$("#infoDot").hidden=seenVer===APP_VER;
+// after an update (this device already knew an older version): say so once, with a way to see what changed
+if(seenVer && newer(APP_VER,seenVer)) setTimeout(()=>toast("עודכן לגרסה "+APP_VER,{label:"מה חדש?", fn:()=>{ newsAll=false; openNews(); }}),2500);
 async function hardUpdate(){
   const cur=["Dash","New","List","Data","Tasks","Cal"].find(v=>!$("#view"+v).hidden)||"Dash";
   try{ sessionStorage.setItem("ogg-refresh",cur); }catch(e){}
@@ -2322,10 +2362,12 @@ function goTask(tid){
   const t=tasks.find(x=>x.id===tid); if(!t){ toast("המשימה כבר לא קיימת"); return; }
   if(!window.tkVisible(t)){ toast("המשימה כבר לא משויכת אליך או למחלקה שלך"); return; }
   Object.keys(tkF).forEach(k=>tkF[k]= k==="late" ? false : "");
-  tkView = !tkOpen(t) ? "done" : isMine(t) ? "mine" : "open"; tkOpenLogs.add(t.id);
+  tkView = !tkOpen(t) ? "done" : isMine(t) ? "mine" : "open"; tkOpenLogs.add(t.id); tkRowOpen.add(t.id);   // "רשימה": the line opens in full
+  closeTaskForm(); $("#tfPanel").hidden=true; $("#tfToggle").setAttribute("aria-expanded","false");
   paintTkSeg(); renderTasks(); show("Tasks");
   const c=document.querySelector('#tkList .tk[data-id="'+tid+'"]');
-  if(c){ c.scrollIntoView({block:"center"}); c.classList.add("flash"); setTimeout(()=>c.classList.remove("flash"),2200); }
+  if(c){ c.classList.add("flash"); setTimeout(()=>c.classList.remove("flash"),2200);
+    requestAnimationFrame(()=>c.scrollIntoView({block:"center"})); }
 }
 $("#inboxBtn").onclick=()=>{ inbTab="in"; openInbox(); };
 $("#inbClose").onclick=()=>$("#dlgInbox").close();
@@ -3174,14 +3216,14 @@ function renderCalDay(I, today){
     const when = pos==="start" ? "▶ מתחילה היום" : pos==="end"||pos==="single" ? (t.due<today?"⚠ היעד עבר":"🏁 יעד") : "בביצוע";
     const range = t.start && t.start!==t.due ? dmy(t.start).slice(0,5)+"–"+dmy(t.due).slice(0,5) : "";
     r.append(mk("b",null,t.title||""), mk("span","cal-meta",[when, range, prioOf(t)!=="רגילה"?prioOf(t):"", (t.ppl||[])[0]||"", tkStat(t)!=="פתוחה"?tkStat(t):""].filter(Boolean).join(" · ")));
-    r.onclick=()=>goTasks({}); return r; }));
+    r.onclick=()=>goTask(t.id); return r; }));
   sec(reps.length?"משימות מחזוריות — צפויות ביום הזה ("+reps.length+")":"", reps.map(t=>{
     const r=mk("button","cal-row r-rep"); r.type="button";
     r.append(mk("b",null,"🔁 "+(t.title||"")), mk("span","cal-meta",[repLabel(t.rep),"תיפתח כשהנוכחית (יעד "+dmy(t.due).slice(0,5)+") תושלם",(t.ppl||[])[0]||""].filter(Boolean).join(" · ")));
     r.onclick=()=>goTask(t.id); return r; }));
   sec(dones.length?"משימות שהושלמו ("+dones.length+")":"", dones.map(t=>{
     const r=mk("button","cal-row r-done"); r.type="button"; r.append(mk("b",null,"✓ "+(t.title||"")), mk("span","cal-meta",(t.ppl||[])[0]||""));
-    r.onclick=()=>goTasks({view:"done"}); return r; }));
+    r.onclick=()=>goTask(t.id); return r; }));
   sec(evs.length?"אירועים ("+evs.length+")":"", evs.slice(0,60).map(e=>{
     const t=(e.type||[])[0]||"", r=mk("button","cal-row r-ev"); r.type="button"; r.style.borderInlineStartColor="var(--c-"+hueOf(t)+")";
     const b=mk("span","cal-time",(e.when||"").slice(11,16));
@@ -3227,7 +3269,7 @@ let ssPanel=null;
 function closeSS(){ if(ssPanel){ ssPanel.remove(); ssPanel=null; removeEventListener("pointerdown",ssOutside,true); } }
 function ssOutside(e){ if(ssPanel && !ssPanel.contains(e.target) && !e.target.classList.contains("ss-btn")) closeSS(); }
 function openSS(sel,btn){
-  closeSS();
+  closeSS(); ssW=innerWidth;
   const p=mk("div","ss-panel"), q=mk("input","ss-q"), list=mk("div","ss-list");
   q.type="search"; q.placeholder="חיפוש…"; q.autocomplete="off"; p.append(q,list);
   const opts=[...sel.options].map(o=>({v:o.value,t:o.textContent,core:isCore(o.value)}));
@@ -3236,7 +3278,7 @@ function openSS(sel,btn){
   const pick=v=>{
     if(multi && v && v!=="__other"){
       if(sel._picked().includes(v)) sel._unpick(v); else { sel.value=v; sel.dispatchEvent(new Event("change",{bubbles:true})); }
-      q.value=""; paint(); requestAnimationFrame(()=>{ if(p._place) p._place(); }); q.focus({preventScroll:true}); return;
+      q.value=""; paint(); requestAnimationFrame(()=>{ if(p._place) p._place(); }); if(!ssPhone()) q.focus({preventScroll:true}); return;   // phone: the keyboard doesn't jump after each pick
     }
     sel.value=v; sel.dispatchEvent(new Event("change",{bubbles:true})); closeSS(); btn.focus(); };
   let first=null;
@@ -3260,6 +3302,11 @@ function openSS(sel,btn){
   if(multi){ const done=mk("button","btn primary ss-done","סיום ✓"); done.type="button"; done.onclick=()=>{ closeSS(); btn.focus(); }; p.appendChild(done); }
   paint(); document.body.appendChild(p); ssPanel=p; p._btn=btn;
   const place=()=>{
+    if(ssPhone()){   // phone: docked at the top of the visible area, above the keyboard — the keyboard opening doesn't close it
+      const vv=window.visualViewport, vh=vv ? vv.height : innerHeight, top=vv ? vv.offsetTop : 0;
+      p.style.left="8px"; p.style.width=(innerWidth-16)+"px"; p.style.top=(top+8)+"px"; p.style.bottom="";
+      list.style.maxHeight=Math.max(120, vh-16-(multi?112:64))+"px"; return;
+    }
     const r=btn.getBoundingClientRect(), w=Math.max(r.width,Math.min(300,innerWidth-16));
     const below=innerHeight-r.bottom, h=Math.min(380, Math.max(below, r.top)-12);
     p.style.width=w+"px"; p.style.left=Math.max(8,Math.min(r.right-w,innerWidth-w-8))+"px";
@@ -3273,9 +3320,14 @@ function openSS(sel,btn){
 }
 addEventListener("scroll",e=>{            // follow the button while the page scrolls; close only when it leaves the screen
   if(!ssPanel || ssPanel.contains(e.target)) return;
+  if(ssPhone()) return ssPanel._place();
   const r=ssPanel._btn.getBoundingClientRect(); if(r.bottom<0 || r.top>innerHeight) closeSS(); else ssPanel._place();
 },true);
-addEventListener("resize",closeSS);
+// a phone keyboard opening or closing changes the height only — keep the list open; a real resize (turning the phone, a window) closes it
+function ssPhone(){ return innerWidth<=600 || matchMedia("(pointer:coarse)").matches; }
+let ssW=innerWidth;
+addEventListener("resize",()=>{ if(!ssPanel){ ssW=innerWidth; return; } if(Math.abs(innerWidth-ssW)>40){ ssW=innerWidth; closeSS(); } else ssPanel._place(); });
+if(window.visualViewport){ const vvp=()=>{ if(ssPanel && ssPhone()) ssPanel._place(); }; visualViewport.addEventListener("resize",vvp); visualViewport.addEventListener("scroll",vvp); }
 ["#tkPpl","#tkLoc","#tkEq","#tfPpl","#tfLoc"].forEach(id=>enhanceSelect($(id)));
 // people on a task: several are picked one after another — the list stays open
 $("#tkPpl")._picked=()=>tkPplSel; $("#tkPpl")._unpick=v=>{ tkPplSel=tkPplSel.filter(x=>x!==v); paintPplChips(); };
@@ -3650,7 +3702,8 @@ else { const w=setInterval(()=>{ if(isViewer()){ clearInterval(w); tvStart(); } 
 
 /* settings → כללי: a manager gets a message on every change in every team task (on unless turned off; cloud.js reads it) */
 if($("#newsAll")){ try{ $("#newsAll").checked=localStorage.getItem("ogg-news-all")!=="0"; }catch(e){}
-  $("#newsAll").onchange=e=>{ try{ localStorage.setItem("ogg-news-all", e.target.checked?"1":"0"); }catch(_){} toast(e.target.checked?"תקבל הודעה על כל שינוי בכל משימה":"תקבל הודעות רק על המשימות שלך ושפתחת"); }; }
+  $("#newsAll").onchange=e=>{ try{ localStorage.setItem("ogg-news-all", e.target.checked?"1":"0"); }catch(_){} toast(e.target.checked?"תקבל הודעה על כל שינוי בכל משימה":"תקבל הודעות רק על המשימות שלך ושפתחת");
+    if(window.cloudPushPrefs) window.cloudPushPrefs(); }; }
 
 /* ===== morning briefing (🗒️ שיחת בוקר): managers only — a card on the dashboard and a form in a window.
    Attendance comes from the people list (with role), the open faults and today's recurring rounds come from the tasks,
