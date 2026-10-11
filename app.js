@@ -2020,7 +2020,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.62", APP_DATE="11/10/2026";
+const APP_VER="2.63", APP_DATE="11/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -3823,6 +3823,10 @@ function paintBrAtt(){                     // the paper form's table: name · ro
   sel.hidden=sel.options.length<2;
   sel.onchange=()=>{ if(!sel.value) return; b.att[sel.value]={s:"in"}; brTouch(); paintBrAtt(); Object.keys(BR_SECS).forEach(paintBrRows); };
 }
+/* a note for the briefing only: shown here and in the PDF, never written into the task or the event */
+function brNoteIn(get, set, label){ const n=mk("input","txt br-note"); n.value=get()||""; n.maxLength=300;
+  n.placeholder="הערה לשיחה (לא נכנסת למשימה)"; n.setAttribute("aria-label","הערה לשיחה: "+label);
+  n.oninput=()=>{ set(n.value); brTouch(); }; return n; }
 function brTaskRow(t, b){
   const r=mk("div","br-lr"), tx=mk("div","br-lt");
   tx.appendChild(mk("b",null,(snOf(t)?snOf(t)+" ":"")+(t.title||"(ללא כותרת)")));
@@ -3836,7 +3840,9 @@ function brTaskRow(t, b){
   if(late) r.classList.add("late");
   const x=mk("button","bd-del br-del","✕"); x.type="button"; x.title="הסתר מהרשימה של השיחה הזו"; x.setAttribute("aria-label","הסתר את "+(t.title||"המשימה")+" מהרשימה");
   x.onclick=()=>{ b.hide=b.hide||{}; b.hide[t.id]=1; if(b.linked) delete b.linked[t.id]; brTouch(); paintBrLinked(); };
-  r.append(tx,s,x); return r;
+  r.append(tx,s,x);
+  r.appendChild(brNoteIn(()=>(b.notes||{})[t.id], v=>{ b.notes=b.notes||{}; if(v.trim()) b.notes[t.id]=v; else delete b.notes[t.id]; }, t.title||""));
+  return r;
 }
 function paintBrLinked(){
   const b=brCur, L=$("#brLinked"), P=$("#brRep"); L.textContent=""; P.textContent="";
@@ -3874,6 +3880,7 @@ function paintBrRows(k){
       [tx,ow].forEach(el=>el.disabled=true); r.querySelectorAll("input,select").forEach(el=>el.disabled=true); r.appendChild(tg); }
     else if(rows.length>1 || x.text){ const del=mk("button","bd-del br-del","✕"); del.type="button"; del.setAttribute("aria-label","הסר שורה");
       del.onclick=()=>{ rows.splice(i,1); brTouch(); paintBrRows(k); }; r.appendChild(del); }
+    r.appendChild(brNoteIn(()=>x.note, v=>{ x.note=v; }, x.text||S.ph));
     box.appendChild(r);
   });
   const more=mk("button","btn mini ghost br-more","+ שורה"); more.type="button"; more.onclick=()=>add(true);
@@ -3965,13 +3972,13 @@ async function briefPdf(b){
   table("1. נוכחות צוות",["שם","תפקיד","נוכחות","סיבה","הערות"], ppl.map(n=>{ const a=b.att[n]; return [n, roleOf(n), a.s==="in"?"נוכח":a.s==="out"?"נעדר":"", a.r||"", a.n||""]; }));
   const tref=x=>{ const t=x.tid && tasks.find(y=>y.id===x.tid), e=x.eid && events.find(y=>y.id===x.eid); return t ? "משימה "+snOf(t) : e ? "אירוע "+snOf(e) : ""; };
   const lt=brLinkedTasks(b.id).concat(brRepTasks(b.id)).filter(t=>!(b.hide||{})[t.id]);
-  table("2. משימות פתוחות שנדונו",["משימה","אחראי","יעד","סטטוס"], lt.map(t=>[(snOf(t)?snOf(t)+" ":"")+(t.title||""), (t.ppl||[])[0]||"", t.due?dmy(t.due):"", tkStat(t)]));
+  table("2. משימות פתוחות שנדונו",["משימה","אחראי","יעד","סטטוס","הערה"], lt.map(t=>[(snOf(t)?snOf(t)+" ":"")+(t.title||""), (t.ppl||[])[0]||"", t.due?dmy(t.due):"", tkStat(t), (b.notes||{})[t.id]||""]));
   [["faults","תקלות פתוחות וסגירת קצוות"],["maint","אחזקות קבועות וסבבים"],["plan","תוכנית עבודה להיום"],["contr","קבלני משנה וגורמי חוץ"]].forEach(([k,l])=>
-    table("2. "+l,["נושא","מוביל","נרשם כ"], (b.rows[k]||[]).filter(x=>(x.text||"").trim()).map(x=>[x.text, x.owner||"", tref(x)])));
+    table("2. "+l,["נושא","מוביל","נרשם כ","הערה"], (b.rows[k]||[]).filter(x=>(x.text||"").trim()).map(x=>[x.text, x.owner||"", tref(x), x.note||""])));
   const sf=mk("div","rp-sec"); sf.appendChild(mk("h3",null,"3. דגשי בטיחות"));
   if(b.safety) sf.appendChild(mk("div","rp-d",b.safety));
   BR_CHECKS.forEach((c,i)=>sf.appendChild(mk("div",null,((b.checks||[])[i]?"☑ ":"☐ ")+c))); place(sf);
-  table("4. פתוח לצוות",["נושא","פירוט","אחראי","תאריך","נרשם כ"], (b.rows.open||[]).filter(x=>(x.text||"").trim()).map(x=>[x.text, x.detail||"", x.owner||"", x.date?dmy(x.date):"", tref(x)]));
+  table("4. פתוח לצוות",["נושא","פירוט","אחראי","תאריך","נרשם כ","הערה"], (b.rows.open||[]).filter(x=>(x.text||"").trim()).map(x=>[x.text, x.detail||"", x.owner||"", x.date?dmy(x.date):"", tref(x), x.note||""]));
   const sg=mk("div","rp-sec"); sg.appendChild(mk("h3",null,"5. אישור וחתימה"));
   if(b.sig){ const im=mk("img","rp-sig"); im.src=b.sig; im.alt="חתימה"; sg.appendChild(im); }
   sg.appendChild(mk("div",null,(b.leader||"")+(b.doneAt?" · "+fmtWhen(b.doneAt):""))); place(sg);

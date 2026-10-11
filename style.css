@@ -1757,6 +1757,10 @@ dialog.brief-dlg{max-width:720px;width:calc(100% - 20px);max-height:calc(100dvh 
   .br-anr{display:block;font-size:11.5px;font-weight:500;opacity:.8}
   .br-ast{gap:8px}
 }
+/* a note for the briefing only, under each topic (linked task or new row) */
+.br-lr{flex-wrap:wrap}
+.br-att ~ * .br-note,.brief-dlg .txt.br-note{flex:1 1 100%;grid-column:1 / -1;padding:5px 9px;font-size:13px;border-radius:8px;border-style:dashed;background:var(--panel-2)}
+.brief-dlg .br-row .txt.br-note{padding:5px 9px;font-size:13px}
 .br-unhide{background:none;border:0;font:inherit;font-size:12.5px;font-weight:700;color:var(--water);padding:6px 2px;cursor:pointer;text-decoration:underline}
 .br-addp{margin-top:8px}
 .br-sub{font-size:14px;font-weight:800;margin:10px 0 4px}
