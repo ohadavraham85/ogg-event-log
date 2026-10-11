@@ -1097,7 +1097,7 @@ function dashTasks(cards, from){
       .concat(PRIOS.map(p=>["עדיפות "+p, open.filter(t=>prioOf(t)===p).length])), ["מדד","משימות"]);
   c.classList.add("wide"); cards.appendChild(c);
 }
-function renderDash(){ renderDash0(); arrangeDash(); paintTicker(); paintBoard(); }
+function renderDash(){ renderDash0(); arrangeDash(); paintTicker(); paintBoard(); paintBriefCard(); }
 function renderDash0(){
   document.querySelectorAll("#dRange button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.r===dRange)));
   const from = dRange==="all" ? "" : ymd(daysAgo(+dRange-1));
@@ -2020,7 +2020,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.57", APP_DATE="10/10/2026";
+const APP_VER="2.58", APP_DATE="11/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -3651,3 +3651,280 @@ else { const w=setInterval(()=>{ if(isViewer()){ clearInterval(w); tvStart(); } 
 /* settings → כללי: a manager gets a message on every change in every team task (on unless turned off; cloud.js reads it) */
 if($("#newsAll")){ try{ $("#newsAll").checked=localStorage.getItem("ogg-news-all")!=="0"; }catch(e){}
   $("#newsAll").onchange=e=>{ try{ localStorage.setItem("ogg-news-all", e.target.checked?"1":"0"); }catch(_){} toast(e.target.checked?"תקבל הודעה על כל שינוי בכל משימה":"תקבל הודעות רק על המשימות שלך ושפתחת"); }; }
+
+/* ===== morning briefing (🗒️ שיחת בוקר): managers only — a card on the dashboard and a form in a window.
+   Attendance comes from the people list (with role), the open faults and today's recurring rounds come from the tasks,
+   and on "סיים ושמור" every new row becomes a real task (or a "ביקור" event for contractors), linked back to the briefing.
+   One briefing per day (id = the date). Team log: briefs/<date> in the cloud, readable by managers only (cloud.js, firestore.rules);
+   this device only: kept here. The last 60 stay on the device. */
+var BRIEFS=(()=>{ try{ const o=JSON.parse(localStorage.getItem("ogg-briefs")||"{}"); return o && typeof o==="object" ? o : {}; }catch(e){ return {}; } })();
+var brCur=null, brTouched=false, brCloudT=null;
+const BR_REASONS=["חופש","מחלה","עבודה מרחוק / מתקן אחר","מילואים","הדרכה / קורס","עזיבה מוקדמת","אחר"];
+const BR_CHECKS=["כלל הצוות תודרך בהנחיות הבטיחות היומיות","נבדק ציוד מגן אישי לכלל הנוכחים","אושרה עבודה בגובה / במרחב מוקף (אם רלוונטי)","הצוות מודע לנהלי חירום ונקודות כינוס"];
+const BR_SECS={faults:{type:"תקלה", ph:"תקלה או קצה פתוח"}, maint:{type:"אחזקה", ph:"אחזקה או סבב"}, plan:{type:"כללי", ph:"מה עושים היום"},
+  contr:{ph:"קבלן / גורם חוץ, מה ומתי", ev:true}, open:{type:"כללי", ph:"נושא", detail:true}};
+const BR_DAYS=["יום ראשון","יום שני","יום שלישי","יום רביעי","יום חמישי","יום שישי","שבת"];
+function brCanSee(){ return !TV && isManager() && !isViewer(); }
+function brStore(){ try{ const ids=Object.keys(BRIEFS).sort().reverse(); ids.slice(60).forEach(k=>delete BRIEFS[k]);
+  localStorage.setItem("ogg-briefs",JSON.stringify(BRIEFS)); }catch(e){} }
+function brSave(b, cloudNow){
+  b.upd=new Date().toISOString(); BRIEFS[b.id]=b; brStore();
+  if(CLOUD_ON && window.cloudBriefPut){ clearTimeout(brCloudT);
+    const go=async()=>{ if(!await window.cloudBriefPut(b)) toast("שיחת הבוקר נשמרה רק במכשיר — אולי צריך לפרסם את כללי האבטחה המעודכנים"); };
+    if(cloudNow) return go(); brCloudT=setTimeout(go,2500); }
+}
+window.briefsApply=list=>{ (list||[]).forEach(b=>{ if(!b || !b.id) return; const l=BRIEFS[b.id];
+    if(brCur && brCur.id===b.id && $("#dlgBrief").open) return;            // being edited here: keep what is on the screen
+    if(!l || String(l.upd||"")<=String(b.upd||"")) BRIEFS[b.id]=b; });
+  brStore(); paintBriefCard(); };
+function brNew(d){ const now=new Date(), p=n=>String(n).padStart(2,"0");
+  return {id:d, date:d, time:p(now.getHours())+":"+p(now.getMinutes()), leader:myName()||"", att:{}, linked:{},
+    rows:{faults:[],maint:[],plan:[],contr:[],open:[]}, safety:"", checks:BR_CHECKS.map(()=>false), sig:"", done:false}; }
+/* the open work the briefing goes over: late, urgent or in progress (not the recurring rounds — those have their own list) */
+function brLinkedTasks(d){ return tasks.filter(t=>tkOpen(t) && !t.priv && !t.rep && ((t.due && t.due<d) || prioOf(t)==="דחופה" || tkStat(t)==="בטיפול" || t.type==="תקלה"))
+  .sort((a,b)=>tkSortKey(a).localeCompare(tkSortKey(b))).slice(0,30); }
+function brRepTasks(d){ return tasks.filter(t=>tkOpen(t) && !t.priv && t.rep && (t.due ? t.due<=d : (!t.start || t.start<=d)))
+  .sort((a,b)=>tkSortKey(a).localeCompare(tkSortKey(b))).slice(0,30); }
+function brCounts(b){ const r=b.rows||{}, n=k=>(r[k]||[]).filter(x=>x.tid).length;
+  return {tasks:n("faults")+n("maint")+n("plan")+n("open"), ev:(r.contr||[]).filter(x=>x.eid).length,
+    in:Object.values(b.att||{}).filter(a=>a.s==="in").length, out:Object.values(b.att||{}).filter(a=>a.s==="out").length}; }
+
+function paintBriefCard(){
+  const box=$("#dBrief"); if(!box || !BRIEFS) return;          // (the dashboard can draw before this part of the file has run)
+  box.hidden=!brCanSee(); if(box.hidden) return;
+  const body=$("#brCardBody"); body.textContent="";
+  const d=ymd(new Date()), b=BRIEFS[d];
+  const st=mk("div","br-state"+(b && b.done ? " ok" : ""));
+  st.textContent = !b ? "● השיחה של היום עוד לא נעשתה" : b.done ? "✓ השיחה של היום נעשתה ב-"+(b.doneAt||"").slice(11,16)+(b.leader?" · "+b.leader:"") : "● יש טיוטה להיום — עוד לא נסגרה";
+  body.appendChild(st);
+  const last=Object.values(BRIEFS).filter(x=>x.id<d).sort((a,c)=>c.id.localeCompare(a.id))[0], ref=b && brCounts(b).in ? b : last, rc=ref ? brCounts(ref) : null;
+  const tl=mk("div","br-tiles");
+  const tile=(n,l,hot)=>{ const x=mk("div","br-tile"+(hot?" hot":"")); x.append(mk("b",null,n),mk("span",null,l)); tl.appendChild(x); };
+  tile(rc && (rc.in+rc.out) ? rc.in+"/"+(rc.in+rc.out) : "—", ref===b && b ? "נוכחים היום" : "נוכחים בשיחה הקודמת");
+  const nl=brLinkedTasks(d).length; tile(nf(nl),"תקלות וקצוות פתוחים",nl>0);
+  tile(nf(brRepTasks(d).length),"סבבים להיום");
+  body.appendChild(tl);
+  const go=mk("button","btn primary br-go", !b ? "פתח שיחת בוקר" : b.done ? "צפה / הוסף לשיחה של היום" : "המשך את השיחה של היום"); go.type="button";
+  go.onclick=()=>openBrief(d); body.appendChild(go);
+  const hist=Object.values(BRIEFS).filter(x=>x.id!==d).sort((a,c)=>c.id.localeCompare(a.id)).slice(0,5);
+  if(hist.length){ const ul=mk("div","br-hist");
+    hist.forEach(x=>{ const c=brCounts(x), r=mk("button","br-hi"); r.type="button";
+      const dd=new Date(x.id+"T12:00");
+      r.append(mk("b",null,BR_DAYS[dd.getDay()].replace("יום ","")+" · "+dmy(x.id).slice(0,5)+(x.time?" · "+x.time:"")),
+        mk("span",null, (x.done?"":"טיוטה · ")+[c.tasks?c.tasks+" משימות":"", c.ev?c.ev+" ביקורים":"", c.in?c.in+" נוכחים":""].filter(Boolean).join(" · ")));
+      r.onclick=()=>openBrief(x.id); ul.appendChild(r); });
+    body.appendChild(ul); }
+}
+
+/* ---- the form ---- */
+function brPeople(b){ const off=lists._hide_ppl||[], core=(lists._core_ppl||[]).filter(v=>!off.includes(v));
+  const base=core.length ? core : pplValues().slice(0,20);
+  return [...new Set(base.concat(Object.keys(b.att||{})))]; }
+function brOwners(b){ const inn=Object.keys(b.att||{}).filter(n=>b.att[n].s==="in"); return inn.length ? inn : pplValues(); }
+function brTouch(){ brTouched=true; if(brCur) brSave(brCur,false); paintBrSum(); }
+function openBrief(id){
+  if(!brCanSee()){ toast("שיחת הבוקר למנהלים בלבד"); return; }
+  brCur=BRIEFS[id] ? JSON.parse(JSON.stringify(BRIEFS[id])) : brNew(id); brTouched=false;
+  const R=brCur.rows; Object.keys(BR_SECS).forEach(k=>{ R[k]=R[k]||[]; });
+  paintBrief(); $("#dlgBrief").showModal(); brSigInit();
+}
+function paintBrief(){
+  const b=brCur, dd=new Date(b.id+"T12:00");
+  $("#brTitle").textContent="שיחת בוקר"+(b.done?" ✓":"");
+  const M=$("#brMeta"); M.textContent="";
+  M.append(mk("span",null,BR_DAYS[dd.getDay()]+" · "+dmy(b.id)), mk("span",null,"שעה "+(b.time||"")));
+  const ls=mk("select","br-leader"); ls.id="brLeader"; ls.setAttribute("aria-label","מנהל / מוביל השיחה");
+  fillSelect(ls, pplValues(), b.leader, "מוביל השיחה *");
+  ls.onchange=()=>{ b.leader=ls.value; ls.classList.remove("bad"); brTouch(); };
+  M.appendChild(ls);
+  paintBrAtt(); paintBrLinked(); Object.keys(BR_SECS).forEach(paintBrRows);
+  $("#brSafety").value=b.safety||""; $("#brSafety").oninput=()=>{ b.safety=$("#brSafety").value; brTouch(); };
+  const C=$("#brChecks"); C.textContent="";
+  BR_CHECKS.forEach((t,i)=>{ const l=mk("label","tk-chk br-ck"), c=mk("input"); c.type="checkbox"; c.checked=!!(b.checks||[])[i];
+    c.onchange=()=>{ b.checks=b.checks||[]; b.checks[i]=c.checked; brTouch(); }; l.append(c, document.createTextNode(t)); C.appendChild(l); });
+  paintBrSum();
+}
+function paintBrAtt(){
+  const b=brCur, A=$("#brAtt"); A.textContent="";
+  brPeople(b).forEach(n=>{ const a=b.att[n]||{}, c=mk("button","br-chip"+(a.s==="in"?" in":a.s==="out"?" out":"")); c.type="button";
+    c.appendChild(mk("b",null,n)); const role=roleOf(n); if(role) c.appendChild(mk("small",null,role));
+    if(a.s==="out" && a.r) c.appendChild(mk("small",null,"· "+a.r));
+    c.setAttribute("aria-pressed", a.s ? "true" : "false"); c.title=a.s==="in"?"נוכח":a.s==="out"?"נעדר":"לא סומן";
+    c.onclick=()=>{ const cur=b.att[n]||{}; if(!cur.s) b.att[n]=Object.assign(cur,{s:"in"}); else if(cur.s==="in") b.att[n]=Object.assign(cur,{s:"out"});
+      else { delete cur.s; delete cur.r; if(cur.n) b.att[n]=cur; else delete b.att[n]; }
+      brTouch(); paintBrAtt(); Object.keys(BR_SECS).forEach(paintBrRows); };
+    A.appendChild(c); });
+  const AB=$("#brAbs"); AB.textContent="";
+  Object.keys(b.att).filter(n=>b.att[n].s==="out").forEach(n=>{ const a=b.att[n], r=mk("div","br-absr");
+    r.appendChild(mk("b",null,n));
+    const rs=mk("select"); rs.setAttribute("aria-label","סיבת היעדרות של "+n); fillSelect(rs, BR_REASONS, a.r, "סיבת היעדרות");
+    rs.onchange=()=>{ a.r=rs.value; brTouch(); paintBrAtt(); };
+    const nt=mk("input","txt"); nt.placeholder="הערות"; nt.value=a.n||""; nt.setAttribute("aria-label","הערות על "+n);
+    nt.oninput=()=>{ a.n=nt.value; brTouch(); };
+    r.append(rs,nt); AB.appendChild(r); });
+  const sel=$("#brAddP"), have=brPeople(b);
+  fillSelect(sel, pplValues().filter(v=>!have.includes(v)), "", "+ הוסף אדם לנוכחות");
+  sel.hidden=sel.options.length<2;
+  sel.onchange=()=>{ if(!sel.value) return; b.att[sel.value]={s:"in"}; brTouch(); paintBrAtt(); Object.keys(BR_SECS).forEach(paintBrRows); };
+}
+function brTaskRow(t, b){
+  const r=mk("div","br-lr"), tx=mk("div","br-lt");
+  tx.appendChild(mk("b",null,(snOf(t)?snOf(t)+" ":"")+(t.title||"(ללא כותרת)")));
+  const late=t.due && t.due<b.id;
+  tx.appendChild(mk("small",null,[(t.ppl||[])[0]||(t.depts||[]).join(", "), t.due?(late?"באיחור · ":"יעד ")+dmy(t.due).slice(0,5):"", t.rep?repLabel(t.rep):"", prioOf(t)!=="רגילה"?prioOf(t):""].filter(Boolean).join(" · ")));
+  const s=mk("select","br-st"); s.setAttribute("aria-label","סטטוס "+(t.title||""));
+  const cur=(b.linked||{})[t.id] || tkStat(t);
+  fillSelect(s, ["פתוחה","בטיפול","בהמתנה"], cur);
+  s.classList.toggle("chg", cur!==tkStat(t));
+  s.onchange=()=>{ b.linked=b.linked||{}; if(s.value===tkStat(t)) delete b.linked[t.id]; else b.linked[t.id]=s.value; s.classList.toggle("chg", s.value!==tkStat(t)); brTouch(); };
+  if(late) r.classList.add("late");
+  r.append(tx,s); return r;
+}
+function paintBrLinked(){
+  const b=brCur, L=$("#brLinked"), P=$("#brRep"); L.textContent=""; P.textContent="";
+  const lt=brLinkedTasks(b.id), rt=brRepTasks(b.id);
+  if(!lt.length) L.appendChild(mk("p","hint br-none","אין משימות פתוחות שבאיחור, דחופות או בטיפול."));
+  lt.forEach(t=>L.appendChild(brTaskRow(t,b)));
+  if(!rt.length) P.appendChild(mk("p","hint br-none","אין משימות חוזרות שמתוכננות עד היום."));
+  rt.forEach(t=>P.appendChild(brTaskRow(t,b)));
+}
+function paintBrRows(k){
+  const b=brCur, S=BR_SECS[k], box=$("#brR-"+k); if(!box) return; box.textContent="";
+  const rows=b.rows[k];
+  const add=focus=>{ rows.push({id:newId(), text:"", owner:""}); brTouch(); paintBrRows(k); if(focus){ const ins=box.querySelectorAll(".br-tx"); if(ins.length) ins[ins.length-1].focus(); } };
+  rows.forEach((x,i)=>{
+    const r=mk("div","br-row"+(x.tid||x.eid?" made":""));
+    const tx=mk("input","txt br-tx"); tx.value=x.text||""; tx.placeholder=S.ph; tx.setAttribute("aria-label",S.ph+" "+(i+1)); tx.maxLength=300;
+    tx.oninput=()=>{ x.text=tx.value; brTouch(); };
+    tx.onkeydown=e=>{ if(e.key==="Enter"){ e.preventDefault(); add(true); }
+      else if(e.key==="Backspace" && !tx.value && !x.tid && !x.eid && rows.length>1){ e.preventDefault(); rows.splice(i,1); brTouch(); paintBrRows(k);
+        const ins=box.querySelectorAll(".br-tx"); if(ins.length) ins[Math.max(0,i-1)].focus(); } };
+    r.appendChild(tx);
+    if(S.detail){ const dt=mk("input","txt br-dt"); dt.value=x.detail||""; dt.placeholder="פירוט"; dt.setAttribute("aria-label","פירוט "+(i+1));
+      dt.oninput=()=>{ x.detail=dt.value; brTouch(); }; r.appendChild(dt); }
+    const ow=mk("select","br-ow"); ow.setAttribute("aria-label",(S.ev?"מלווה":"מוביל משימה")+" "+(i+1));
+    fillSelect(ow, brOwners(b), x.owner, S.ev?"מלווה":"מוביל משימה");
+    ow.onchange=()=>{ x.owner=ow.value; brTouch(); }; r.appendChild(ow);
+    if(S.detail){ const du=mk("input","br-du"); du.type="date"; du.value=x.date||""; du.min=b.id; du.setAttribute("aria-label","תאריך יעד "+(i+1));
+      du.onchange=()=>{ x.date=du.value; brTouch(); }; r.appendChild(du); }
+    if(x.tid || x.eid){ const ref=x.tid ? tasks.find(t=>t.id===x.tid) : events.find(e=>e.id===x.eid);
+      const tg=mk("button","br-made", x.tid ? "✓ משימה "+(ref&&snOf(ref)||"") : "✓ אירוע "+(ref&&snOf(ref)||"")); tg.type="button";
+      tg.onclick=()=>{ $("#dlgBrief").close(); if(x.tid) goTask(x.tid); else evGo(x.eid); };
+      [tx,ow].forEach(el=>el.disabled=true); r.querySelectorAll("input,select").forEach(el=>el.disabled=true); r.appendChild(tg); }
+    else if(rows.length>1 || x.text){ const del=mk("button","bd-del br-del","✕"); del.type="button"; del.setAttribute("aria-label","הסר שורה");
+      del.onclick=()=>{ rows.splice(i,1); brTouch(); paintBrRows(k); }; r.appendChild(del); }
+    box.appendChild(r);
+  });
+  const more=mk("button","btn mini ghost br-more","+ שורה"); more.type="button"; more.onclick=()=>add(true);
+  if(!rows.length) add(false); else box.appendChild(more);
+}
+function brPending(b){ const r=b.rows, out={tasks:0, ev:0, st:Object.keys(b.linked||{}).filter(id=>{ const t=tasks.find(x=>x.id===id); return t && tkOpen(t) && tkStat(t)!==b.linked[id]; }).length};
+  Object.keys(BR_SECS).forEach(k=>(r[k]||[]).forEach(x=>{ if(!x.tid && !x.eid && (x.text||"").trim()){ if(BR_SECS[k].ev) out.ev++; else out.tasks++; } }));
+  return out; }
+function paintBrSum(){
+  const b=brCur, S=$("#brSum"); if(!b || !S) return; S.textContent="";
+  const p=brPending(b), li=[];
+  if(p.tasks) li.push(p.tasks+" משימות חדשות ייפתחו, עם \"נפתחה בשיחת בוקר "+dmy(b.id).slice(0,5)+"\"");
+  if(p.ev) li.push(p.ev+" אירועי ביקור יירשמו ביומן");
+  if(p.st) li.push("הסטטוס של "+p.st+" משימות יתעדכן");
+  const c=brCounts(b);
+  S.appendChild(mk("b",null, li.length ? "בשמירה:" : b.done ? "השיחה נשמרה"+(c.tasks||c.ev?" · נוצרו "+[c.tasks?c.tasks+" משימות":"", c.ev?c.ev+" ביקורים":""].filter(Boolean).join(" ו-"):"")+"." : "אין עדיין משימות או ביקורים חדשים לשמירה."));
+  if(li.length){ const ul=mk("ul"); li.forEach(t=>ul.appendChild(mk("li",null,t))); S.appendChild(ul); }
+  $("#brDone").textContent = b.done ? (li.length?"שמור את השינויים":"סגור") : "סיים ושמור שיחה";
+  $("#brLater").hidden=!!b.done;
+}
+function brFinish(){
+  const b=brCur; if(!b) return;
+  if(!b.leader){ const ls=$("#brLeader"); ls.classList.add("bad"); ls.focus(); toast("יש לבחור מנהל / מוביל שיחה"); return; }
+  const now=new Date().toISOString(), on=dmy(b.id).slice(0,5); let nt=0, ne=0, ns=0;
+  Object.keys(b.linked||{}).forEach(id=>{ const t=tasks.find(x=>x.id===id), v=b.linked[id];
+    if(t && tkOpen(t) && tkStat(t)!==v){ t.status=v; t.upd=now; tkLog(t,"סטטוס: "+v+" (בשיחת בוקר "+on+")","",true); ns++; } });
+  b.linked={};
+  Object.keys(BR_SECS).forEach(k=>{ const S=BR_SECS[k];
+    b.rows[k]=(b.rows[k]||[]).filter(x=>x.tid || x.eid || (x.text||"").trim());
+    b.rows[k].forEach(x=>{ if(x.tid || x.eid) return; const text=x.text.trim(), owner=x.owner||"";
+      if(S.ev){
+        const e={id:newId(), type:["ביקור"], loc:[], eq:[], ppl:owner?[owner]:[], stat:["נסגר"], title:"", desc:text, act:"",
+          when:b.id+"T"+(b.time||"07:00"), ts:now, closedAt:nowLocal(), closedBy:reporter()||"", brief:b.id};
+        events.unshift(e); x.eid=e.id; ne++; return; }
+      const due = k==="open" ? (x.date||"") : k==="faults" ? "" : b.id;
+      const t={id:newId(), status:"פתוחה", created:now, log:[], openedBy:reporter()||"", openedMail:(window.cloudMe && window.cloudMe())||"",
+        title:text, desc:[(x.detail||"").trim(), "נפתחה בשיחת בוקר "+dmy(b.id)].filter(Boolean).join("\n"), type:S.type, prio:"רגילה", urgent:false,
+        ppl:owner?[owner]:[], loc:[], eq:[], due, start:"", depts:[], upd:now, brief:b.id};
+      tkLog(t,"המשימה נפתחה בשיחת בוקר "+on+(owner?" · אחראי: "+owner:""),"",true); tasks.push(t); x.tid=t.id; nt++; });
+  });
+  if(ne){ events.sort((a,c)=>(c.when||"").localeCompare(a.when||"")); persist(); renderAll(); }
+  if(nt || ns) saveTasks();
+  if(!b.done){ b.done=true; b.doneAt=nowLocal(); b.by=reporter()||""; }
+  brSave(b,true); brTouched=false;
+  $("#dlgBrief").close(); paintBriefCard();
+  toast("שיחת הבוקר נשמרה"+(nt?" · "+nt+" משימות נפתחו":"")+(ne?" · "+ne+" ביקורים נרשמו":"")+(ns?" · "+ns+" סטטוסים עודכנו":""));
+}
+$("#brDone").onclick=brFinish;
+$("#brLater").onclick=()=>{ if(brCur){ brSave(brCur,true); brTouched=false; } $("#dlgBrief").close(); toast("הטיוטה נשמרה"); };
+$("#brClose").onclick=()=>$("#dlgBrief").close();
+$("#dlgBrief").addEventListener("close",()=>{ if(brCur && brTouched){ brSave(brCur,true); brTouched=false; } paintBriefCard(); });
+
+/* signature: drawn with a finger or the mouse, kept as a small picture in the briefing */
+function brSigInit(){
+  const c=$("#brSig"), r=window.devicePixelRatio||1, w=c.clientWidth||300, h=c.clientHeight||120;
+  c.width=Math.round(w*r); c.height=Math.round(h*r);
+  const x=c.getContext("2d"); x.setTransform(r,0,0,r,0,0); x.lineWidth=2.2; x.lineCap="round"; x.lineJoin="round";
+  x.strokeStyle=getComputedStyle(document.documentElement).getPropertyValue("--ink").trim()||"#16202A";
+  if(brCur && brCur.sig){ const im=new Image(); im.onload=()=>x.drawImage(im,0,0,w,h); im.src=brCur.sig; }
+}
+(()=>{ const c=$("#brSig"); let on=false;
+  const pos=e=>{ const r=c.getBoundingClientRect(); return [e.clientX-r.left, e.clientY-r.top]; };
+  c.addEventListener("pointerdown",e=>{ e.preventDefault(); c.setPointerCapture(e.pointerId); on=true; const x=c.getContext("2d"), [a,b]=pos(e); x.beginPath(); x.moveTo(a,b); });
+  c.addEventListener("pointermove",e=>{ if(!on) return; e.preventDefault(); const x=c.getContext("2d"), [a,b]=pos(e); x.lineTo(a,b); x.stroke(); });
+  const end=()=>{ if(!on) return; on=false; if(brCur){ brCur.sig=c.toDataURL("image/png"); brTouch(); } };
+  ["pointerup","pointercancel","pointerleave"].forEach(t=>c.addEventListener(t,end));
+  $("#brSigClr").onclick=()=>{ c.getContext("2d").clearRect(0,0,c.width,c.height); if(brCur){ brCur.sig=""; brTouch(); } };
+})();
+
+/* PDF of the briefing: the same A4 pages as the weekly summary (html2canvas → JPEG → PDF), shared or saved */
+async function briefPdf(b){
+  await loadH2C(); try{ await document.fonts.ready; }catch(e){}
+  const dd=new Date(b.id+"T12:00"), host=mk("div","rp-host"); document.body.appendChild(host);
+  const pages=[]; let body;
+  const newPage=()=>{ const pg=mk("div","rp-page"); host.appendChild(pg); pages.push(pg);
+    const hd=mk("div","rp-head"), tx=mk("div","rp-tx"), lg=mk("img","rp-logo"); lg.src="icons/logo-header.png"; lg.alt="";
+    tx.append(mk("div","rp-title","שיחת בוקר"), mk("div","rp-range",appTitle()+" · "+BR_DAYS[dd.getDay()]+" "+dmy(b.id)+(b.time?" · "+b.time:"")+(b.leader?" · מוביל: "+b.leader:"")));
+    hd.append(tx,lg); pg.appendChild(hd); body=mk("div","rp-body"); pg.appendChild(body); pg.appendChild(mk("div","rp-foot")); };
+  const fits=()=>body.scrollHeight<=body.clientHeight;
+  const place=el=>{ body.appendChild(el); if(!fits() && body.childElementCount>1){ el.remove(); newPage(); body.appendChild(el); } };
+  const table=(caption, cols, rows)=>{ if(!rows.length) return;
+    const start=cont=>{ const t=mk("table","rp-t"), tr=mk("tr"); cols.forEach(c=>tr.appendChild(mk("th",null,c))); t.appendChild(tr);
+      const w=mk("div","rp-sec"); w.append(mk("h3",null,caption+(cont?" (המשך)":"")),t); return w; };
+    let sec=start(false); place(sec); let t=sec.querySelector("table");
+    rows.forEach(r=>{ const tr=mk("tr"); r.forEach(v=>tr.appendChild(mk("td",null,v))); t.appendChild(tr);
+      if(!fits()){ tr.remove(); newPage(); sec=start(true); body.appendChild(sec); t=sec.querySelector("table"); t.appendChild(tr); } }); };
+  newPage();
+  const ppl=brPeople(b).filter(n=>b.att[n]);
+  table("1. נוכחות צוות",["שם","תפקיד","נוכחות","סיבה","הערות"], ppl.map(n=>{ const a=b.att[n]; return [n, roleOf(n), a.s==="in"?"נוכח":a.s==="out"?"נעדר":"", a.r||"", a.n||""]; }));
+  const tref=x=>{ const t=x.tid && tasks.find(y=>y.id===x.tid), e=x.eid && events.find(y=>y.id===x.eid); return t ? "משימה "+snOf(t) : e ? "אירוע "+snOf(e) : ""; };
+  const lt=brLinkedTasks(b.id).concat(brRepTasks(b.id));
+  table("2. משימות פתוחות שנדונו",["משימה","אחראי","יעד","סטטוס"], lt.map(t=>[(snOf(t)?snOf(t)+" ":"")+(t.title||""), (t.ppl||[])[0]||"", t.due?dmy(t.due):"", tkStat(t)]));
+  [["faults","תקלות פתוחות וסגירת קצוות"],["maint","אחזקות קבועות וסבבים"],["plan","תוכנית עבודה להיום"],["contr","קבלני משנה וגורמי חוץ"]].forEach(([k,l])=>
+    table("2. "+l,["נושא","מוביל","נרשם כ"], (b.rows[k]||[]).filter(x=>(x.text||"").trim()).map(x=>[x.text, x.owner||"", tref(x)])));
+  const sf=mk("div","rp-sec"); sf.appendChild(mk("h3",null,"3. דגשי בטיחות"));
+  if(b.safety) sf.appendChild(mk("div","rp-d",b.safety));
+  BR_CHECKS.forEach((c,i)=>sf.appendChild(mk("div",null,((b.checks||[])[i]?"☑ ":"☐ ")+c))); place(sf);
+  table("4. פתוח לצוות",["נושא","פירוט","אחראי","תאריך","נרשם כ"], (b.rows.open||[]).filter(x=>(x.text||"").trim()).map(x=>[x.text, x.detail||"", x.owner||"", x.date?dmy(x.date):"", tref(x)]));
+  const sg=mk("div","rp-sec"); sg.appendChild(mk("h3",null,"5. אישור וחתימה"));
+  if(b.sig){ const im=mk("img","rp-sig"); im.src=b.sig; im.alt="חתימה"; sg.appendChild(im); }
+  sg.appendChild(mk("div",null,(b.leader||"")+(b.doneAt?" · "+fmtWhen(b.doneAt):""))); place(sg);
+  const made=new Date().toLocaleString("he-IL",{dateStyle:"short",timeStyle:"short"});
+  pages.forEach((pg,i)=>{ pg.querySelector(".rp-foot").textContent="עמוד "+(i+1)+" מתוך "+pages.length+" · הופק "+made; });
+  const out=[]; await Promise.all([...host.querySelectorAll("img")].map(im=>im.decode().catch(()=>{})));
+  try{ for(const pg of pages){ const c=await html2canvas(pg,{scale:2,backgroundColor:"#ffffff",logging:false});
+      const bin=atob(c.toDataURL("image/jpeg",.86).split(",")[1]), u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i);
+      out.push({bytes:u,w:c.width,h:c.height}); } }
+  finally{ host.remove(); }
+  return new File([pdfFromJpegs(out)],"שיחת-בוקר-"+b.id+".pdf",{type:"application/pdf"});
+}
+$("#brPdf").onclick=async()=>{ if(!brCur) return; const btn=$("#brPdf"); btn.disabled=true; btn.textContent="מכין…";
+  try{ const f=await briefPdf(brCur); await shareOrSave(f,"שיחת בוקר "+dmy(brCur.id),"שיחת בוקר "+dmy(brCur.id)); }
+  catch(e){ toast("יצירת ה-PDF נכשלה"); }
+  finally{ btn.disabled=false; btn.textContent="PDF"; } };
+paintBriefCard();

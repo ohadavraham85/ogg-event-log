@@ -154,8 +154,20 @@
         paintMembers(); if(window.paintTeamStrip) window.paintTeamStrip(); setTimeout(()=>once(),0);
       }, ()=>{});
     }
-    beat(); watchFeedback(); watchMine(); watchBoard();
+    beat(); watchFeedback(); watchMine(); watchBoard(); watchBriefs();
   }
+  /* morning briefings (🗒️): briefs/<date> — managers only (the rules let nobody else read or write them).
+     The briefing travels as one JSON string (attendance, rows, signature); the newer copy wins (app.js briefsApply). */
+  let unsubBriefs=null;
+  function watchBriefs(){
+    if(unsubBriefs || get(K_ROLE)!=="admin") return;
+    unsubBriefs=F.onSnapshot(F.collection(db,"briefs"), snap=>{
+      const items=[]; snap.docs.forEach(d=>{ try{ const b=JSON.parse(d.data().data||"null"); if(b && b.id===d.id) items.push(b); }catch(e){} });
+      if(window.briefsApply) window.briefsApply(items);
+    }, ()=>{});
+  }
+  window.cloudBriefPut=async b=>{ if(!started || !me || get(K_ROLE)!=="admin") return false;
+    try{ await F.setDoc(F.doc(db,"briefs",b.id),{data:JSON.stringify(b),date:b.id,done:!!b.done,_upd:F.serverTimestamp(),_by:me}); return true; }catch(e){ return false; } };
   /* notice board (📌): board/<id> — the whole team and the office screen read it, managers post and remove */
   let unsubBoard=null;
   function watchBoard(){
@@ -243,7 +255,7 @@
   function stopSync(){
     initialDone=false;
     members=[]; window.TEAM_NAMES=[];
-    [unsubEv,unsubLists,unsubMembers,unsubTasks,unsubSeen,unsubFb,unsubFbOld,unsubMine,unsubBoard].forEach(u=>{ if(u) u(); }); unsubEv=unsubLists=unsubMembers=unsubTasks=unsubSeen=unsubFb=unsubFbOld=unsubMine=unsubBoard=null; started=false;
+    [unsubEv,unsubLists,unsubMembers,unsubTasks,unsubSeen,unsubFb,unsubFbOld,unsubMine,unsubBoard,unsubBriefs].forEach(u=>{ if(u) u(); }); unsubEv=unsubLists=unsubMembers=unsubTasks=unsubSeen=unsubFb=unsubFbOld=unsubMine=unsubBoard=unsubBriefs=null; started=false;
   }
   function applyEvents(snap){
     const ch=snap.docChanges();
@@ -665,7 +677,7 @@
     else if(denied(u3)) add(G1,"ok","אין כתיבה בלי כניסה","מי שלא מחובר לא יכול לכתוב שום דבר.");
 
     // 2. the rules on the server are the current ones (each part of the app can be read)
-    const parts=[["events","אירועים"],["members","רשימת הצוות"],["board","לוח המודעות"],["presence","מי מחובר"],["feedback","משובים"]];
+    const parts=[["events","אירועים"],["members","רשימת הצוות"],["board","לוח המודעות"],["presence","מי מחובר"],["feedback","משובים"],["briefs","שיחות בוקר"]];
     const miss=[];
     for(const [c,n] of parts){ const r=await call("GET",base+"/"+c+"?pageSize=1",{auth:1}); if(!ok(r)) miss.push(n+(r.st?"":" (אין חיבור)")); }
     const pr=await call("GET",base+"/private/"+encodeURIComponent(me),{auth:1}); if(!ok(pr)) miss.push("משימות אישיות");
