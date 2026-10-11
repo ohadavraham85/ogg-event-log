@@ -1872,3 +1872,6 @@ dialog.brief-dlg{max-width:720px;width:calc(100% - 20px);max-height:calc(100dvh 
 .br-lr.br-evr.on{background:var(--water-soft);border-radius:10px;border-bottom-color:transparent;padding:7px 9px;margin:3px 0}
 .br-row.on{background:var(--water-soft);border-radius:11px;padding:6px;margin:0 -6px}
 .br-row.on .txt,.br-lr.br-evr.on .txt{background:var(--panel)}
+.br-pick{margin:6px 0 4px}
+.br-pick .ss-btn{width:100%}
+.br-lr.br-evr .bd-del.br-del{align-self:flex-start}

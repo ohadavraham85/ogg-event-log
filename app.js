@@ -2020,7 +2020,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.70", APP_DATE="11/10/2026";
+const APP_VER="2.71", APP_DATE="11/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -3300,7 +3300,7 @@ function openSS(sel,btn){
   q.oninput=paint;
   q.onkeydown=e=>{ if(e.key==="Enter"){ e.preventDefault(); if(first!==null) pick(first); } if(e.key==="Escape"){ closeSS(); btn.focus(); } };
   if(multi){ const done=mk("button","btn primary ss-done","סיום ✓"); done.type="button"; done.onclick=()=>{ closeSS(); btn.focus(); }; p.appendChild(done); }
-  paint(); document.body.appendChild(p); ssPanel=p; p._btn=btn;
+  paint(); (btn.closest("dialog[open]")||document.body).appendChild(p); ssPanel=p; p._btn=btn;
   const place=()=>{
     if(ssPhone()){   // phone: docked at the top of the visible area, above the keyboard — the keyboard opening doesn't close it
       const vv=window.visualViewport, vh=vv ? vv.height : innerHeight, top=vv ? vv.offsetTop : 0;
@@ -3831,8 +3831,7 @@ function paintBrief(){
   fillSelect(ls, pplValues(), b.leader, "מוביל השיחה *");
   ls.onchange=()=>{ b.leader=ls.value; ls.classList.remove("bad"); brTouch(); };
   M.appendChild(ls);
-  $("#brTkQ").value=""; paintBrAtt(); paintBrTasks(); paintBrEvents();
-  $("#brTkW").open=Object.keys(brCur.tks||{}).length>0; $("#brEvW").open=Object.keys(brCur.evs||{}).length>0; Object.keys(BR_SECS).forEach(paintBrRows);
+  paintBrAtt(); paintBrTasks(); paintBrEvents(); Object.keys(BR_SECS).forEach(paintBrRows);
   $("#brSafety").value=b.safety||""; $("#brSafety").oninput=()=>{ b.safety=$("#brSafety").value; brTouch(); };
   const C=$("#brChecks"); C.textContent="";
   BR_CHECKS.forEach((t,i)=>{ const l=mk("label","tk-chk br-ck"), c=mk("input"); c.type="checkbox"; c.checked=!!(b.checks||[])[i];
@@ -3909,58 +3908,63 @@ function brPicked(b){
   if(b.tks) return Object.keys(b.tks).map(id=>tasks.find(t=>t.id===id)).filter(Boolean);
   const H=b.hide||{}; return brLinkedTasks(b.id).concat(brRepTasks(b.id)).filter(t=>!H[t.id]);
 }
-function brTaskRow(t, b, sug){
-  const on=!!(b.tks||{})[t.id], r=mk("div","br-lr br-evr"+(on?" on":"")), tx=mk("div","br-lt");
+function brTaskRow(t, b){
+  const r=mk("div","br-lr br-evr on"+(t.due && t.due<b.id && tkOpen(t)?" late":"")), tx=mk("div","br-lt");
   tx.appendChild(mk("b",null,(snOf(t)?snOf(t)+" ":"")+(t.title||"(ללא כותרת)")));
-  const late=t.due && t.due<b.id;
-  tx.appendChild(mk("small",null,[(t.ppl||[])[0]||(t.depts||[]).join(", "), tkStat(t), t.due?(late?"באיחור · ":"יעד ")+dmy(t.due).slice(0,5):"", t.rep?repLabel(t.rep):"", prioOf(t)!=="רגילה"?prioOf(t):""].filter(Boolean).join(" · ")));
-  if(late) r.classList.add("late");
-  const l=mk("label","br-rad in br-evck"), c=mk("input"); c.type="checkbox"; c.checked=on;
-  c.onchange=()=>{ b.tks=b.tks||{}; if(c.checked) b.tks[t.id]=1; else { delete b.tks[t.id]; if(b.linked) delete b.linked[t.id]; } brTouch(); paintBrTasks(); };
-  l.append(c, document.createTextNode(" לדיון")); r.append(tx,l);
-  if(on){
-    const s=mk("select","br-st"); s.setAttribute("aria-label","סטטוס "+(t.title||""));
+  tx.appendChild(mk("small",null,[(t.ppl||[])[0]||(t.depts||[]).join(", "), tkOpen(t)?tkStat(t):"הושלמה", t.due?(t.due<b.id?"באיחור · ":"יעד ")+dmy(t.due).slice(0,5):"", t.rep?repLabel(t.rep):"", prioOf(t)!=="רגילה"?prioOf(t):""].filter(Boolean).join(" · ")));
+  const x=mk("button","bd-del br-del","✕"); x.type="button"; x.title="הסר מהשיחה"; x.setAttribute("aria-label","הסר את "+(t.title||"המשימה")+" מהשיחה");
+  x.onclick=()=>{ delete b.tks[t.id]; if(b.linked) delete b.linked[t.id]; brTouch(); paintBrTasks(); };
+  r.append(tx,x);
+  if(tkOpen(t)){ const s=mk("select","br-st"); s.setAttribute("aria-label","סטטוס "+(t.title||""));
     const cur=(b.linked||{})[t.id] || tkStat(t);
     fillSelect(s, ["פתוחה","בטיפול","בהמתנה"], cur); s.classList.toggle("chg", cur!==tkStat(t));
     s.onchange=()=>{ b.linked=b.linked||{}; if(s.value===tkStat(t)) delete b.linked[t.id]; else b.linked[t.id]=s.value; s.classList.toggle("chg", s.value!==tkStat(t)); brTouch(); };
     const w=mk("div","br-tkx"); w.appendChild(s);
     w.appendChild(brNoteIn(()=>(b.notes||{})[t.id], v=>{ b.notes=b.notes||{}; if(v.trim()) b.notes[t.id]=v; else delete b.notes[t.id]; }, t.title||""));
     r.appendChild(w); }
+  else r.appendChild(brNoteIn(()=>(b.notes||{})[t.id], v=>{ b.notes=b.notes||{}; if(v.trim()) b.notes[t.id]=v; else delete b.notes[t.id]; }, t.title||""));
   return r;
 }
+/* the tasks picked for the briefing, then a searchable list to add one: the suggested (late, urgent, in progress, rounds due) first, marked ⚠ */
 function paintBrTasks(){
   const b=brCur, box=$("#brTk"); box.textContent="";
   if(!b.tks){ b.tks={}; if(b.upd) brPicked(Object.assign({},b,{tks:undefined})).forEach(t=>{ b.tks[t.id]=1; }); }   // older briefing: keep what it showed
+  const picked=Object.keys(b.tks).map(id=>tasks.find(t=>t.id===id)).filter(Boolean);
+  $("#brTkSum").textContent="משימות לדיון"+(picked.length?" ("+picked.length+")":"");
+  if(!picked.length) box.appendChild(mk("p","hint br-none","עדיין לא נבחרו משימות. בוחרים מהרשימה למטה."));
+  picked.forEach(t=>box.appendChild(brTaskRow(t,b)));
   const sug=brLinkedTasks(b.id).concat(brRepTasks(b.id)), sid=new Set(sug.map(t=>t.id));
   const rest=tasks.filter(t=>tkOpen(t) && !t.priv && !sid.has(t.id)).sort((a,c)=>tkSortKey(a).localeCompare(tkSortKey(c)));
-  const picked=Object.keys(b.tks).map(id=>tasks.find(t=>t.id===id)).filter(t=>t && !tkOpen(t));   // ticked earlier, done since
-  const all=sug.concat(rest, picked), on=all.filter(t=>b.tks[t.id]).length;
-  $("#brTkSum").textContent="משימות פתוחות ("+all.filter(tkOpen).length+")"+(on?" · "+on+" לדיון":"");
-  const q=$("#brTkQ").value.trim().toLowerCase();
-  const show=all.filter(t=>!q || [snOf(t),t.title,t.desc,(t.ppl||[]).join(" "),t.type].join(" ").toLowerCase().includes(q));
-  if(!show.length){ box.appendChild(mk("p","hint br-none", q ? "לא נמצאה משימה." : "אין משימות פתוחות.")); return; }
-  let last="";
-  show.forEach(t=>{ const g=sid.has(t.id) ? "מומלצות לדיון — באיחור, דחופות, בטיפול וסבבים של היום" : tkOpen(t) ? "שאר המשימות הפתוחות" : "הושלמו מאז";
-    if(g!==last){ last=g; box.appendChild(mk("div","br-mon",g)); }
-    box.appendChild(brTaskRow(t,b)); });
+  const left=sug.concat(rest).filter(t=>!b.tks[t.id]);
+  const sel=$("#brTkAdd"); sel.textContent="";
+  const o0=mk("option",null,"+ הוסף משימה לדיון ("+left.length+" פתוחות)"); o0.value=""; sel.appendChild(o0);
+  left.forEach(t=>{ const late=t.due && t.due<b.id, o=mk("option",null,(sid.has(t.id)?"⚠ ":"")+(snOf(t)?snOf(t)+" ":"")+(t.title||"")+" · "+([(t.ppl||[])[0], late?"באיחור":"", prioOf(t)==="דחופה"?"דחופה":"", tkStat(t)==="בטיפול"?"בטיפול":""].filter(Boolean).join(", ")||tkStat(t)));
+    o.value=t.id; sel.appendChild(o); });
+  sel.value=""; enhanceSelect(sel);
+  sel.onchange=()=>{ const id=sel.value; if(!id) return; b.tks[id]=1; brTouch(); paintBrTasks(); };
 }
-$("#brTkQ").oninput=()=>{ if(brCur) paintBrTasks(); };
 /* last week's events (7 days up to the briefing's date) — an option: the ones ticked "לדיון" join the briefing (and its PDF) */
 function brWeekEvents(d){ const from=ymd(new Date(new Date(d+"T12:00").getTime()-7*864e5));
   return events.filter(e=>{ const w=(e.when||"").slice(0,10); return w && w>=from && w<=d && e.brief!==d && !e._del; })
     .sort((a,c)=>(c.when||"").localeCompare(a.when||"")); }
 function paintBrEvents(){
-  const b=brCur, box=$("#brEv"); box.textContent=""; const list=brWeekEvents(b.id), E=b.evs||{}, on=list.filter(e=>e.id in E).length;
-  $("#brEvSum").textContent="אירועים מהשבוע האחרון ("+list.length+")"+(on?" · "+on+" לדיון":"");
-  if(!list.length){ box.appendChild(mk("p","hint br-none","אין אירועים בשבוע שלפני השיחה.")); return; }
-  list.forEach(e=>{ const r=mk("div","br-lr br-evr"+(e.id in E?" on":"")), tx=mk("div","br-lt");
+  const b=brCur, box=$("#brEv"); box.textContent=""; b.evs=b.evs||{}; const E=b.evs;
+  const picked=Object.keys(E).map(id=>events.find(e=>e.id===id)).filter(Boolean).sort((a,c)=>(c.when||"").localeCompare(a.when||""));
+  $("#brEvSum").textContent="אירועים מהשבוע האחרון לדיון"+(picked.length?" ("+picked.length+")":"");
+  if(!picked.length) box.appendChild(mk("p","hint br-none","עדיין לא נבחרו אירועים. בוחרים מהרשימה למטה."));
+  picked.forEach(e=>{ const r=mk("div","br-lr br-evr on"), tx=mk("div","br-lt");
     tx.appendChild(mk("b",null,(snOf(e)?snOf(e)+" ":"")+((e.type||[]).join(", ")||"אירוע")+" · "+(e.title||e.desc||"").slice(0,90)));
     tx.appendChild(mk("small",null,[fmtWhen(e.when), (e.loc||[]).concat(e.eq||[]).join(", "), (e.ppl||[]).join(", "), isOpen(e)?"פתוח":"נסגר"].filter(Boolean).join(" · ")));
-    const l=mk("label","br-rad in br-evck"), c=mk("input"); c.type="checkbox"; c.checked=e.id in E;
-    c.onchange=()=>{ b.evs=b.evs||{}; if(c.checked) b.evs[e.id]=b.evs[e.id]||""; else delete b.evs[e.id]; brTouch(); paintBrEvents(); };
-    l.append(c, document.createTextNode(" לדיון")); r.append(tx,l);
-    if(e.id in E) r.appendChild(brNoteIn(()=>E[e.id], v=>{ b.evs[e.id]=v; }, e.title||e.desc||""));
-    box.appendChild(r); });
+    const x=mk("button","bd-del br-del","✕"); x.type="button"; x.title="הסר מהשיחה"; x.setAttribute("aria-label","הסר את האירוע מהשיחה");
+    x.onclick=()=>{ delete E[e.id]; brTouch(); paintBrEvents(); };
+    r.append(tx,x, brNoteIn(()=>E[e.id], v=>{ E[e.id]=v; }, e.title||e.desc||"")); box.appendChild(r); });
+  const left=brWeekEvents(b.id).filter(e=>!(e.id in E));
+  const sel=$("#brEvAdd"); sel.textContent="";
+  const o0=mk("option",null,"+ הוסף אירוע מהשבוע האחרון ("+left.length+")"); o0.value=""; sel.appendChild(o0);
+  left.forEach(e=>{ const o=mk("option",null,(snOf(e)?snOf(e)+" ":"")+((e.type||[]).join(", "))+" · "+(e.title||e.desc||"").slice(0,70)+" · "+dmy((e.when||"").slice(0,10)).slice(0,5)+(isOpen(e)?" · פתוח":""));
+    o.value=e.id; sel.appendChild(o); });
+  sel.value=""; enhanceSelect(sel);
+  sel.onchange=()=>{ const id=sel.value; if(!id) return; E[id]=""; brTouch(); paintBrEvents(); };
 }
 function paintBrRows(k){
   const b=brCur, S=BR_SECS[k], box=$("#brR-"+k); if(!box) return; box.textContent="";
