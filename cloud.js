@@ -837,19 +837,25 @@
     return pushSup;
   }
   const pushOn=()=>!!get(K_PUSH) && "Notification" in window && Notification.permission==="granted";
+  let pushErr="";                                         // why the last try failed — shown to the user
   async function pushRegister(ask){
-    if(!me || role==="viewer" || !(await pushSupported())) return false;
+    pushErr="";
+    if(!me || role==="viewer" || !(await pushSupported())){ pushErr="הדפדפן הזה לא תומך בפוש"; return false; }
     if(ask && Notification.permission==="default"){ try{ await Notification.requestPermission(); }catch(e){} }
-    if(Notification.permission!=="granted"){ if(Notification.permission==="denied") put(K_PUSH,null); return false; }
+    if(Notification.permission!=="granted"){ if(Notification.permission==="denied") put(K_PUSH,null);
+      pushErr = Notification.permission==="denied" ? "ההתראות חסומות בדפדפן — הגדרות האתר ← התראות ← אפשר" : "לא אושרה הרשאה להתראות"; return false; }
+    let tok="";
     try{
       const reg=await navigator.serviceWorker.ready;
-      const tok=await F.getToken(F.getMessaging(app),{vapidKey:window.FIREBASE_VAPID_KEY, serviceWorkerRegistration:reg});
-      if(!tok) return false;
+      tok=await F.getToken(F.getMessaging(app),{vapidKey:window.FIREBASE_VAPID_KEY, serviceWorkerRegistration:reg});
+    }catch(e){ pushErr="הרישום לשירות הפוש נכשל ("+((e && (e.code||e.message))||"?")+")"; return false; }
+    if(!tok){ pushErr="שירות הפוש לא החזיר מזהה למכשיר"; return false; }
+    try{
       const old=get(K_PUSH);
       if(old && old!==tok) F.deleteDoc(F.doc(db,"push",old)).catch(()=>{});
       await F.setDoc(F.doc(db,"push",tok),{token:tok, mail:me, all:get("ogg-news-all")!=="0", ua:navigator.userAgent.slice(0,120), _upd:F.serverTimestamp(), _by:me});
-      put(K_PUSH,tok); return true;
-    }catch(e){ return false; }
+    }catch(e){ pushErr = e && e.code==="permission-denied" ? "כללי האבטחה בענן עוד לא מאפשרים (צריך לפרסם את הכללים עם push)" : "השמירה בענן נכשלה ("+((e && (e.code||e.message))||"?")+")"; return false; }
+    put(K_PUSH,tok); return true;
   }
   async function pushOff(){
     const tok=get(K_PUSH); put(K_PUSH,null);
@@ -870,7 +876,7 @@
       pb.appendChild(mk("p","hint","📱 התראות פוש לטלפון: הודעה על שינוי במשימות שלך, של המחלקה ושפתחת — גם כשהאפליקציה סגורה."+(ios?" באייפון — רק מהאפליקציה שהותקנה במסך הבית.":"")));
       const b=mk("button","btn primary","הפעל התראות פוש"); b.type="button";
       b.onclick=async()=>{ b.disabled=true; const ok=await pushRegister(true);
-        toast(ok?"התראות פוש הופעלו במכשיר הזה":"לא הצלחתי להפעיל התראות פוש"+(Notification.permission==="denied"?" — ההתראות חסומות בדפדפן":"")); renderAccount(); };
+        toast(ok?"התראות פוש הופעלו במכשיר הזה":"לא הצלחתי להפעיל התראות פוש: "+(pushErr||"סיבה לא ידועה")); renderAccount(); };
       pb.appendChild(b);
     }
   }
