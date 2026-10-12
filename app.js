@@ -1426,7 +1426,15 @@ function showNew(){                       // open the list with the newest chang
 if(navigator.serviceWorker) navigator.serviceWorker.addEventListener("message",ev=>{
   if(ev.data && ev.data.type==="show-new") showNew();
   if(ev.data && ev.data.type==="show-tasks") setTimeout(()=>showMyTasks(),0);
+  if(ev.data && ev.data.type==="show-task") showTaskSoon(String(ev.data.tid||""));
 });
+/* open one task from a push (the app may still be loading: wait for the task to arrive, up to ~15 s) */
+function showTaskSoon(tid){
+  if(!tid) return;
+  const sp=$("#splash"); if(sp && !sp.hidden && window.splashEnter && !$("#spEnter").hidden) window.splashEnter();
+  let n=0; const go=()=>{ if(tasks.some(x=>x.id===tid) || ++n>30) goTask(tid); else setTimeout(go,500); };
+  setTimeout(go,0);
+}
 
 /* ================= app icon badge ================= */
 let badgeMode="recent";
@@ -2020,7 +2028,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.82", APP_DATE="12/10/2026";
+const APP_VER="2.83", APP_DATE="12/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2118,7 +2126,8 @@ if(!["Dash","New","List","Data","Tasks","Cal"].includes(REFRESH_VIEW)) REFRESH_V
 // app-icon shortcuts open a screen directly (?view=New|Dash|List|Data|open)
 let DEEP_OPEN=false;
 (function(){
-  const u=new URL(location.href), v=u.searchParams.get("view");
+  const u=new URL(location.href), v=u.searchParams.get("view"), tk=u.searchParams.get("task");
+  if(tk){ u.searchParams.delete("task"); history.replaceState(null,"",u.pathname+u.search); setTimeout(()=>showTaskSoon(tk),300); }
   if(!v) return;
   if(v==="open"){ DEEP_OPEN=true; if(!REFRESH_VIEW) REFRESH_VIEW="List"; }
   else if(["Dash","New","List","Data","Tasks","Cal"].includes(v) && !REFRESH_VIEW) REFRESH_VIEW=v;
