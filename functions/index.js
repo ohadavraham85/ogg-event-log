@@ -11,7 +11,7 @@ const { getMessaging } = require("firebase-admin/messaging");
 const { newsFor, clean } = require("./news");
 
 // must be the Firestore database's location (Firebase console → Firestore → the location shown at the top / in settings)
-const REGION = process.env.FUNCTIONS_REGION || "us-central1";
+const REGION = process.env.FUNCTIONS_REGION || "me-west1";
 // the same database the app uses (firebase-config.js FIREBASE_DATABASE); "(default)" when that is null
 const DATABASE = process.env.FIRESTORE_DATABASE || "(default)";
 
