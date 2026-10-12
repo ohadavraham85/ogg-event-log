@@ -2028,7 +2028,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.85", APP_DATE="12/10/2026";
+const APP_VER="2.86", APP_DATE="12/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -3539,7 +3539,7 @@ function paintTickerInto(box, tr, key){
       const b=mk("button","tk-it"+(it.cls?" ki-"+it.cls:"")); b.type="button"; b.title=it.k==="t"?"פתח את המשימה":"פתח את האירוע";
       b.append(mk("span","tk-tag",it.tag), mk("span","tk-tx",it.text));
       b.title = it.k==="b" ? "לוח המודעות" : b.title;
-      b.onclick=()=>it.k==="t" ? goTask(it.id) : it.k==="b" ? goBoard() : evGo(it.id); g.appendChild(b); }); return g; };
+      b.onclick=()=>it.k==="t" ? tvGo(()=>goTask(it.id)) : it.k==="b" ? (TV ? tvGo(()=>bsOpenAt(it.id)) : goBoard()) : tvGo(()=>evGo(it.id)); g.appendChild(b); }); return g; };
   const a1=run(), a2=run(); a2.setAttribute("aria-hidden","true"); a2.querySelectorAll("button").forEach(b=>b.tabIndex=-1);
   tr.append(a1,a2);
   // a calm, readable pace: about 1.5 letters' width a second (≈22px on a phone, more on the big screen where the letters are bigger)
@@ -3776,7 +3776,7 @@ function tvBuild(){
     +'<div class="tv-clock"><b id="tvTime"></b><span id="tvDate"></span></div></header>'
     +'<div class="ticker tv-ticker" id="tvTicker"><span class="tk-live" aria-hidden="true"><i></i>לייב</span><div class="tk-vp"><div class="tk-track" id="tvTickTrack"></div></div></div>'
     +'<main class="tv-page" id="tvPage"></main>'
-    +'<footer class="tv-foot"><div class="tv-dots" id="tvDots"></div><span id="tvUpd"></span></footer>'
+    +'<footer class="tv-foot"><div class="tv-dots" id="tvDots"></div><span id="tvUpd"></span><span class="tv-hint" id="tvHint"></span></footer>'
     +'<button type="button" class="tv-exit" id="tvExit">✕ יציאה ממצב מסך</button>';
   document.body.appendChild(R);
   $("#tvExit").onclick=()=>{ if(isViewer()){ toast("זה מסך משרד (צופה) — כדי לצאת מתנתקים מהחשבון"); return; } location.href=location.pathname; };
@@ -3810,7 +3810,7 @@ function tvRenderPage(pg){
   if(pg.k==="tk"){
     if(!pg.items.length) grid.appendChild(mk("div","tv-empty","אין משימות פתוחות 👍"));
     pg.items.forEach(t=>{ const st=t.due && t.due<today ? "late" : t.due===today ? "today" : "future", pr=prioOf(t);
-      const c=mk("div","tv-card tl-"+(t.due?st:"none"));
+      const c=mk("div","tv-card tl-"+(t.due?st:"none")); tvClickable(c,()=>goTask(t.id));
       const top=mk("div","tv-ct"); if(t.no) top.appendChild(mk("span","tv-no","#"+t.no)); top.appendChild(mk("b",null,t.title||"משימה")); c.appendChild(top);
       const m=mk("div","tv-cm");
       if(t.due) m.appendChild(mk("span","tv-tag "+st,(st==="late"?"באיחור · ":st==="today"?"היום · ":"יעד ")+dmy(t.due).slice(0,5)));
@@ -3819,7 +3819,7 @@ function tvRenderPage(pg){
       if((t.loc||[]).length) m.appendChild(mk("span","tv-who","📍 "+t.loc.join(", ")));
       c.appendChild(m); grid.appendChild(c); });
   } else if(pg.k==="ev"){
-    pg.items.forEach(e=>{ const ty=(e.type||[])[0]||"אירוע", c=mk("div","tv-card ev");
+    pg.items.forEach(e=>{ const ty=(e.type||[])[0]||"אירוע", c=mk("div","tv-card ev"); tvClickable(c,()=>evGo(e.id));
       c.style.borderInlineStartColor="var(--c-"+hueOf(ty)+")";
       const top=mk("div","tv-ct"); if(e.no) top.appendChild(mk("span","tv-no","#"+e.no)); top.appendChild(mk("b",null,e.title||String(e.desc||"").slice(0,90)||ty)); c.appendChild(top);
       const m=mk("div","tv-cm"); const tg=mk("span","tv-tag",ty); tg.style.background="var(--c-"+hueOf(ty)+"-bg)"; tg.style.color="var(--c-"+hueOf(ty)+")"; m.appendChild(tg);
@@ -3828,7 +3828,7 @@ function tvRenderPage(pg){
       c.appendChild(m); grid.appendChild(c); });
   } else if(pg.k==="bd"){
     grid.className="tv-board";
-    pg.items.forEach(x=>{ const c=mk("div","tv-note"+(x.important?" imp":"")); c.appendChild(mk("p",null,x.text));
+    pg.items.forEach(x=>{ const c=mk("div","tv-note"+(x.important?" imp":"")); tvClickable(c,()=>bsOpenAt(x.id)); c.appendChild(mk("p",null,x.text));
       c.appendChild(mk("span",null,[x.by, x.until?"עד "+dmy(x.until).slice(0,5):""].filter(Boolean).join(" · "))); grid.appendChild(c); });
   } else {
     grid.className="tv-nums"; const D=pg.D;
@@ -3841,21 +3841,48 @@ function tvRenderPage(pg){
   const dots=$("#tvDots"); dots.textContent=""; tvPages.forEach((p,i)=>dots.appendChild(mk("i",i===tvI?"on":"")));
 }
 function tvPaint(force){                             // data changed: rebuild the pages, stay on the same kind of page
-  if(!tvOn) return;
+  if(!tvOn || tvAway) return;
   const sig=JSON.stringify([tasks.length, tasks.map(t=>t.upd||t.status).join(), events.length, events.filter(isOpen).map(e=>e.id+(e.ts||"")).join(), BOARD.map(b=>b.id+b.text+b.until).join()]);
   if(!force && sig===tvSig) return; tvSig=sig; tvLast=Date.now();
   const k=tvPages[tvI] && tvPages[tvI].k; tvPages=tvMakePages();
   if(tvI>=tvPages.length || (tvPages[tvI] && tvPages[tvI].k!==k)) tvI=Math.max(0,tvPages.findIndex(p=>p.k===k));
   tvRenderPage(tvPages[tvI]||tvPages[0]); paintTickerInto($("#tvTicker"),$("#tvTickTrack"),"tv");
 }
-function tvNext(){ tvPages=tvMakePages(); tvI=(tvI+1)%tvPages.length; tvRenderPage(tvPages[tvI]);
+/* editing from the office screen (anyone but "צופה"): a tap on a task, event, notice or ticker item leaves the screen view
+   for the app at that item; "🖥️ חזרה למסך" (or 3 quiet minutes) brings the screen back where it was */
+let tvAway=false, tvAwayT=null, tvAct=Date.now();
+const tvCanEdit=()=>tvOn && !isViewer();
+function tvClickable(el,fn){ if(!tvCanEdit()) return; el.classList.add("tv-click"); el.tabIndex=0; el.title="לחץ לעריכה";
+  el.onclick=()=>tvGo(fn); el.onkeydown=ev=>{ if(ev.key==="Enter"){ ev.preventDefault(); tvGo(fn); } }; }
+function tvGo(fn){
+  if(!tvOn){ fn(); return; }
+  if(!tvCanEdit()){ toast("זה מסך משרד (צופה) — אי אפשר לשנות מכאן"); return; }
+  tvAway=true; clearTimeout(tvTimer); document.documentElement.classList.remove("tv");
+  let b=$("#tvBack"); if(!b){ b=mk("button","tv-back","🖥️ חזרה למסך"); b.id="tvBack"; b.type="button"; b.onclick=tvReturn; document.body.appendChild(b); }
+  b.hidden=false; tvAct=Date.now();
+  clearInterval(tvAwayT); tvAwayT=setInterval(()=>{ if(Date.now()-tvAct>3*60e3 && (typeof quietNow!=="function" || quietNow())) tvReturn(); },15e3);
+  fn();
+  // edited in a window (e.g. the notice board): closing it goes straight back to the screen
+  setTimeout(()=>{ const d=document.querySelector("dialog[open]"); if(d) d.addEventListener("close",()=>setTimeout(tvReturn,50),{once:true}); },100);
+}
+function tvReturn(){
+  if(!tvAway) return; tvAway=false; clearInterval(tvAwayT);
+  document.querySelectorAll("dialog[open]").forEach(d=>d.close());
+  const b=$("#tvBack"); if(b) b.hidden=true;
+  document.documentElement.classList.add("tv"); scrollTo(0,0);
+  tvPaint(true); clearTimeout(tvTimer); tvTimer=setTimeout(tvNext, (tvPages[tvI]||{}).long ? 20000 : 14000);
+}
+["pointerdown","keydown","input"].forEach(t=>document.addEventListener(t,()=>{ tvAct=Date.now(); },true));
+function bsOpenAt(id){ bsOpen(); const x=(BOARD||[]).find(b=>b.id===id); if(x && bsMgr()) bsEdit(x); }
+function tvNext(){
+  if(tvAway) return; tvPages=tvMakePages(); tvI=(tvI+1)%tvPages.length; tvRenderPage(tvPages[tvI]);
   clearTimeout(tvTimer); tvTimer=setTimeout(tvNext, tvPages[tvI].long ? 20000 : 14000); }
 async function tvWake(){ try{ if("wakeLock" in navigator && !document.hidden) tvLock=await navigator.wakeLock.request("screen"); }catch(e){} }
 function tvStart(){
   if(tvOn) return; tvOn=true; TV=true; document.documentElement.classList.add("tv");
   document.querySelectorAll("dialog[open]").forEach(d=>d.close());
   tvBuild(); tvClock(); setInterval(tvClock,1000);
-  tvPages=tvMakePages(); tvI=0; tvRenderPage(tvPages[0]); paintTickerInto($("#tvTicker"),$("#tvTickTrack"),"tv");
+  tvPages=tvMakePages(); tvI=0; tvRenderPage(tvPages[0]); setInterval(()=>{ const h=$("#tvHint"); if(h) h.textContent=tvCanEdit()?"✎ לחיצה על כרטיס — עריכה":""; },2000); paintTickerInto($("#tvTicker"),$("#tvTickTrack"),"tv");
   clearTimeout(tvTimer); tvTimer=setTimeout(tvNext,14000);
   setInterval(()=>tvPaint(false),4000);
   tvWake(); document.addEventListener("visibilitychange",()=>{ if(!document.hidden) tvWake(); });

@@ -1979,3 +1979,12 @@ dialog.brief-dlg{max-width:720px;width:calc(100% - 20px);max-height:calc(100dvh 
 .bs-slides.playing .bs-over,.bs-slides.playing .bs-note.sel{box-shadow:none}
 .bs-row .btn{white-space:nowrap}
 @media (max-width:700px){ .bs-sp{flex-basis:100%;height:0} .bs-row .btn{flex:1;min-width:0;padding-inline:8px} .bs-tools textarea{min-height:64px} }
+
+/* office screen: tap a card to edit it (not for "צופה"); the way back */
+.tv-click{cursor:pointer;transition:box-shadow .15s}
+.tv-click:hover,.tv-click:focus-visible{box-shadow:0 0 0 3px #5FC4D0;outline:none}
+.tv-hint{color:var(--tvink2);font-weight:700;margin-inline-start:1.5vw}
+.tv-back{position:fixed;z-index:60;bottom:calc(16px + env(safe-area-inset-bottom,0px));left:16px;border:0;border-radius:99px;padding:12px 20px;
+  background:#0B1620;color:#5FC4D0;font:inherit;font-size:16px;font-weight:900;box-shadow:0 4px 16px rgba(0,0,0,.35);cursor:pointer}
+.tv-back[hidden]{display:none}
+html:not(.tv) #tvRoot{display:none}
