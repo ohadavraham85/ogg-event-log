@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;900&family=Rubik:wght@500;600;700&family=Assistant:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=2.84">
+<link rel="stylesheet" href="style.css?v=2.85">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0E7C86">
 <meta name="color-scheme" content="light dark">
@@ -112,7 +112,7 @@
       <img class="logo" src="icons/logo-header.png" alt="מבט&quot;י — מפעלי ביוב וטיהור ירושלים" width="101" height="137">
       <div class="mark">יומן אירועים ומשימות <span class="sub">מט"ש אוג</span></div>
       <div class="clock" id="clock" aria-live="off"><span class="c-hello" id="cHello" hidden></span><span class="c-day" id="cDay"></span><span class="c-date" id="cDate"></span><b class="c-time" id="cTime"></b></div>
-      <span class="ver" id="verChip" title="גרסה">v2.84</span>
+      <span class="ver" id="verChip" title="גרסה">v2.85</span>
       <button class="icon-btn info-btn" id="infoBtn" type="button" aria-label="מה חדש בגרסה" title="מה חדש בגרסה"><span aria-hidden="true">i</span><span class="info-dot" id="infoDot" hidden></span></button>
       <button class="icon-btn inbox-btn" id="inboxBtn" aria-label="הודעות" title="הודעות" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm7-6V11a7 7 0 0 0-5.5-6.84V3.5a1.5 1.5 0 0 0-3 0v.66A7 7 0 0 0 5 11v5l-2 2v1h18v-1z" fill="currentColor"/></svg><span class="newcnt" id="inboxN" hidden></span></button>
       <button class="icon-btn" id="refreshBtn" aria-label="רענון" title="רענון — טעינה מחדש ובדיקת עדכון"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M20.5 3.5v5h-5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
@@ -229,7 +229,7 @@
       <div class="tk-vp"><div class="tk-track" id="dTickTrack"></div></div>
     </div>
     <div class="card board-card" id="dBoard" hidden>
-      <div class="bd-head"><h3>📌 לוח מודעות</h3><button type="button" class="btn mini" id="bdAdd" hidden>＋ מודעה</button></div>
+      <div class="bd-head"><h3>📌 לוח מודעות</h3><button type="button" class="btn mini" id="bsOpen" title="איך הלוח נראה על מסך המשרד — ועריכה ישר שם">🖥️ תצוגת מסך</button><button type="button" class="btn mini" id="bdAdd" hidden>＋ מודעה</button></div>
       <form class="bd-form" id="bdForm" hidden autocomplete="off">
         <textarea id="bdText" rows="2" maxlength="400" placeholder="מה רוצים שכולם יראו?" aria-label="נוסח המודעה"></textarea>
         <div class="row bd-row"><label class="bd-l">מוצגת עד <input type="date" id="bdUntil"></label>
@@ -381,6 +381,7 @@
       <h3>📺 מסך משרד</h3>
       <p>תצוגה למסך גדול במשרד: מבזקים, המשימות והאירועים הפתוחים ולוח המודעות — מתחלפים לבד ומתעדכנים בלייב. במחשב של המסך מתחברים עם משתמש שתפקידו <b>צופה — מסך משרד</b> (רואה הכל, לא יכול לשנות כלום); מצב המסך נפתח אצלו לבד.</p>
       <div class="row"><button class="btn primary" id="tvOpen" type="button">פתח את מצב המסך</button><button class="btn" id="tvCopy" type="button">העתק קישור</button></div>
+      <div class="row"><button class="btn" id="bsOpen2" type="button">📌 לוח המודעות — תצוגה ועריכה כמו במסך</button></div>
     </div>
     <div class="card" data-sg="general">
       <h3>עזרה</h3>
@@ -460,7 +461,7 @@
 
     <div class="card" data-sg="general">
       <h3>גרסה</h3>
-      <p id="verLine">גרסה 2.84 · 12/10/2026</p>
+      <p id="verLine">גרסה 2.85 · 12/10/2026</p>
       <div class="row"><button class="btn" id="reloadApp">בדוק עדכון</button></div>
     </div>
 
@@ -582,6 +583,24 @@
   <p class="inb-hint" id="inbHint"></p>
   <div class="inb-list" id="inbList"></div>
   <div class="row"><button class="btn primary" id="inbClose">קראתי</button><button class="btn" id="inbAll" type="button"></button></div>
+</dialog>
+
+<dialog id="dlgStudio" class="bs-dlg" aria-labelledby="bsTitle">
+  <div class="bs-bar">
+    <h3 id="bsTitle" tabindex="-1" autofocus>📌 לוח המודעות — כפי שנראה על המסך</h3>
+    <div class="bs-acts"><button class="btn primary" id="bsAdd" type="button">＋ מודעה חדשה</button><button class="btn" id="bsPlay" type="button">▶ הצג</button><button class="btn" id="bsClose" type="button">סגור</button></div>
+  </div>
+  <p class="bs-hint" id="bsHint"></p>
+  <div class="bs-tools" id="bsTools" hidden>
+    <textarea id="bsText" rows="2" maxlength="400" aria-label="נוסח המודעה" placeholder="מה רוצים שכולם יראו?"></textarea>
+    <div class="bs-row">
+      <label class="bd-l">מוצגת עד <input type="date" id="bsUntil"></label>
+      <label class="tk-chk"><input type="checkbox" id="bsImp"> ❗ חשוב — מודגש</label>
+      <span class="bs-sp"></span>
+      <button class="btn primary" id="bsSave" type="button">✓ שמור</button><button class="btn ghost" id="bsCancel" type="button">ביטול</button><button class="btn danger" id="bsDel" type="button">🗑 הסר</button>
+    </div>
+  </div>
+  <div class="bs-slides" id="bsSlides"></div>
 </dialog>
 
 <dialog id="dlgNews" aria-labelledby="newsTitle">
@@ -713,9 +732,9 @@
     <button class="btn ghost" id="wkClose" hidden>סגור</button></div>
 </dialog>
 
-<script src="firebase-config.js?v=2.84"></script>
-<script src="app.js?v=2.84"></script>
-<script src="cloud.js?v=2.84"></script>
+<script src="firebase-config.js?v=2.85"></script>
+<script src="app.js?v=2.85"></script>
+<script src="cloud.js?v=2.85"></script>
 <script>
 if("serviceWorker" in navigator){
   window.addEventListener("load",()=>{ navigator.serviceWorker.register("sw.js").catch(()=>{}); });

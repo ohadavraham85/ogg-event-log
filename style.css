@@ -1927,3 +1927,55 @@ dialog.brief-dlg{max-width:720px;width:calc(100% - 20px);max-height:calc(100dvh 
 .tk-file-grid:empty{display:none}
 .tk-files-f .tk-fbtns{margin-top:6px}
 #tkForm.priv .tk-files-f{display:none}
+
+/* ===== notice board studio: the office-screen look, as 16:9 slides (sizes follow the slide's width: cqw) ===== */
+.bs-dlg{width:min(1180px,calc(100vw - 20px));max-width:none;max-height:calc(100dvh - 20px);padding:14px}
+.bs-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;justify-content:space-between}
+.bs-bar h3{margin:0}
+.bs-acts{display:flex;flex-wrap:wrap;gap:8px}
+.bs-hint{margin:6px 0 10px;font-size:13.5px}
+.bs-tools{position:sticky;top:-14px;z-index:2;background:var(--panel);border:1px solid var(--water);border-radius:12px;padding:10px;margin-bottom:10px;display:grid;gap:8px}
+.bs-tools textarea{width:100%;box-sizing:border-box;font:inherit;font-size:15px;border:1px solid var(--edge);border-radius:9px;padding:8px;background:var(--panel-2);color:var(--ink);resize:vertical}
+.bs-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+.bs-sp{flex:1}
+.bs-slides{display:grid;gap:14px}
+.bs-dlg [hidden]{display:none!important}
+.bs-slide{container-type:inline-size;position:relative;aspect-ratio:16/9;border-radius:12px;overflow:hidden;background:#0B1620;color:#EAF2F8;
+  display:flex;flex-direction:column;gap:.68cqw;padding:.9cqw 2cqw;font-size:1.15cqw;box-shadow:0 2px 10px rgba(0,0,0,.25)}
+.bs-top{display:flex;align-items:center;justify-content:space-between;gap:2cqw}
+.bs-brand{display:flex;align-items:center;gap:1.1cqw}
+.bs-brand img{height:3.66cqw;width:auto;background:#fff;border-radius:.8cqw;padding:.3cqw}
+.bs-brand b{display:block;font-size:2em;font-weight:900;letter-spacing:-.02em;line-height:1.1}
+.bs-brand span{font-size:1.25em;color:#5FC4D0;font-weight:800}
+.bs-clock{text-align:end}
+.bs-clock b{display:block;font-size:3.4em;font-weight:900;line-height:1;font-variant-numeric:tabular-nums;color:#5FC4D0}
+.bs-clock span{font-size:1.2em;color:#9DB3C4;font-weight:700}
+.bs-tick{display:flex;align-items:center;gap:1cqw;background:#13212E;border:.1cqw solid #24384A;border-radius:1cqw;padding:.56cqw 1.2cqw;font-size:1.25em;font-weight:800;white-space:nowrap;overflow:hidden}
+.bs-tick b{background:#B3261E;color:#fff;border-radius:99px;padding:.1em .7em;font-size:.85em}
+.bs-tick span{overflow:hidden;text-overflow:ellipsis;color:#EAF2F8}
+.bs-foot{height:1.7cqw;flex:none}
+.bs-h{margin:0 0 .1cqw;font-size:2.2em;font-weight:900;display:flex;align-items:center;gap:1cqw;color:#EAF2F8}
+.bs-h small{font-size:.5em;color:#9DB3C4;font-weight:700;margin-inline-start:auto}
+.bs-board{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.9cqw 1.6cqw;flex:1;align-content:start;min-height:0;overflow:hidden}
+.bs-note{background:#2B2410;border:.105cqw solid #E0A100;border-radius:.83cqw;padding:1.125cqw 1.6cqw;display:grid;gap:.56cqw;align-content:start}
+.bs-note.imp{background:#3A1512;border-color:#FF6B5E}
+.bs-note.imp p::before{content:"❗ "}
+.bs-note p{margin:0;color:#EAF2F8;font-size:1.8em;font-weight:900;line-height:1.35;white-space:pre-line;overflow-wrap:anywhere;outline:none}
+.bs-note p:empty::after{content:attr(data-ph);color:#9DB3C4;font-weight:700}
+.bs-note span{color:#9DB3C4;font-weight:700}
+.bs-note[tabindex]{cursor:pointer}
+.bs-note[tabindex]:hover{box-shadow:0 0 0 .25cqw rgba(95,196,208,.55)}
+.bs-note.sel{box-shadow:0 0 0 .4cqw #5FC4D0;cursor:text}
+.bs-empty{grid-column:1/-1;font-size:1.8em;color:#9DB3C4;font-weight:800;padding:2cqw 0}
+.bs-over{display:none;position:absolute;inset-inline:0;bottom:0;background:#B3261E;color:#fff;font-weight:800;text-align:center;padding:.6cqw;font-size:1.3em}
+.bs-slide.over .bs-over{display:block}
+@media (max-width:700px){ .bs-dlg{padding:10px} .bs-tools{top:-10px} }
+/* ▶ הצג — one slide at a time, full screen */
+.bs-slides.playing{background:#0B1620;place-content:center}
+.bs-slides.playing .bs-slide{display:none;box-shadow:none;border-radius:0}
+.bs-slides.playing .bs-slide.on{display:flex}
+.bs-slides.playing:fullscreen{display:grid;place-items:center;padding:0}
+.bs-slides.playing:fullscreen .bs-slide.on{width:min(100vw,177.78vh)}
+.bs-slides.playing .bs-over,.bs-slides.playing .bs-note.sel{box-shadow:none}
+.bs-row .btn{white-space:nowrap}
+@media (max-width:700px){ .bs-sp{flex-basis:100%;height:0} .bs-row .btn{flex:1;min-width:0;padding-inline:8px} .bs-tools textarea{min-height:64px} }

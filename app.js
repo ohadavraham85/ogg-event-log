@@ -2028,7 +2028,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.84", APP_DATE="12/10/2026";
+const APP_VER="2.85", APP_DATE="12/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -3626,7 +3626,7 @@ var BOARD=(()=>{ try{ const a=JSON.parse(localStorage.getItem("ogg-board")||"[]"
 function boardActive(){ const d=ymd(new Date()); return (BOARD||[]).filter(x=>x && x.text && (!x.until || x.until>=d))
   .sort((a,b)=>(b.important?1:0)-(a.important?1:0) || String(b.at).localeCompare(String(a.at))); }
 function boardSave(){ try{ localStorage.setItem("ogg-board",JSON.stringify(BOARD)); }catch(e){} }
-window.boardApply=items=>{ BOARD=items||[]; boardSave(); paintBoard(); paintTicker(); if(TV) tvPaint(true); };
+window.boardApply=items=>{ BOARD=items||[]; boardSave(); paintBoard(); paintTicker(); if(TV) tvPaint(true); if(window.bsRefresh) window.bsRefresh(); };
 function goBoard(){ if(TV) return; show("Dash"); const c=$("#dBoard"); if(c && !c.hidden){ c.scrollIntoView({block:"center"}); c.classList.add("flash"); setTimeout(()=>c.classList.remove("flash"),1800); } }
 function paintBoard(){
   const box=$("#dBoard"); if(!box) return;
@@ -3653,6 +3653,118 @@ $("#bdForm").onsubmit=async ev=>{ ev.preventDefault(); const text=$("#bdText").v
   else { BOARD.push(it); boardSave(); }
   $("#bdText").value=""; $("#bdForm").hidden=true; paintBoard(); paintTicker(); toast("המודעה פורסמה 📌"); };
 paintBoard(); paintTicker();          // the ticker painted before the notices were loaded
+
+/* ===== notice board "studio": the board exactly as the office screen shows it — 16:9 slides of up to 6 notices —
+   and, for managers, editing right there: tap a notice (or "＋ מודעה חדשה"), change the text on the slide itself or in the
+   bar above, the end date and "חשוב"; ✓ saves (to the whole team). "▶ הצג" plays the slides full screen, like a slideshow. */
+const BS_PER=6;
+let bsSel=null, bsDraft=null, bsPlayT=null;          // bsSel: id being edited; bsDraft: its working copy
+const bsMgr=()=>isManager() && !isViewer();
+function bsPages(list){ const P=[]; for(let i=0;i<Math.max(1,Math.ceil(list.length/BS_PER));i++) P.push(list.slice(i*BS_PER,(i+1)*BS_PER)); return P; }
+function bsList(){                                      // what the screen shows, with the note being edited in its place
+  let a=boardActive().slice();
+  if(bsDraft){ const i=a.findIndex(x=>x.id===bsDraft.id); if(i>=0) a[i]=bsDraft; else a.unshift(bsDraft); }
+  return a;
+}
+function bsClock(){ const d=new Date(), p=v=>String(v).padStart(2,"0");
+  document.querySelectorAll("#bsSlides .bs-time").forEach(e=>e.textContent=p(d.getHours())+":"+p(d.getMinutes()));
+  const ds=new Intl.DateTimeFormat("he-IL",{weekday:"long"}).format(d)+" · "+p(d.getDate())+"/"+p(d.getMonth()+1)+"/"+d.getFullYear();
+  document.querySelectorAll("#bsSlides .bs-date").forEach(e=>e.textContent=ds);
+}
+function bsMeta(x){ return [x.by, x.until?"עד "+dmy(x.until).slice(0,5):""].filter(Boolean).join(" · "); }
+function bsRender(){
+  const box=$("#bsSlides"); box.textContent="";
+  const list=bsList(), pages=bsPages(list), mgr=bsMgr();
+  pages.forEach((pg,pi)=>{
+    const s=mk("div","bs-slide");
+    s.innerHTML='<header class="bs-top"><div class="bs-brand"><img src="icons/logo-header.png" alt=""><div><b>יומן אירועים ומשימות</b><span>מט"ש אוג</span></div></div>'
+      +'<div class="bs-clock"><b class="bs-time"></b><span class="bs-date"></span></div></header>'
+      +'<div class="bs-tick"><b>● לייב</b><span></span></div>';                  // the ticker strip, as on the screen
+    s.querySelector(".bs-tick span").textContent=list.filter(x=>x.text).map(x=>(x.important?"❗ ":"📌 ")+x.text.split("\n")[0]).join("   ·   ");
+    const h=mk("h2","bs-h","📌 לוח מודעות"); if(pages.length>1) h.appendChild(mk("small",null,"שקופית "+(pi+1)+" מתוך "+pages.length)); s.appendChild(h);
+    const g=mk("div","bs-board");
+    if(!pg.length) g.appendChild(mk("div","bs-empty", mgr ? "אין מודעות. לחץ \"＋ מודעה חדשה\" כדי להוסיף." : "אין מודעות כרגע."));
+    pg.forEach(x=>{
+      const n=mk("div","bs-note"+(x.important?" imp":"")+(x.id===bsSel?" sel":"")); n.dataset.id=x.id;
+      const p=mk("p",null,x.text||""); if(!x.text) p.dataset.ph="כתוב כאן את המודעה…";
+      n.append(p, mk("span",null,bsMeta(x)));
+      if(mgr){ n.tabIndex=0; n.title="לחץ לעריכה";
+        n.onclick=()=>{ if(bsSel!==x.id) bsEdit(x); };
+        if(x.id===bsSel){ p.contentEditable="plaintext-only"; if(p.contentEditable!=="plaintext-only") p.contentEditable="true";
+          p.oninput=()=>{ bsDraft.text=p.innerText.replace(/\n$/,"").slice(0,400); $("#bsText").value=bsDraft.text; bsFit(); }; } }
+      g.appendChild(n); });
+    s.appendChild(g); s.appendChild(mk("div","bs-foot")); s.appendChild(mk("div","bs-over","⚠ לא נכנס בשקופית — קצר את הטקסט"));
+    box.appendChild(s);
+  });
+  bsClock(); requestAnimationFrame(bsFit);
+  $("#bsTools").hidden=!bsDraft; $("#bsAdd").hidden=!mgr;
+  $("#bsHint").textContent = mgr ? (bsDraft ? "עורך: אפשר לכתוב ישר על השקופית או בשורה למעלה. ✓ שמור — וזה מתעדכן אצל כולם ועל מסך המשרד."
+                                            : "לחץ על מודעה כדי לערוך אותה. מודעה חשובה ❗ מופיעה ראשונה. כל שקופית מחזיקה עד "+BS_PER+" מודעות.")
+                                 : "כך נראה לוח המודעות על מסך המשרד. רק מנהל יכול לשנות.";
+}
+function bsFit(){ document.querySelectorAll("#bsSlides .bs-slide").forEach(s=>{ const g=s.querySelector(".bs-board"); s.classList.toggle("over", g.scrollHeight>g.clientHeight+2); }); }
+function bsEdit(x){
+  if(bsDraft && !bsCommitAsk()) return;
+  bsSel=x.id; bsDraft=Object.assign({},x);
+  $("#bsText").value=bsDraft.text||""; $("#bsUntil").value=bsDraft.until||""; $("#bsUntil").min=ymd(new Date()); $("#bsImp").checked=!!bsDraft.important;
+  $("#bsDel").hidden=!!x._new;
+  bsRender();
+  const n=document.querySelector('#bsSlides .bs-note.sel'); if(n){ n.scrollIntoView({block:"nearest"}); const p=n.querySelector("p"); if(matchMedia("(min-width:700px)").matches && p) p.focus(); else $("#bsText").focus(); }
+}
+function bsChanged(){ if(!bsDraft) return false; if(bsDraft._new) return !!(bsDraft.text||"").trim();
+  const o=(BOARD||[]).find(b=>b.id===bsDraft.id)||{}; return (o.text||"")!==(bsDraft.text||"") || (o.until||"")!==(bsDraft.until||"") || !!o.important!==!!bsDraft.important; }
+function bsCommitAsk(){                                    // leaving a note with unsaved changes
+  if(!bsChanged()){ bsSel=null; bsDraft=null; return true; }
+  if(confirm("לשמור את השינויים במודעה?")){ bsSave(); return false; }
+  bsSel=null; bsDraft=null; return true;
+}
+async function bsSave(){
+  if(!bsDraft) return;
+  const text=(bsDraft.text||"").trim();
+  if(!text){ toast("המודעה ריקה"); $("#bsText").focus(); return; }
+  const it={id:bsDraft.id, text:text.slice(0,400), until:bsDraft.until||"", important:!!bsDraft.important,
+            by:bsDraft.by||reporter()||"", at:bsDraft._new ? nowLocal() : (bsDraft.at||nowLocal())};
+  $("#bsSave").disabled=true;
+  if(CLOUD_ON && window.cloudBoardPut){ const ok=await window.cloudBoardPut(it); $("#bsSave").disabled=false;
+    if(!ok){ toast("השמירה נכשלה — אולי אין רשת"); return; }
+    const i=BOARD.findIndex(b=>b.id===it.id); if(i>=0) BOARD[i]=it; else BOARD.push(it); }
+  else { $("#bsSave").disabled=false; const i=BOARD.findIndex(b=>b.id===it.id); if(i>=0) BOARD[i]=it; else BOARD.push(it); boardSave(); }
+  bsSel=null; bsDraft=null; paintBoard(); paintTicker(); bsRender(); toast("נשמר — מוצג לכל הצוות ועל מסך המשרד 📌");
+}
+async function bsDelete(){
+  if(!bsDraft || bsDraft._new) return;
+  if(!confirm("להסיר את המודעה?\n"+(bsDraft.text||""))) return;
+  const id=bsDraft.id;
+  if(CLOUD_ON && window.cloudBoardDel){ if(!await window.cloudBoardDel(id)){ toast("ההסרה נכשלה"); return; } }
+  BOARD=BOARD.filter(b=>b.id!==id); boardSave();
+  bsSel=null; bsDraft=null; paintBoard(); paintTicker(); bsRender(); toast("המודעה הוסרה");
+}
+function bsOpen(){ bsSel=null; bsDraft=null; bsRender(); const d=$("#dlgStudio"); if(!d.open) d.showModal(); clearInterval(bsOpen.t); bsOpen.t=setInterval(bsClock,15e3); }
+window.bsRefresh=()=>{ if($("#dlgStudio").open && !bsDraft) bsRender(); };   // someone else changed the board meanwhile
+$("#bsOpen").onclick=bsOpen; $("#bsOpen2").onclick=bsOpen;
+$("#bsAdd").onclick=()=>{ const d=new Date(); d.setDate(d.getDate()+7);
+  bsEdit({id:newId(), text:"", until:ymd(d), important:false, by:reporter()||"", _new:true}); };
+$("#bsText").oninput=()=>{ if(!bsDraft) return; bsDraft.text=$("#bsText").value; const p=document.querySelector("#bsSlides .bs-note.sel p"); if(p){ p.textContent=bsDraft.text; } bsFit(); };
+$("#bsUntil").onchange=()=>{ if(!bsDraft) return; bsDraft.until=$("#bsUntil").value; const s=document.querySelector("#bsSlides .bs-note.sel span"); if(s) s.textContent=bsMeta(bsDraft); };
+$("#bsImp").onchange=()=>{ if(!bsDraft) return; bsDraft.important=$("#bsImp").checked; const n=document.querySelector("#bsSlides .bs-note.sel"); if(n) n.classList.toggle("imp",bsDraft.important); bsFit(); };
+$("#bsSave").onclick=bsSave; $("#bsDel").onclick=bsDelete;
+$("#bsCancel").onclick=()=>{ bsSel=null; bsDraft=null; bsRender(); };
+$("#bsClose").onclick=()=>{ if(bsDraft && !bsCommitAsk()) return; $("#dlgStudio").close(); };
+$("#dlgStudio").addEventListener("cancel",ev=>{ if(bsDraft && bsChanged()){ ev.preventDefault(); $("#bsClose").click(); } });
+$("#dlgStudio").addEventListener("close",()=>{ clearInterval(bsOpen.t); bsSel=null; bsDraft=null; });
+// ▶ הצג: the slides full screen, one at a time (14 s each, like the office screen); a tap / any key / Esc ends it
+$("#bsPlay").onclick=async()=>{
+  if(bsDraft && !bsCommitAsk()) return; bsRender();
+  const box=$("#bsSlides"), S=[...box.querySelectorAll(".bs-slide")]; if(!S.length) return;
+  let i=0; box.classList.add("playing"); const showI=()=>S.forEach((s,k)=>s.classList.toggle("on",k===i));
+  showI(); try{ await box.requestFullscreen(); }catch(e){}
+  const stop=()=>{ clearInterval(bsPlayT); box.classList.remove("playing"); S.forEach(s=>s.classList.remove("on"));
+    box.onclick=null; document.removeEventListener("keydown",key,true); if(document.fullscreenElement) document.exitFullscreen().catch(()=>{}); };
+  const key=ev=>{ ev.preventDefault(); ev.stopPropagation(); stop(); };
+  box.onclick=stop; document.addEventListener("keydown",key,true);
+  document.addEventListener("fullscreenchange",function fc(){ if(!document.fullscreenElement){ document.removeEventListener("fullscreenchange",fc); if(box.classList.contains("playing")) stop(); } });
+  clearInterval(bsPlayT); bsPlayT=setInterval(()=>{ i=(i+1)%S.length; showI(); }, 14000);
+};
 
 /* ===== office screen: big, rotating, live — header (clock), the ticker, one page at a time
    (open tasks, open events, notice board, the numbers), each page for a few seconds. No buttons; nothing can be changed here. */
@@ -3686,7 +3798,8 @@ function tvMakePages(){
   const D=tvData(), P=[], per=8;
   for(let i=0;i<Math.max(1,Math.ceil(D.tks.length/per));i++) P.push({k:"tk", title:"משימות פתוחות", n:D.tks.length, items:D.tks.slice(i*per,(i+1)*per), pg:[i+1,Math.ceil(D.tks.length/per)]});
   for(let i=0;i<Math.ceil(D.evs.length/per);i++) P.push({k:"ev", title:"אירועים פתוחים", n:D.evs.length, items:D.evs.slice(i*per,(i+1)*per), pg:[i+1,Math.ceil(D.evs.length/per)]});
-  if(D.board.length) P.push({k:"bd", title:"📌 לוח מודעות", items:D.board.slice(0,6), long:true});
+  const bn=Math.ceil(D.board.length/6);
+  for(let i=0;i<bn;i++) P.push({k:"bd", title:"📌 לוח מודעות", items:D.board.slice(i*6,(i+1)*6), pg:[i+1,bn], long:true});
   P.push({k:"num", title:"תמונת מצב", D});
   return P;
 }
