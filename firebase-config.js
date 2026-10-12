@@ -17,4 +17,4 @@ window.FIREBASE_DATABASE = null;
 /* Push to phones (task messages while the app is closed): the "Key pair" from Firebase console → Project settings →
    Cloud Messaging → Web Push certificates. Public, not secret. null = no push (the rest of the team log works as before).
    Also needs the Cloud Function in functions/ deployed (README → "התראות פוש"). */
-window.FIREBASE_VAPID_KEY = null;
+window.FIREBASE_VAPID_KEY = "BD1EO2ORiA9EJVq2v5y0fK1wrhFRAdDbGplcqs73rDZ36oKc38XA6LSXaeCHtLWqo2K7hK0OLRGSMJyKWk1-ETE";
