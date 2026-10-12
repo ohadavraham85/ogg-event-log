@@ -176,10 +176,14 @@
   function watchBoard(){
     if(unsubBoard) return;
     unsubBoard=F.onSnapshot(F.collection(db,"board"), snap=>{
-      const items=snap.docs.map(d=>{ const x=d.data(); return {id:d.id, text:String(x.text||""), until:String(x.until||""), important:!!x.important, by:String(x.by||""), at:String(x.at||"")}; });
+      const scr=snap.docs.find(d=>d.id==="_screen");                 // the office screen settings live here too
+      if(scr && window.tvCfgApply){ try{ window.tvCfgApply(JSON.parse(scr.data().cfg||"{}")); }catch(e){} }
+      const items=snap.docs.filter(d=>d.id!=="_screen").map(d=>{ const x=d.data(); return {id:d.id, text:String(x.text||""), until:String(x.until||""), important:!!x.important, by:String(x.by||""), at:String(x.at||"")}; });
       if(window.boardApply) window.boardApply(items);
     }, ()=>{});
   }
+  window.cloudScreenPut=async cfg=>{ if(!started || !me) return false;
+    try{ await F.setDoc(F.doc(db,"board","_screen"),{cfg:JSON.stringify(cfg),text:"",_upd:F.serverTimestamp(),_by:me}); return true; }catch(e){ return false; } };
   window.cloudBoardPut=async it=>{ if(!started || !me) return false;
     try{ await F.setDoc(F.doc(db,"board",it.id),{text:it.text,until:it.until||"",important:!!it.important,by:it.by||"",at:it.at||"",_upd:F.serverTimestamp(),_by:me}); return true; }catch(e){ return false; } };
   window.cloudBoardDel=async id=>{ if(!started || !me) return false; try{ await F.deleteDoc(F.doc(db,"board",id)); return true; }catch(e){ return false; } };

@@ -1988,3 +1988,18 @@ dialog.brief-dlg{max-width:720px;width:calc(100% - 20px);max-height:calc(100dvh 
   background:#0B1620;color:#5FC4D0;font:inherit;font-size:16px;font-weight:900;box-shadow:0 4px 16px rgba(0,0,0,.35);cursor:pointer}
 .tv-back[hidden]{display:none}
 html:not(.tv) #tvRoot{display:none}
+
+/* office screen settings + hiding */
+.tv-card,.tv-note,.tv-num{position:relative}
+.tv-hide{position:absolute;top:.4em;inset-inline-end:.4em;border:0;border-radius:99px;background:rgba(0,0,0,.45);color:#fff;font-size:.9em;
+  padding:.25em .45em;cursor:pointer;opacity:0;transition:opacity .15s}
+.tv-card:hover .tv-hide,.tv-note:hover .tv-hide,.tv-hide:focus-visible{opacity:1}
+@media (hover:none){ .tv-hide{opacity:.75} }
+.tv-cfg{margin-inline-start:1vw;border:1px solid var(--tvedge);background:var(--tvpanel);color:var(--tvink);border-radius:99px;padding:.3em .9em;font:inherit;font-weight:800;cursor:pointer}
+.tv-cfg[hidden]{display:none}
+#dlgTvCfg{width:min(560px,calc(100vw - 24px))}
+.tvc-sec{border-top:1px solid var(--edge);padding:10px 0;display:grid;gap:8px}
+.tvc-sec h4{margin:0;font-size:15px}
+.tvc-secs{display:flex;align-items:center;gap:8px;font-size:14px}
+.tvc-hid{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:14px}
+.tvc-hid span{min-width:0;overflow-wrap:anywhere}

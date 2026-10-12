@@ -2028,7 +2028,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.86", APP_DATE="12/10/2026";
+const APP_VER="2.87", APP_DATE="12/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -3532,7 +3532,8 @@ function paintTickerInto(box, tr, key){
     const ty=(e.type||[])[0]||"אירוע";
     items.push({k:"e", id:e.id, cls:ty==="תקלה"?"fault":"ev", tag:ty,
       text:(e.no?"#"+e.no+" ":"")+(e.title||String(e.desc||"").slice(0,70)||ty)+((e.loc||[]).length?" · "+e.loc.join(", "):"")+(e.when?" · "+fmtWhen(e.when).slice(0,5):"")}); });
-  box.hidden=!items.length;
+  if(key==="tv"){ for(let i=items.length-1;i>=0;i--) if(tvHidden(items[i].k,items[i].id)) items.splice(i,1); }
+  box.hidden=!items.length || (key==="tv" && !tvCfg().ticker);
   const sig=JSON.stringify(items); if(sig===tickSigs[key]) return; tickSigs[key]=sig;
   tr.textContent="";
   const run=()=>{ const g=mk("div","tk-run"); items.forEach(it=>{
@@ -3766,6 +3767,54 @@ $("#bsPlay").onclick=async()=>{
   clearInterval(bsPlayT); bsPlayT=setInterval(()=>{ i=(i+1)%S.length; showI(); }, 14000);
 };
 
+/* ===== office screen settings (managers): which pages, how long each, which numbers, and items hidden from the screen.
+   Kept in the cloud as board/_screen (managers write the board; everyone in the team, the office screen too, reads it). */
+var TVC=null;
+const TVC_DEF={pages:{tk:true,ev:true,bd:true,num:true}, ticker:true, secs:14,
+  nums:{open:true,late:true,today:true,evopen:true,faults:true,closed:true}, hide:[]};
+function tvCfg(){ if(!TVC){ try{ TVC=JSON.parse(localStorage.getItem("ogg-tv-cfg")||"null"); }catch(e){} }
+  const c=TVC||{}; return {pages:Object.assign({},TVC_DEF.pages,c.pages), ticker:c.ticker!==false, secs:+c.secs||TVC_DEF.secs,
+    nums:Object.assign({},TVC_DEF.nums,c.nums), hide:Array.isArray(c.hide)?c.hide.slice():[]}; }
+function tvHidden(k,id){ return tvCfg().hide.includes(k+":"+id); }
+window.tvCfgApply=c=>{ TVC=c||{}; try{ localStorage.setItem("ogg-tv-cfg",JSON.stringify(TVC)); }catch(e){}
+  if(typeof tvPaint==="function") tvPaint(true); if($("#dlgTvCfg") && $("#dlgTvCfg").open) tvCfgPaint(); };
+async function tvCfgSave(c){
+  const prev=TVC; window.tvCfgApply(c);
+  if(CLOUD_ON && window.cloudScreenPut && !(await window.cloudScreenPut(c))){ window.tvCfgApply(prev); toast("השמירה נכשלה — אולי אין רשת"); return false; }
+  return true;
+}
+function tvHideItem(k,id,name){
+  const c=tvCfg(); if(!c.hide.includes(k+":"+id)) c.hide.push(k+":"+id);
+  tvCfgSave(c).then(ok=>{ if(ok) toast("הוסתר מהמסך: "+name,{label:"בטל", fn:()=>{ const d=tvCfg(); d.hide=d.hide.filter(x=>x!==k+":"+id); tvCfgSave(d); }}); });
+}
+/* the settings window */
+function tvCfgPaint(){
+  const c=tvCfg(), B=$("#tvcBody"); B.textContent="";
+  const sec=(t)=>{ const s=mk("div","tvc-sec"); s.appendChild(mk("h4",null,t)); B.appendChild(s); return s; };
+  const chk=(box,label,on,fn)=>{ const l=mk("label","tk-chk"), i=mk("input"); i.type="checkbox"; i.checked=on; i.onchange=()=>fn(i.checked); l.append(i," "+label); box.appendChild(l); };
+  const set=fn=>v=>{ const d=tvCfg(); fn(d,v); tvCfgSave(d).then(ok=>{ if(ok) toast("נשמר — המסך מתעדכן"); }); };
+  const p=sec("עמודים במסך");
+  [["tk","📋 משימות פתוחות"],["ev","⚠ אירועים פתוחים"],["bd","📌 לוח מודעות"],["num","🔢 תמונת מצב (מספרים)"]].forEach(([k,l])=>chk(p,l,c.pages[k],set((d,v)=>{ d.pages[k]=v; })));
+  chk(p,"📰 פס המבזקים למעלה",c.ticker,set((d,v)=>{ d.ticker=v; }));
+  const r=mk("label","tvc-secs"); r.appendChild(mk("span",null,"כל עמוד מוצג "));
+  const s=mk("select"); [8,10,14,20,30,45,60].forEach(n=>{ const o=mk("option",null,n+" שניות"); o.value=n; if(n===c.secs) o.selected=true; s.appendChild(o); });
+  s.onchange=()=>set((d,v)=>{ d.secs=+v; })(s.value); r.appendChild(s); p.appendChild(r);
+  const n=sec("תמונת מצב — אילו מספרים");
+  TV_NUMS.forEach(x=>chk(n,x.l,c.nums[x.k],set((d,v)=>{ d.nums[x.k]=v; })));
+  const h=sec("מוסתרים מהמסך ("+c.hide.length+")");
+  if(!c.hide.length) h.appendChild(mk("p","hint","אין. על המסך — לחיצה על 🚫 בפינת כרטיס מסתירה אותו מהמסך בלבד (באפליקציה הוא נשאר)."));
+  c.hide.forEach(key=>{ const [k,id]=[key.slice(0,1),key.slice(2)];
+    const nm = k==="t" ? ((tasks.find(t=>t.id===id)||{}).title||"משימה שנסגרה/נמחקה") : k==="e" ? (()=>{ const e=events.find(x=>x.id===id); return e ? (e.title||String(e.desc||"").slice(0,60)||"אירוע") : "אירוע שנמחק"; })()
+             : ((BOARD||[]).find(b=>b.id===id)||{}).text||"מודעה שהוסרה";
+    const row=mk("div","tvc-hid"); row.appendChild(mk("span",null,(k==="t"?"📋 ":k==="e"?"⚠ ":"📌 ")+nm));
+    const b=mk("button","btn mini","↩ החזר למסך"); b.type="button"; b.onclick=()=>set(d=>{ d.hide=d.hide.filter(x=>x!==key); })(); row.appendChild(b); h.appendChild(row); });
+  if(c.hide.length>1){ const b=mk("button","btn mini","החזר הכל"); b.type="button"; b.onclick=()=>set(d=>{ d.hide=[]; })(); h.appendChild(b); }
+}
+function tvCfgOpen(){ if(!isManager() || isViewer()){ toast("רק מנהל יכול לשנות את המסך"); return; } tvCfgPaint(); const d=$("#dlgTvCfg"); if(!d.open) d.showModal(); }
+$("#tvcClose").onclick=()=>$("#dlgTvCfg").close();
+if($("#tvCfgOpen")) $("#tvCfgOpen").onclick=tvCfgOpen;
+const TV_NUMS=[{k:"open",l:"משימות פתוחות"},{k:"late",l:"משימות באיחור"},{k:"today",l:"משימות להיום"},{k:"evopen",l:"אירועים פתוחים"},{k:"faults",l:"תקלות פתוחות"},{k:"closed",l:"נסגרו היום"}];
+
 /* ===== office screen: big, rotating, live — header (clock), the ticker, one page at a time
    (open tasks, open events, notice board, the numbers), each page for a few seconds. No buttons; nothing can be changed here. */
 let tvOn=false, tvPages=[], tvI=0, tvTimer=null, tvSig="", tvLock=null, tvLast=Date.now();
@@ -3776,7 +3825,7 @@ function tvBuild(){
     +'<div class="tv-clock"><b id="tvTime"></b><span id="tvDate"></span></div></header>'
     +'<div class="ticker tv-ticker" id="tvTicker"><span class="tk-live" aria-hidden="true"><i></i>לייב</span><div class="tk-vp"><div class="tk-track" id="tvTickTrack"></div></div></div>'
     +'<main class="tv-page" id="tvPage"></main>'
-    +'<footer class="tv-foot"><div class="tv-dots" id="tvDots"></div><span id="tvUpd"></span><span class="tv-hint" id="tvHint"></span></footer>'
+    +'<footer class="tv-foot"><div class="tv-dots" id="tvDots"></div><span id="tvUpd"></span><span class="tv-hint" id="tvHint"></span><button type="button" class="tv-cfg" id="tvCfgBtn" hidden>⚙ התאמת המסך</button></footer>'
     +'<button type="button" class="tv-exit" id="tvExit">✕ יציאה ממצב מסך</button>';
   document.body.appendChild(R);
   $("#tvExit").onclick=()=>{ if(isViewer()){ toast("זה מסך משרד (צופה) — כדי לצאת מתנתקים מהחשבון"); return; } location.href=location.pathname; };
@@ -3792,15 +3841,16 @@ function tvData(){
   const tks=tkVis().filter(tkOpen).sort((a,b)=>{ const r=t=>t.due && t.due<today ? 0 : t.due===today ? 1 : prioOf(t)==="דחופה" ? 2 : 3;
     return r(a)-r(b) || String(a.due||"9").localeCompare(String(b.due||"9")); });
   const evs=events.filter(isOpen).sort((a,b)=>String(b.when||"").localeCompare(String(a.when||"")));
-  return {today, tks, evs, board:boardActive()};
+  const c=tvCfg(), vis=k=>x=>!c.hide.includes(k+":"+x.id);
+  return {today, tks:tks.filter(vis("t")), evs:evs.filter(vis("e")), board:boardActive().filter(vis("b"))};
 }
 function tvMakePages(){
-  const D=tvData(), P=[], per=8;
-  for(let i=0;i<Math.max(1,Math.ceil(D.tks.length/per));i++) P.push({k:"tk", title:"משימות פתוחות", n:D.tks.length, items:D.tks.slice(i*per,(i+1)*per), pg:[i+1,Math.ceil(D.tks.length/per)]});
-  for(let i=0;i<Math.ceil(D.evs.length/per);i++) P.push({k:"ev", title:"אירועים פתוחים", n:D.evs.length, items:D.evs.slice(i*per,(i+1)*per), pg:[i+1,Math.ceil(D.evs.length/per)]});
+  const D=tvData(), P=[], per=8, on=tvCfg().pages;
+  if(on.tk) for(let i=0;i<Math.max(1,Math.ceil(D.tks.length/per));i++) P.push({k:"tk", title:"משימות פתוחות", n:D.tks.length, items:D.tks.slice(i*per,(i+1)*per), pg:[i+1,Math.ceil(D.tks.length/per)]});
+  if(on.ev) for(let i=0;i<Math.ceil(D.evs.length/per);i++) P.push({k:"ev", title:"אירועים פתוחים", n:D.evs.length, items:D.evs.slice(i*per,(i+1)*per), pg:[i+1,Math.ceil(D.evs.length/per)]});
   const bn=Math.ceil(D.board.length/6);
-  for(let i=0;i<bn;i++) P.push({k:"bd", title:"📌 לוח מודעות", items:D.board.slice(i*6,(i+1)*6), pg:[i+1,bn], long:true});
-  P.push({k:"num", title:"תמונת מצב", D});
+  if(on.bd) for(let i=0;i<bn;i++) P.push({k:"bd", title:"📌 לוח מודעות", items:D.board.slice(i*6,(i+1)*6), pg:[i+1,bn], long:true});
+  if(on.num || !P.length) P.push({k:"num", title:"תמונת מצב", D});     // never an empty screen
   return P;
 }
 function tvRenderPage(pg){
@@ -3810,7 +3860,7 @@ function tvRenderPage(pg){
   if(pg.k==="tk"){
     if(!pg.items.length) grid.appendChild(mk("div","tv-empty","אין משימות פתוחות 👍"));
     pg.items.forEach(t=>{ const st=t.due && t.due<today ? "late" : t.due===today ? "today" : "future", pr=prioOf(t);
-      const c=mk("div","tv-card tl-"+(t.due?st:"none")); tvClickable(c,()=>goTask(t.id));
+      const c=mk("div","tv-card tl-"+(t.due?st:"none")); tvClickable(c,()=>goTask(t.id)); tvHideBtn(c,"t",t.id,t.title||"משימה");
       const top=mk("div","tv-ct"); if(t.no) top.appendChild(mk("span","tv-no","#"+t.no)); top.appendChild(mk("b",null,t.title||"משימה")); c.appendChild(top);
       const m=mk("div","tv-cm");
       if(t.due) m.appendChild(mk("span","tv-tag "+st,(st==="late"?"באיחור · ":st==="today"?"היום · ":"יעד ")+dmy(t.due).slice(0,5)));
@@ -3819,7 +3869,7 @@ function tvRenderPage(pg){
       if((t.loc||[]).length) m.appendChild(mk("span","tv-who","📍 "+t.loc.join(", ")));
       c.appendChild(m); grid.appendChild(c); });
   } else if(pg.k==="ev"){
-    pg.items.forEach(e=>{ const ty=(e.type||[])[0]||"אירוע", c=mk("div","tv-card ev"); tvClickable(c,()=>evGo(e.id));
+    pg.items.forEach(e=>{ const ty=(e.type||[])[0]||"אירוע", c=mk("div","tv-card ev"); tvClickable(c,()=>evGo(e.id)); tvHideBtn(c,"e",e.id,e.title||ty);
       c.style.borderInlineStartColor="var(--c-"+hueOf(ty)+")";
       const top=mk("div","tv-ct"); if(e.no) top.appendChild(mk("span","tv-no","#"+e.no)); top.appendChild(mk("b",null,e.title||String(e.desc||"").slice(0,90)||ty)); c.appendChild(top);
       const m=mk("div","tv-cm"); const tg=mk("span","tv-tag",ty); tg.style.background="var(--c-"+hueOf(ty)+"-bg)"; tg.style.color="var(--c-"+hueOf(ty)+")"; m.appendChild(tg);
@@ -3828,14 +3878,15 @@ function tvRenderPage(pg){
       c.appendChild(m); grid.appendChild(c); });
   } else if(pg.k==="bd"){
     grid.className="tv-board";
-    pg.items.forEach(x=>{ const c=mk("div","tv-note"+(x.important?" imp":"")); tvClickable(c,()=>bsOpenAt(x.id)); c.appendChild(mk("p",null,x.text));
+    pg.items.forEach(x=>{ const c=mk("div","tv-note"+(x.important?" imp":"")); tvClickable(c,()=>bsOpenAt(x.id)); tvHideBtn(c,"b",x.id,x.text.slice(0,40)); c.appendChild(mk("p",null,x.text));
       c.appendChild(mk("span",null,[x.by, x.until?"עד "+dmy(x.until).slice(0,5):""].filter(Boolean).join(" · "))); grid.appendChild(c); });
   } else {
-    grid.className="tv-nums"; const D=pg.D;
-    [["משימות פתוחות",D.tks.length,""],["משימות באיחור",D.tks.filter(t=>t.due && t.due<D.today).length,"late"],["להיום",D.tks.filter(t=>t.due===D.today).length,"today"],
-     ["אירועים פתוחים",D.evs.length,""],["תקלות פתוחות",D.evs.filter(e=>(e.type||[]).includes("תקלה")).length,"late"],
-     ["נסגרו היום",events.filter(e=>!isOpen(e) && String(e.closedAt||"").slice(0,10)===D.today).length,"today"]]
-      .forEach(([l,v,cls])=>{ const c=mk("div","tv-num "+cls); c.append(mk("b",null,nf(v)), mk("span",null,l)); grid.appendChild(c); });
+    grid.className="tv-nums"; const D=pg.D, c=tvCfg();
+    const V={open:[D.tks.length,"",()=>goTasks({})], late:[D.tks.filter(t=>t.due && t.due<D.today).length,"late",()=>goTasks({f:{late:true}})],
+      today:[D.tks.filter(t=>t.due===D.today).length,"today",()=>goTasks({})], evopen:[D.evs.length,"",()=>goList({stat:OPEN_ANY,ppl:""})],
+      faults:[D.evs.filter(e=>(e.type||[]).includes("תקלה")).length,"late",()=>goList({stat:OPEN_ANY,type:"תקלה",ppl:""})],
+      closed:[events.filter(e=>!isOpen(e) && String(e.closedAt||"").slice(0,10)===D.today).length,"today",()=>goList({from:D.today,to:D.today,ppl:""})]};
+    TV_NUMS.filter(x=>c.nums[x.k]).forEach(x=>{ const [v,cls,go]=V[x.k], el=mk("div","tv-num "+cls); el.append(mk("b",null,nf(v)), mk("span",null,x.l)); tvClickable(el,go); grid.appendChild(el); });
   }
   M.appendChild(grid);
   const dots=$("#tvDots"); dots.textContent=""; tvPages.forEach((p,i)=>dots.appendChild(mk("i",i===tvI?"on":"")));
@@ -3854,6 +3905,9 @@ let tvAway=false, tvAwayT=null, tvAct=Date.now();
 const tvCanEdit=()=>tvOn && !isViewer();
 function tvClickable(el,fn){ if(!tvCanEdit()) return; el.classList.add("tv-click"); el.tabIndex=0; el.title="לחץ לעריכה";
   el.onclick=()=>tvGo(fn); el.onkeydown=ev=>{ if(ev.key==="Enter"){ ev.preventDefault(); tvGo(fn); } }; }
+function tvHideBtn(el,k,id,name){ if(!tvCanEdit() || !isManager()) return;
+  const b=mk("button","tv-hide","🚫"); b.type="button"; b.title="הסתר מהמסך (באפליקציה זה נשאר)"; b.setAttribute("aria-label","הסתר מהמסך");
+  b.onclick=ev=>{ ev.stopPropagation(); tvHideItem(k,id,name); }; el.appendChild(b); }
 function tvGo(fn){
   if(!tvOn){ fn(); return; }
   if(!tvCanEdit()){ toast("זה מסך משרד (צופה) — אי אפשר לשנות מכאן"); return; }
@@ -3870,20 +3924,23 @@ function tvReturn(){
   document.querySelectorAll("dialog[open]").forEach(d=>d.close());
   const b=$("#tvBack"); if(b) b.hidden=true;
   document.documentElement.classList.add("tv"); scrollTo(0,0);
-  tvPaint(true); clearTimeout(tvTimer); tvTimer=setTimeout(tvNext, (tvPages[tvI]||{}).long ? 20000 : 14000);
+  tvPaint(true); clearTimeout(tvTimer); tvTimer=setTimeout(tvNext, tvDur(tvPages[tvI]));
 }
 ["pointerdown","keydown","input"].forEach(t=>document.addEventListener(t,()=>{ tvAct=Date.now(); },true));
 function bsOpenAt(id){ bsOpen(); const x=(BOARD||[]).find(b=>b.id===id); if(x && bsMgr()) bsEdit(x); }
 function tvNext(){
   if(tvAway) return; tvPages=tvMakePages(); tvI=(tvI+1)%tvPages.length; tvRenderPage(tvPages[tvI]);
-  clearTimeout(tvTimer); tvTimer=setTimeout(tvNext, tvPages[tvI].long ? 20000 : 14000); }
+  clearTimeout(tvTimer); tvTimer=setTimeout(tvNext, tvDur(tvPages[tvI])); }
+function tvDur(p){ const s=tvCfg().secs*1000; return p && p.long ? Math.round(s*1.4) : s; }
 async function tvWake(){ try{ if("wakeLock" in navigator && !document.hidden) tvLock=await navigator.wakeLock.request("screen"); }catch(e){} }
 function tvStart(){
   if(tvOn) return; tvOn=true; TV=true; document.documentElement.classList.add("tv");
   document.querySelectorAll("dialog[open]").forEach(d=>d.close());
   tvBuild(); tvClock(); setInterval(tvClock,1000);
-  tvPages=tvMakePages(); tvI=0; tvRenderPage(tvPages[0]); setInterval(()=>{ const h=$("#tvHint"); if(h) h.textContent=tvCanEdit()?"✎ לחיצה על כרטיס — עריכה":""; },2000); paintTickerInto($("#tvTicker"),$("#tvTickTrack"),"tv");
-  clearTimeout(tvTimer); tvTimer=setTimeout(tvNext,14000);
+  tvPages=tvMakePages(); tvI=0; tvRenderPage(tvPages[0]); setInterval(()=>{ const h=$("#tvHint"); if(h) h.textContent=tvCanEdit()?"✎ לחיצה על כרטיס — עריכה"+(isManager()?" · 🚫 — הסתרה מהמסך":""):"";
+    const g=$("#tvCfgBtn"); if(g) g.hidden=!(tvCanEdit() && isManager()); },2000);
+  $("#tvCfgBtn").onclick=()=>tvGo(tvCfgOpen); paintTickerInto($("#tvTicker"),$("#tvTickTrack"),"tv");
+  clearTimeout(tvTimer); tvTimer=setTimeout(tvNext,tvDur(tvPages[0]));
   setInterval(()=>tvPaint(false),4000);
   tvWake(); document.addEventListener("visibilitychange",()=>{ if(!document.hidden) tvWake(); });
   // the opening screen: once signed in, go straight in
