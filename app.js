@@ -2020,7 +2020,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.78", APP_DATE="11/10/2026";
+const APP_VER="2.79", APP_DATE="11/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2767,10 +2767,12 @@ function renderTasks(){
       btn(tkStat(t)==="בהמתנה"?"▶ שחרר מהמתנה":"⏸ בהמתנה","",()=>{ t.status = tkStat(t)==="בהמתנה" ? "פתוחה" : "בהמתנה";
         tkLog(t, t.status==="בהמתנה" ? "הועברה להמתנה" : "שוחררה מהמתנה", "", true); t.upd=new Date().toISOString(); saveTasks(); });
       btn("ערוך","",()=>openTaskForm(t.id));
+      if(!isViewer()) btn("⧉ שכפל","",()=>dupTask(t.id));
     } else if(!isViewer()){
       // a completed task can be reopened (its event in the log reopens with it) and edited
       btn("↩ פתח מחדש","",()=>reopenTask(t));
       btn("ערוך","",()=>openTaskForm(t.id));
+      btn("⧉ שכפל","",()=>dupTask(t.id));
     }
     // a team task that turns out to be only mine: move it to my personal (🔒) tasks — it leaves the team board (so: managers, like deleting)
     if(tkOpen(t) && isManager() && !isViewer()) btn("🔒 העבר לאישית","",()=>{
@@ -2808,10 +2810,14 @@ function setScope(s){ tkScope=s; $("#tkForm").classList.toggle("priv", s==="me")
   document.querySelectorAll("#tkForm .tk-f.bad").forEach(x=>x.classList.remove("bad"));
   $("#tkSave").textContent = s==="me" ? "שמור משימה אישית" : "שמור משימה"; }
 document.querySelectorAll("#tkScope [data-s]").forEach(b=>b.onclick=()=>setScope(b.dataset.s));
-function openTaskForm(id){
+/* duplicate: the task form opens as a NEW task filled from this one (title, details, type, priority, people, departments,
+   location, equipment, dates, repeat, checklist items unticked) — change what is needed and save; the original stays as it is.
+   Files, updates and status are not copied. */
+function dupTask(id){ openTaskForm(id, true); }
+function openTaskForm(id, copy){
   const pt = id && String(id).startsWith("p:") ? privTasks().find(x=>x.id===id) : null;
   tkEditPriv = pt ? pt.pid : null;
-  const t=!pt && id ? tasks.find(x=>x.id===id) : null; tkEdit=t ? t.id : null;
+  const t=!pt && id ? tasks.find(x=>x.id===id) : null; tkEdit=t && !copy ? t.id : null;
   const types=lists.type||[], defType=types.includes("אחזקה") ? "אחזקה" : (types[0]||"");
   fillSelect($("#tkType"), byUse("type"), t ? (t.type||"") : defType, "— בחר סוג —");
   fillSelect($("#tkPrio"), PRIOS, t ? prioOf(t) : "רגילה");
@@ -2820,23 +2826,25 @@ function openTaskForm(id){
   fillSelect($("#tkLoc"), byUse("loc"), t ? (t.loc||[])[0]||"" : "", "— בחר מיקום —", true);
   fillSelect($("#tkEq"), byUse("eq"), t ? (t.eq||[])[0]||"" : "", "— בחר ציוד —", true);
   paintDeptChips(t ? (t.depts||[]) : (tkView==="mine" && myDept() && !myName() ? [myDept()] : []));
-  $("#tkCkWrap").hidden=!!t; paintFormCk([]);          // new task: its checklist (an existing one is edited on the task itself)
+  $("#tkCkWrap").hidden=!!t && !copy; paintFormCk(copy && t ? (t.check||[]).filter(c=>c && !c.del).map(c=>c.text) : []);          // new task: its checklist (an existing one is edited on the task itself)
   document.querySelectorAll("#tkForm .tk-f.bad").forEach(x=>x.classList.remove("bad"));
   paintFormColors();
-  $("#tkFormTitle").textContent = pt ? "עריכת משימה אישית 🔒" : t ? "עריכת משימה" : "משימה חדשה";
+  $("#tkFormTitle").textContent = pt ? "עריכת משימה אישית 🔒" : copy && t ? "משימה חדשה — עותק של "+(snOf(t)||"משימה") : t ? "עריכת משימה" : "משימה חדשה";
   $("#tkTitle").value=t?t.title||"":""; $("#tkDesc").value=t?t.desc||"":"";
   $("#tkDue").value=t?t.due||"":"";
-  $("#tkScope").hidden = !!(t || pt);                  // a task stays what it was (team or personal)
+  $("#tkScope").hidden = !!((t && !copy) || pt);                  // a task stays what it was (team or personal)
   setScope(pt || (!t && tkView==="priv") ? "me" : "team");   // from "אישיות" a new task starts as personal
   if(pt){ $("#tkTitle").value=pt.title; $("#tkDesc").value=pt.desc; $("#tkDue").value=pt.due; fillSelect($("#tkPrio"), PRIOS, pt.prio); paintFormColors(); $("#tkCkWrap").hidden=true; }
   setRep(t && t.rep); repAuto=false;
-  $("#tkStart").value=pt ? (pt.start||"") : t ? (t.start || String(t.created||"").slice(0,10) || ymd(new Date())) : ymd(new Date());
+  $("#tkStart").value=pt ? (pt.start||"") : t && !copy ? (t.start || String(t.created||"").slice(0,10) || ymd(new Date())) : copy && t && t.start && t.start>ymd(new Date()) ? t.start : ymd(new Date());
+  if(copy && t && t.due && t.due<$("#tkStart").value) $("#tkDue").value="";       // a copy doesn't start out late
   $("#tkDue").min=$("#tkStart").value;
   $("#tkForm").hidden=false; $("#tkNewBtn").hidden=true;
   // open with the title in view, just below the sticky header; a new task starts in the title
   const hb=document.querySelector("header.bar"), off=(hb && getComputedStyle(hb).position==="sticky" ? hb.getBoundingClientRect().height : 0)+12;
   window.scrollTo({top:$("#tkForm").getBoundingClientRect().top+window.scrollY-off, behavior:"smooth"});
-  if(!t) setTimeout(()=>$("#tkTitle").focus({preventScroll:true}),350);
+  if(!t || copy) setTimeout(()=>{ const ti=$("#tkTitle"); ti.focus({preventScroll:true}); if(copy) ti.select(); },350);
+  if(copy) toast("עותק נפתח — משנים מה שצריך ושומרים כמשימה חדשה");
 }
 /* "+ אחר…": type a new value; it joins the app's lists (like adding it in settings → lists) */
 [["#tkPpl","ppl","שם האחראי"],["#tkLoc","loc","מיקום חדש"],["#tkEq","eq","ציוד חדש"]].forEach(([id,k,label])=>{
