@@ -441,7 +441,7 @@
                                    : "נרשמו ע\"י "+[...new Set(fresh.map(f=>who(f.by)))].join(", ");
     toast(fresh.length===1 ? "אירוע חדש"+(what?" · "+what:"")+" · "+who(fresh[0].by) : title, {label:"הצג", fn:showNew});
     if(document.hidden && "Notification" in window && Notification.permission==="granted"){
-      const opt={body, tag:"ogg-new", renotify:true, icon:"icons/icon-notebook-192.png", lang:"he", dir:"rtl"};
+      const opt={body, tag:"ogg-new", renotify:true, icon:"icons/icon-notebook-192.png", badge:"icons/badge-96.png", lang:"he", dir:"rtl"};
       (navigator.serviceWorker ? navigator.serviceWorker.ready.then(r=>r.showNotification(title,opt)) : Promise.reject())
         .catch(()=>{ try{ const n=new Notification(title,opt); n.onclick=()=>{ window.focus(); showNew(); n.close(); }; }catch(e){} });
     }
@@ -883,7 +883,7 @@
   /* device notification (when the app is in the background and the user allowed it) */
   function notifyDevice(title, body, tag, onClick){
     if(!(document.hidden && "Notification" in window && Notification.permission==="granted")) return;
-    const opt={body, tag, renotify:true, icon:"icons/icon-notebook-192.png", lang:"he", dir:"rtl"};
+    const opt={body, tag, renotify:true, icon:"icons/icon-notebook-192.png", badge:"icons/badge-96.png", lang:"he", dir:"rtl"};
     (navigator.serviceWorker ? navigator.serviceWorker.ready.then(r=>r.showNotification(title,opt)) : Promise.reject())
       .catch(()=>{ try{ const n=new Notification(title,opt); n.onclick=()=>{ window.focus(); onClick(); n.close(); }; }catch(e){} });
   }
