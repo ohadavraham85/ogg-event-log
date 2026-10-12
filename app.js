@@ -2020,7 +2020,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.76", APP_DATE="11/10/2026";
+const APP_VER="2.77", APP_DATE="11/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -3807,9 +3807,13 @@ $("#brfClose").onclick=()=>$("#dlgBriefs").close();
 $("#brfOpen").onclick=()=>{ const d=$("#brfDate").value; if(!d){ $("#brfDate").focus(); return; } $("#dlgBriefs").close(); openBrief(d); };
 
 /* ---- the form ---- */
+/* who is on the attendance table: the ⭐ team (or, without one, the 20 most used), plus everyone who was on the last
+   briefing's table — so a person added once with "+ הוסף אדם לנוכחות" stays there from then on — plus whoever is on this one */
 function brPeople(b){ const off=lists._hide_ppl||[], core=(lists._core_ppl||[]).filter(v=>!off.includes(v));
   const base=core.length ? core : pplValues().slice(0,20);
-  return [...new Set(base.concat(Object.keys(b.att||{})))]; }
+  const prev=Object.values(BRIEFS||{}).filter(x=>x.id<b.id && x.att).sort((x,y)=>y.id.localeCompare(x.id))[0];
+  const was=prev ? Object.keys(prev.att).filter(n=>!off.includes(n)) : [];
+  return [...new Set(base.concat(was, Object.keys(b.att||{})))]; }
 function brOwners(b){ const inn=Object.keys(b.att||{}).filter(n=>b.att[n].s==="in"); return inn.length ? inn : pplValues(); }
 function brTouch(){ brTouched=true; if(brCur) brSave(brCur,false); paintBrSum(); }
 function openBrief(id){
