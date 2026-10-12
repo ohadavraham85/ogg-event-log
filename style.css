@@ -1922,3 +1922,8 @@ dialog.brief-dlg{max-width:720px;width:calc(100% - 20px);max-height:calc(100dvh 
 :root{--said:#0A8F4E;--said-bg:#D3F4E2;--said-ring:rgba(10,143,78,.25)}
 @media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){--said:#1FA463;--said-bg:#0E3B26;--said-ring:rgba(52,211,153,.3)} }
 :root[data-theme="dark"]{--said:#1FA463;--said-bg:#0E3B26;--said-ring:rgba(52,211,153,.3)}
+/* task form: photos and files to attach on save; not for a personal task */
+.tk-file-grid{display:flex;flex-wrap:wrap;gap:8px}
+.tk-file-grid:empty{display:none}
+.tk-files-f .tk-fbtns{margin-top:6px}
+#tkForm.priv .tk-files-f{display:none}

@@ -2020,7 +2020,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.77", APP_DATE="11/10/2026";
+const APP_VER="2.78", APP_DATE="11/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2904,7 +2904,19 @@ function paintDeptChips(sel){
       if(tkDeptSel.length) $("#tkPpl").closest(".tk-f").classList.remove("bad"), box.closest(".tk-f").classList.remove("bad"); };
     box.appendChild(b); });
 }
-function closeTaskForm(){ $("#tkForm").hidden=true; $("#tkNewBtn").hidden=false; tkEdit=null; tkEditPriv=null; }
+function closeTaskForm(){ $("#tkForm").hidden=true; $("#tkNewBtn").hidden=false; tkEdit=null; tkEditPriv=null; tkPendClear(); }
+/* photos and files picked in the task form: kept here until "שמור משימה", then attached to the task (the same as 📷 / 📎 on a task) */
+var tkPend=[];
+function tkPendClear(){ tkPend.forEach(x=>{ if(x.url) URL.revokeObjectURL(x.url); }); tkPend=[]; tkPendPaint(); }
+function tkPendPaint(){ const box=$("#tkPendList"); if(!box) return; box.textContent="";
+  tkPend.forEach((x,i)=>{ const b=mk("div","tk-file"+(x.url?" img":""));
+    if(x.url){ const im=mk("img"); im.src=x.url; im.alt=x.f.name||"תמונה"; b.appendChild(im); }
+    else b.append(mk("span","tf-ic","📄"), mk("span","tf-n",x.f.name||"קובץ"));
+    const d=mk("span","tf-del","✕"); d.setAttribute("role","button"); d.setAttribute("aria-label","הסר את "+(x.f.name||"הקובץ"));
+    d.onclick=()=>{ if(x.url) URL.revokeObjectURL(x.url); tkPend.splice(i,1); tkPendPaint(); }; b.appendChild(d); box.appendChild(b); }); }
+function tkPendAdd(list, cam){ [...list].forEach(f=>tkPend.push({f, cam, url:/^image\//.test(f.type||"") ? URL.createObjectURL(f) : ""})); tkPendPaint(); }
+$("#tkPendCam").onchange=e=>{ tkPendAdd(e.target.files,true); e.target.value=""; };
+$("#tkPendFile").onchange=e=>{ tkPendAdd(e.target.files,false); e.target.value=""; };
 const one=v=>v && v!=="__other" ? [v] : [];
 $("#tkNewBtn").onclick=()=>openTaskForm(null);
 $("#tkCancel").onclick=closeTaskForm;
@@ -2942,8 +2954,11 @@ $("#tkSave").onclick=()=>{
     const t=Object.assign({id:newId(), status:"פתוחה", created:now, log:[], openedBy:reporter()||"", openedMail:(window.cloudMe && window.cloudMe())||""}, data);
     if(tkCkSel.length) t.check=tkCkSel.map(text=>({id:newId(), text, done:false}));
     tkLog(t, "המשימה נפתחה"+(data.ppl.length?" · אחראי: "+data.ppl[0]:"")+(data.ppl.length>1?" · משויכים: "+data.ppl.slice(1).join(", "):"")+(data.depts.length?" · מחלקות: "+data.depts.join(", "):""), "", true); tasks.push(t); }
+  const pend=tkPend; tkPend=[];                                     // photos / files picked in the form (closing the form would drop them)
   closeTaskForm(); if(tkView==="done"){ tkView="open"; paintTkSeg(); } saveTasks();
   const saved=tasks.find(x=>x.id===(was||tasks[tasks.length-1].id));
+  if(saved && pend.length){
+    addFiles(saved, pend.map(x=>x.f), pend.every(x=>x.cam)).finally(()=>pend.forEach(x=>{ if(x.url) URL.revokeObjectURL(x.url); })); }   // one line in the log
   toast(saved && !isManager() && !isMine(saved) ? (was?"המשימה עודכנה":"המשימה נשמרה")+" — היא לא משויכת אליך או למחלקה שלך; תמצא אותה ב\"שפתחתי\"" : (was?"המשימה עודכנה":"המשימה נשמרה"));
 };
 /* quick edit: a tag on a task opens a small window that changes only that detail (no need for the full form).
