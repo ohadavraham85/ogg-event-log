@@ -2020,7 +2020,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.74", APP_DATE="11/10/2026";
+const APP_VER="2.75", APP_DATE="11/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -3899,6 +3899,29 @@ function paintBrAtt(){                     // the paper form's table: name · ro
     b.att[sel.value]={s:"in"}; brTouch(); paintBrAtt(); Object.keys(BR_SECS).forEach(paintBrRows); };
 }
 /* a note for the briefing only: shown here and in the PDF, never written into the task or the event */
+/* every topic in the briefing: its number is a button — tap = ✓ דובר (discussed), tap again = back to the number;
+   the ⠿ handle drags it to a new place in its list (finger or mouse). onMove(keys) gets the new order. */
+function brDeco(el, i, said, onSaid){
+  const no=mk("button","br-no"+(said?" said":""), said?"✓":String(i+1)); no.type="button";
+  no.title=said?"דובר — לחיצה מבטלת":"סמן ✓ דובר"; no.setAttribute("aria-pressed",String(!!said)); no.setAttribute("aria-label",(said?"דובר: ":"סמן כדובר: ")+"נושא "+(i+1));
+  no.onclick=()=>onSaid(!said);
+  const h=mk("span","br-drag","⠿"); h.title="גרור לשינוי הסדר"; h.setAttribute("aria-hidden","true");
+  el.classList.toggle("said",!!said); el.append(no,h);
+}
+function brDragList(box, sel, onMove){
+  box.querySelectorAll(":scope > "+sel).forEach(el=>{ const h=el.querySelector(".br-drag"); if(!h) return;
+    h.onpointerdown=e=>{ e.preventDefault(); el.classList.add("dragging");      // tracked on the page: moving the card would drop a captured pointer
+      const dlg=box.closest("dialog"); let scr=0, raf=0;
+      const tick=()=>{ if(scr && dlg) dlg.scrollTop+=scr; raf=requestAnimationFrame(tick); }; raf=requestAnimationFrame(tick);
+      const move=ev=>{ const y=ev.clientY, items=[...box.querySelectorAll(":scope > "+sel)].filter(x=>x!==el);
+        const after=items.find(x=>{ const r=x.getBoundingClientRect(); return y < r.top+r.height/2; });
+        if(after) box.insertBefore(el,after); else { const last=items[items.length-1]; if(last) last.after(el); }
+        if(dlg){ const d=dlg.getBoundingClientRect(); scr = y<d.top+70 ? -8 : y>d.bottom-130 ? 8 : 0; } };
+      const up=()=>{ cancelAnimationFrame(raf); el.classList.remove("dragging");
+        removeEventListener("pointermove",move); removeEventListener("pointerup",up); removeEventListener("pointercancel",up);
+        onMove([...box.querySelectorAll(":scope > "+sel)].map(x=>x.dataset.k)); };
+      addEventListener("pointermove",move); addEventListener("pointerup",up); addEventListener("pointercancel",up); }; });
+}
 /* a numbered sub-section title: "2.1 משימות לדיון" + how many */
 function brSubHead(el, no, title, n){ el.textContent=""; el.append(mk("i",null,no), document.createTextNode(title)); if(n) el.appendChild(mk("b","br-cnt",String(n))); }
 /* a note stays a small "+ הערה" link until it is used, so the rows stay short */
@@ -3912,11 +3935,13 @@ function brNoteIn(get, set, label){ const n=mk("input","txt br-note"); n.value=g
    (written to the task on save) and a note added (the briefing only). The suggested ones (late, urgent, in progress, rounds due) come first.
    Briefings saved before this (no b.tks) keep what they showed then: the suggested lists minus the hidden ones. */
 function brPicked(b){
-  if(b.tks) return Object.keys(b.tks).map(id=>tasks.find(t=>t.id===id)).filter(Boolean);
+  if(b.tks){ const o=(b.tkOrd||[]).filter(id=>b.tks[id]); Object.keys(b.tks).forEach(id=>{ if(!o.includes(id)) o.push(id); });
+    return o.map(id=>tasks.find(t=>t.id===id)).filter(Boolean); }
   const H=b.hide||{}; return brLinkedTasks(b.id).concat(brRepTasks(b.id)).filter(t=>!H[t.id]);
 }
-function brTaskRow(t, b){
-  const r=mk("div","br-lr br-evr on"+(t.due && t.due<b.id && tkOpen(t)?" late":"")), tx=mk("div","br-lt");
+function brTaskRow(t, b, i){
+  const r=mk("div","br-lr br-evr on"+(t.due && t.due<b.id && tkOpen(t)?" late":"")), tx=mk("div","br-lt"); r.dataset.k=t.id;
+  b.said=b.said||{}; brDeco(r, i, b.said["t:"+t.id], v=>{ if(v) b.said["t:"+t.id]=1; else delete b.said["t:"+t.id]; brTouch(); paintBrTasks(); });
   tx.appendChild(mk("b",null,(snOf(t)?snOf(t)+" ":"")+(t.title||"(ללא כותרת)")));
   tx.appendChild(mk("small",null,[(t.ppl||[])[0]||(t.depts||[]).join(", "), tkOpen(t)?tkStat(t):"הושלמה", t.due?(t.due<b.id?"באיחור · ":"יעד ")+dmy(t.due).slice(0,5):"", t.rep?repLabel(t.rep):"", prioOf(t)!=="רגילה"?prioOf(t):""].filter(Boolean).join(" · ")));
   const x=mk("button","bd-del br-del","✕"); x.type="button"; x.title="הסר מהשיחה"; x.setAttribute("aria-label","הסר את "+(t.title||"המשימה")+" מהשיחה");
@@ -3938,10 +3963,12 @@ function paintBrTasks(){
   if(!b.tks){ b.tks={}; if(b.upd) brPicked(Object.assign({},b,{tks:undefined})).forEach(t=>{ b.tks[t.id]=1; }); }   // older briefing: keep what it showed
   const own=t=>t.brief===b.id;                                     // opened from this briefing's topics: already shown there
   Object.keys(b.tks).forEach(id=>{ const t=tasks.find(x=>x.id===id); if(t && own(t)) delete b.tks[id]; });
-  const picked=[...new Set(Object.keys(b.tks))].map(id=>tasks.find(t=>t.id===id)).filter(Boolean);
+  const ord=(b.tkOrd||[]).filter(id=>b.tks[id]); Object.keys(b.tks).forEach(id=>{ if(!ord.includes(id)) ord.push(id); }); b.tkOrd=ord;   // the order (drag)
+  const picked=ord.map(id=>tasks.find(t=>t.id===id)).filter(Boolean);
   brSubHead($("#brTkSum"),"2.1","משימות לדיון",picked.length);
   if(!picked.length) box.appendChild(mk("p","hint br-none","עדיין לא נבחרו משימות. בוחרים מהרשימה למטה."));
-  picked.forEach(t=>box.appendChild(brTaskRow(t,b)));
+  picked.forEach((t,i)=>box.appendChild(brTaskRow(t,b,i)));
+  brDragList(box,".br-lr",keys=>{ b.tkOrd=keys; brTouch(); paintBrTasks(); });
   const sug=brLinkedTasks(b.id).concat(brRepTasks(b.id)), sid=new Set(sug.map(t=>t.id));
   const rest=tasks.filter(t=>tkOpen(t) && !t.priv && !sid.has(t.id)).sort((a,c)=>tkSortKey(a).localeCompare(tkSortKey(c)));
   const left=sug.concat(rest).filter(t=>!b.tks[t.id] && !own(t));
@@ -3958,15 +3985,19 @@ function brWeekEvents(d){ const from=ymd(new Date(new Date(d+"T12:00").getTime()
     .sort((a,c)=>(c.when||"").localeCompare(a.when||"")); }
 function paintBrEvents(){
   const b=brCur, box=$("#brEv"); box.textContent=""; b.evs=b.evs||{}; const E=b.evs;
-  const picked=Object.keys(E).map(id=>events.find(e=>e.id===id)).filter(Boolean).sort((a,c)=>(c.when||"").localeCompare(a.when||""));
+  const ord=(b.evOrd||[]).filter(id=>id in E); Object.keys(E).forEach(id=>{ if(!ord.includes(id)) ord.push(id); }); b.evOrd=ord;
+  const picked=ord.map(id=>events.find(e=>e.id===id)).filter(Boolean);
   brSubHead($("#brEvSum"),"2.2","אירועים מהשבוע האחרון לדיון",picked.length);
   if(!picked.length) box.appendChild(mk("p","hint br-none","עדיין לא נבחרו אירועים. בוחרים מהרשימה למטה."));
-  picked.forEach(e=>{ const r=mk("div","br-lr br-evr on"), tx=mk("div","br-lt");
+  b.said=b.said||{};
+  picked.forEach((e,i)=>{ const r=mk("div","br-lr br-evr on"), tx=mk("div","br-lt"); r.dataset.k=e.id;
+    brDeco(r, i, b.said["e:"+e.id], v=>{ if(v) b.said["e:"+e.id]=1; else delete b.said["e:"+e.id]; brTouch(); paintBrEvents(); });
     tx.appendChild(mk("b",null,(snOf(e)?snOf(e)+" ":"")+((e.type||[]).join(", ")||"אירוע")+" · "+(e.title||e.desc||"").slice(0,90)));
     tx.appendChild(mk("small",null,[fmtWhen(e.when), (e.loc||[]).concat(e.eq||[]).join(", "), (e.ppl||[]).join(", "), isOpen(e)?"פתוח":"נסגר"].filter(Boolean).join(" · ")));
     const x=mk("button","bd-del br-del","✕"); x.type="button"; x.title="הסר מהשיחה"; x.setAttribute("aria-label","הסר את האירוע מהשיחה");
     x.onclick=()=>{ delete E[e.id]; brTouch(); paintBrEvents(); };
     r.append(tx,x, brNoteIn(()=>E[e.id], v=>{ E[e.id]=v; }, e.title||e.desc||"")); box.appendChild(r); });
+  brDragList(box,".br-lr",keys=>{ b.evOrd=keys; brTouch(); paintBrEvents(); });
   const left=brWeekEvents(b.id).filter(e=>!(e.id in E));
   const sel=$("#brEvAdd"); sel.textContent="";
   const o0=mk("option",null,"+ הוסף אירוע מהשבוע האחרון ("+left.length+")"); o0.value=""; sel.appendChild(o0);
@@ -3983,8 +4014,10 @@ function paintBrRows(k){
   const grp=$("#brG-"+k);
   if(grp){ rows=b.rows[k]=rows.filter(x=>x.tid || x.eid || (x.text||"").trim()); grp.hidden=!rows.length; if(!rows.length) return; }
   const add=focus=>{ rows.push({id:newId(), text:"", owner:""}); brTouch(); paintBrRows(k); if(focus){ const ins=box.querySelectorAll(".br-tx"); if(ins.length) ins[ins.length-1].focus(); } };
+  rows.forEach(x=>{ if(x.tid && !tasks.some(t=>t.id===x.tid)) delete x.tid; if(x.eid && !events.some(e=>e.id===x.eid)) delete x.eid; });   // removed from the log since
   rows.forEach((x,i)=>{
-    const r=mk("div","br-row"+(x.tid||x.eid?" made":"")+((x.text||"").trim()?" on":""));
+    const r=mk("div","br-row"+(x.tid||x.eid?" made":"")+((x.text||"").trim()?" on":"")); r.dataset.k=x.id;
+    brDeco(r, i, x.said, v=>{ if(v) x.said=1; else delete x.said; brTouch(); paintBrRows(k); });
     const tx=mk("input","txt br-tx"); tx.value=x.text||""; tx.placeholder=S.ph; tx.setAttribute("aria-label",S.ph+" "+(i+1)); tx.maxLength=300;
     tx.oninput=()=>{ x.text=tx.value; r.classList.toggle("on",!!tx.value.trim()); brTouch(); };
     tx.onkeydown=e=>{ if(e.key==="Enter"){ e.preventDefault(); add(true); }
@@ -4009,6 +4042,7 @@ function paintBrRows(k){
     r.appendChild(brNoteIn(()=>x.note, v=>{ x.note=v; }, x.text||S.ph));
     box.appendChild(r);
   });
+  brDragList(box,".br-row",keys=>{ b.rows[k]=keys.map(id=>rows.find(x=>x.id===id)).filter(Boolean); brTouch(); paintBrRows(k); });
   if(grp) return;
   const more=mk("button","btn mini ghost br-more","+ שורה"); more.type="button"; more.onclick=()=>add(true);
   if(!rows.length) add(false); else box.appendChild(more);
@@ -4144,16 +4178,17 @@ async function briefPdf(b){
   pend=sec(2,"סטטוס משימות ותוכנית עבודה");
   const N=b.notes||{}, pk=brPicked(b);
   const lbl=(no,t,kind)=>{ const h=mk("div","bp-lbl bp-k-"+kind); h.append(mk("i",null,no), document.createTextNode(t)); return h; };
-  const num=rows=>rows.map((r,i)=>[String(i+1)].concat(r)), nc=(ri,ci)=>ci===0 ? "bp-no" : null;
+  const SD=b.said||{};
+  const num=(rows,said)=>rows.map((r,i)=>[(said&&said[i]?"✓ ":"")+String(i+1)].concat(r)), nc=(ri,ci)=>ci===0 ? "bp-no" : null;
   const old=x=>ref(x) ? " ("+ref(x)+")" : "";                     // an older briefing that still opened tasks: which one
   const free=k=>(b.rows[k]||[]).filter(x=>(x.text||"").trim());
   table(lbl("2.1","משימות לדיון","tk"), [["#","5%"],["משימה",""],["מוביל משימה","16%"],["יעד","10%"],["סטטוס","10%"],["הערה","22%"]],
-    num(pk.map(t=>[(snOf(t)?snOf(t)+" ":"")+(t.title||""), (t.ppl||[])[0]||(t.depts||[]).join(", "), t.due?dmy(t.due):"", tkOpen(t)?tkStat(t):"הושלמה", N[t.id]||""])), nc, "tk");
-  const ev=Object.keys(b.evs||{}).map(id=>events.find(e=>e.id===id)).filter(Boolean).sort((a,c)=>(c.when||"").localeCompare(a.when||""));
+    num(pk.map(t=>[(snOf(t)?snOf(t)+" ":"")+(t.title||""), (t.ppl||[])[0]||(t.depts||[]).join(", "), t.due?dmy(t.due):"", tkOpen(t)?tkStat(t):"הושלמה", N[t.id]||""]), pk.map(t=>SD["t:"+t.id])), nc, "tk");
+  const ev=(b.evOrd||Object.keys(b.evs||{})).filter(id=>id in (b.evs||{})).map(id=>events.find(e=>e.id===id)).filter(Boolean);
   table(lbl("2.2","אירועים מהשבוע האחרון","ev"), [["#","5%"],["אירוע",""],["מתי","14%"],["מיקום","15%"],["סטטוס","9%"],["הערה","22%"]],
-    num(ev.map(e=>[(snOf(e)?snOf(e)+" ":"")+((e.type||[]).join(", "))+" · "+(e.title||e.desc||""), fmtWhen(e.when), (e.loc||[]).join(", "), isOpen(e)?"פתוח":"נסגר", b.evs[e.id]||""])), nc, "ev");
+    num(ev.map(e=>[(snOf(e)?snOf(e)+" ":"")+((e.type||[]).join(", "))+" · "+(e.title||e.desc||""), fmtWhen(e.when), (e.loc||[]).join(", "), isOpen(e)?"פתוח":"נסגר", b.evs[e.id]||""]), ev.map(e=>SD["e:"+e.id])), nc, "ev");
   table(lbl("2.3","תוכנית עבודה להיום","pl"), [["#","5%"],["נושא",""],["מוביל משימה","20%"],["הערה","30%"]],
-    num(free("plan").map(x=>[x.text+old(x), x.owner||"", x.note||""])), nc, "pl");
+    num(free("plan").map(x=>[x.text+old(x), x.owner||"", x.note||""]), free("plan").map(x=>x.said)), nc, "pl");
   [["faults","תקלות פתוחות וסגירת קצוות"],["maint","אחזקות קבועות וסבבים"],["contr","קבלני משנה וגורמי חוץ"]].forEach(([k,l])=>     // from older briefings only
     table(lbl("·",l+" (משיחה קודמת)","old"), [["#","5%"],["נושא",""],["מוביל","20%"],["הערה","30%"]], num(free(k).map(x=>[x.text+old(x), x.owner||"", x.note||""])), nc, "old"));
   if(!pk.length && !ev.length && !["faults","maint","plan","contr"].some(k=>free(k).length)) place(mk("p","bp-none","אין נושאים."));
@@ -4166,7 +4201,7 @@ async function briefPdf(b){
   pend=sec(4,"פתוח לצוות וסגירת קצוות");
   const op=free("open");
   if(op.length) table(null,[["#","5%"],["נושא","20%"],["פירוט",""],["גורם אחראי","15%"],["תאריך","11%"],["הערה","20%"]],
-    num(op.map(x=>[x.text+old(x), x.detail||"", x.owner||"", x.date?dmy(x.date):"", x.note||""])), nc, "op");
+    num(op.map(x=>[x.text+old(x), x.detail||"", x.owner||"", x.date?dmy(x.date):"", x.note||""]), op.map(x=>x.said)), nc, "op");
   else place(mk("p","bp-none","אין נושאים."));
   // 5. approval and signature
   const sg=mk("div","bp-blk"); sg.appendChild(sec(5,"אישור וחתימה"));
