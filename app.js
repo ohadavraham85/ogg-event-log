@@ -2028,7 +2028,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.83", APP_DATE="12/10/2026";
+const APP_VER="2.84", APP_DATE="12/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2089,17 +2089,39 @@ async function hardUpdate(){
   const cur=["Dash","New","List","Data","Tasks","Cal"].find(v=>!$("#view"+v).hidden)||"Dash";
   try{ sessionStorage.setItem("ogg-refresh",cur); }catch(e){}
   try{ const ks=await caches.keys(); await Promise.all(ks.map(k=>caches.delete(k))); }catch(e){}
-  try{ const rs=await navigator.serviceWorker.getRegistrations(); await Promise.all(rs.map(r=>r.unregister())); }catch(e){}
+  // update the service worker in place — not unregister: that would drop this phone's push subscription
+  try{ const rs=await navigator.serviceWorker.getRegistrations(); await Promise.all(rs.map(r=>r.update())); }catch(e){}
   location.replace(location.pathname+"?app=ogg-log-2&u="+Date.now());
+}
+/* automatic update: a newer version on the site loads by itself — at a moment nothing is being written
+   (no open window, no event/task form, nothing typed in the last 2 minutes); otherwise the banner waits and it
+   tries again shortly. Once per version: if the site still serves the old files (its cache), the banner stays. */
+let lastTyping=0;
+document.addEventListener("input",()=>{ lastTyping=Date.now(); },true);
+function quietNow(){
+  if(Date.now()-lastTyping<2*60e3) return false;
+  if(document.querySelector("dialog[open]")) return false;
+  const a=document.activeElement; if(a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && a.type!=="checkbox") return false;
+  if(!$("#viewNew").hidden) return false;                      // recording / editing an event
+  const tf=$("#tfPanel"); if(tf && !tf.hidden) return false;    // the task form is open
+  return true;
+}
+let autoT=null;
+function autoUpdate(v){
+  let tried=""; try{ tried=localStorage.getItem("ogg-auto-upd")||""; }catch(e){}
+  if(tried===v) return;                                        // already reloaded once for this version
+  if(!quietNow()){ clearTimeout(autoT); autoT=setTimeout(()=>autoUpdate(v),30e3); return; }
+  try{ localStorage.setItem("ogg-auto-upd",v); }catch(e){}
+  hardUpdate();
 }
 async function checkUpdate(){
   const v=await latestVersion(); const bar=$("#updBar");
-  if(v && newer(v,APP_VER)){ $("#updTxt").textContent="גרסה חדשה "+v+" זמינה (יש לך "+APP_VER+")"; bar.hidden=false; }
+  if(v && newer(v,APP_VER)){ $("#updTxt").textContent="גרסה חדשה "+v+" זמינה (יש לך "+APP_VER+")"; bar.hidden=false; autoUpdate(v); }
   else bar.hidden=true;
   return v;
 }
 $("#updGo").onclick=hardUpdate;
-setTimeout(checkUpdate,2500); setInterval(checkUpdate,10*60e3);
+setTimeout(checkUpdate,2500); setInterval(checkUpdate,5*60e3);
 document.addEventListener("visibilitychange",()=>{ if(!document.hidden) checkUpdate(); });
 $("#reloadApp").onclick=async()=>{ const v=await checkUpdate(); if(v && newer(v,APP_VER)) hardUpdate(); else { toast("יש לך את הגרסה העדכנית ("+APP_VER+")"); } };
 $("#refreshBtn").onclick=async()=>{ $("#refreshBtn").classList.add("spin");
