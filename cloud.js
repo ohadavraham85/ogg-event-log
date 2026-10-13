@@ -505,7 +505,7 @@
 
   /* ---------- account, team management, upload of the local log ---------- */
   const card=mk("div","card"); card.id="cloudCard"; card.dataset.sg="team";
-  $("#viewData").insertBefore(card, $("#viewData").children[1]||null);
+  $("#sgNav").after(card);                                   // under the topic buttons, like every other settings card
   function renderAccount(){
     card.textContent="";
     card.appendChild(mk("h3",null,"יומן משותף"));
