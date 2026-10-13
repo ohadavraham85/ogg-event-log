@@ -2028,7 +2028,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.87", APP_DATE="12/10/2026";
+const APP_VER="2.88", APP_DATE="13/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -4489,3 +4489,50 @@ $("#brShare").onclick=async()=>{ if(!brCur) return; const btn=$("#brShare"), lbl
   catch(e){ toast("יצירת ה-PDF נכשלה"); } finally{ btn.disabled=false; btn.textContent=lbl; } };
 $("#brPdf").onclick=()=>{ if(brCur) brPdfOut(brCur, $("#brPdf")); };
 paintBriefCard();
+
+/* ===== quiet screens: explanations behind a small ⓘ =====
+   A card's description paragraph (the <p> right under its title) is hidden, with an ⓘ by the title that opens it.
+   A long hint line keeps its short beginning (the state, e.g. "התראות פוש פעילות במכשיר הזה") and the rest opens from an ⓘ.
+   Runs on everything, also text that is drawn or rewritten later (a MutationObserver), so new screens stay quiet too. */
+(function(){
+  const SKIP="#tvRoot,#splash,#tourLayer,.inb-list,.tk-run,.bs-slide";
+  const btn=(label,onTap)=>{ const b=document.createElement("button"); b.type="button"; b.className="tip-i"; b.textContent="i";
+    b.setAttribute("aria-label",label); b.setAttribute("aria-expanded","false"); b.title=label;
+    b.onclick=ev=>{ ev.preventDefault(); ev.stopPropagation(); const on=b.getAttribute("aria-expanded")!=="true"; b.setAttribute("aria-expanded",String(on)); onTap(on); };
+    return b; };
+  function card(p){                                   // <h3>title</h3><p>description</p>
+    const h=p.previousElementSibling; if(!h || h.querySelector(".tip-i")) return;
+    p.classList.add("tip-body");
+    h.appendChild(btn("הסבר", on=>p.classList.toggle("tip-show",on)));
+  }
+  function split(t){
+    let m=t.match(/^(.{4,60}?)\s[—–]\s/); if(m) return [m[1], t.slice(m[0].length)];
+    m=t.match(/^(.{4,60}?[.!])\s/); if(m) return [m[1], t.slice(m[0].length)];
+    m=t.match(/^(.{15,60}?):\s/); if(m) return [m[1], t.slice(m[0].length)];
+    return ["", t];
+  }
+  function hint(el){                                  // a hint line: short head + ⓘ + the rest (folded)
+    const t=(el.textContent||"").trim(); el.dataset.tipk=t;
+    if(t.length<=60) return;
+    const [head,rest]=split(t);
+    el.textContent=""; el.classList.add("tip-hint");
+    if(head) el.appendChild(document.createTextNode(head+" "));
+    const more=document.createElement("span"); more.className="tip-more"; more.textContent=(head?"":"")+rest;
+    el.append(btn(head?"עוד":"הסבר", on=>more.classList.toggle("tip-show",on)), more);
+    el.dataset.tipk=el.textContent;
+  }
+  function run(){
+    document.querySelectorAll(".card > h3 + p, dialog > h3 + p").forEach(p=>{
+      if(p.id || p.classList.contains("tip-body") || p.classList.contains("keep") || p.closest(SKIP)) return;
+      if(!(p.textContent||"").trim() || p.querySelector("input,select,button,textarea")) return;
+      card(p); });
+    document.querySelectorAll(".hint").forEach(el=>{
+      if(el.closest(SKIP) || el.classList.contains("keep")) return;
+      if(el.dataset.tipk!=null && el.dataset.tipk===el.textContent) return;           // done, unchanged since
+      if(el.querySelector("*:not(.tip-i):not(.tip-more)")) return;                    // has its own parts — leave it
+      hint(el); });
+  }
+  let t=null; const later=()=>{ clearTimeout(t); t=setTimeout(run,60); };
+  new MutationObserver(later).observe(document.body,{subtree:true,childList:true,characterData:true});
+  run();
+})();

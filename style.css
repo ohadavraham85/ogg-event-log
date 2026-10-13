@@ -2003,3 +2003,13 @@ html:not(.tv) #tvRoot{display:none}
 .tvc-secs{display:flex;align-items:center;gap:8px;font-size:14px}
 .tvc-hid{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:14px}
 .tvc-hid span{min-width:0;overflow-wrap:anywhere}
+
+/* ⓘ — explanations open on tap */
+.tip-i{display:inline-grid;place-items:center;width:19px;height:19px;margin-inline-start:6px;vertical-align:2px;border-radius:99px;
+  border:1.5px solid var(--water);background:transparent;color:var(--water);font:italic 900 12px/1 Georgia,"Times New Roman",serif;cursor:pointer;padding:0}
+.tip-i[aria-expanded="true"]{background:var(--water);color:#fff}
+.tip-body:not(.tip-show){display:none}
+.tip-body.tip-show{animation:tipIn .15s ease}
+.tip-more:not(.tip-show){display:none}
+.tip-more.tip-show{display:block;margin-top:3px}
+@keyframes tipIn{from{opacity:0}to{opacity:1}}
