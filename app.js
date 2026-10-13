@@ -2032,7 +2032,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.91", APP_DATE="13/10/2026";
+const APP_VER="2.92", APP_DATE="13/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -3564,7 +3564,7 @@ function paintTickerInto(box, tr, key){
       const b=mk("button","tk-it"+(it.cls?" ki-"+it.cls:"")); b.type="button"; b.title=it.k==="t"?"פתח את המשימה":"פתח את האירוע";
       b.append(mk("span","tk-tag",it.tag), mk("span","tk-tx",it.text));
       b.title = it.k==="b" ? "לוח המודעות" : b.title;
-      b.onclick=()=>it.k==="t" ? tvGo(()=>goTask(it.id)) : it.k==="b" ? (TV ? tvGo(()=>bsOpenAt(it.id)) : goBoard()) : tvGo(()=>evGo(it.id)); g.appendChild(b); }); return g; };
+      b.onclick=()=>it.k==="t" ? tvGo(()=>goTask(it.id)) : it.k==="b" ? (TV ? tvGo(()=>bsOpenAt(it.id)) : goBoard(it.id)) : tvGo(()=>evGo(it.id)); g.appendChild(b); }); return g; };
   const a1=run(), a2=run(); a2.setAttribute("aria-hidden","true"); a2.querySelectorAll("button").forEach(b=>b.tabIndex=-1);
   tr.append(a1,a2);
   // a calm, readable pace: about 1.5 letters' width a second (≈22px on a phone, more on the big screen where the letters are bigger)
@@ -3652,10 +3652,11 @@ function boardActive(){ const d=ymd(new Date()); return (BOARD||[]).filter(x=>x 
   .sort((a,b)=>(b.important?1:0)-(a.important?1:0) || String(b.at).localeCompare(String(a.at))); }
 function boardSave(){ try{ localStorage.setItem("ogg-board",JSON.stringify(BOARD)); }catch(e){} }
 window.boardApply=items=>{ BOARD=items||[]; boardSave(); paintBoard(); paintTicker(); if(TV) tvPaint(true); if(window.bsRefresh) window.bsRefresh(); };
-function goBoard(){ if(TV) return; show("Dash"); const c=$("#dBoard"); if(c && !c.hidden){ c.scrollIntoView({block:"center"}); c.classList.add("flash"); setTimeout(()=>c.classList.remove("flash"),1800); } }
+function goBoard(id){ if(TV) return; if(typeof bsOpenAt==="function"){ bsOpenAt(id); return; } show("Dash"); const c=$("#dBoard"); if(c && !c.hidden){ c.scrollIntoView({block:"center"}); c.classList.add("flash"); setTimeout(()=>c.classList.remove("flash"),1800); } }
 function paintBoard(){
-  const box=$("#dBoard"); if(!box) return;
   const act=boardActive(), mgr=isManager() && !isViewer();
+  const qn=$("#qkBdN"); if(qn){ qn.textContent=act.length; qn.hidden=!act.length; qn.classList.toggle("imp",act.some(x=>x.important)); }
+  const box=$("#dBoard"); if(!box) return;
   box.hidden = !act.length && !mgr;
   $("#bdAdd").hidden=!mgr || !$("#bdForm").hidden;
   const L=$("#bdList"); L.textContent="";
@@ -4025,33 +4026,16 @@ function brCounts(b){ const r=b.rows||{}, n=k=>(r[k]||[]).filter(x=>x.tid).lengt
     in:Object.values(b.att||{}).filter(a=>a.s==="in").length, out:Object.values(b.att||{}).filter(a=>a.s==="out").length}; }
 
 function paintBriefCard(){
-  const box=$("#dBrief"); if(!box || !BRIEFS) return;          // (the dashboard can draw before this part of the file has run)
-  box.hidden=!brCanSee(); if(box.hidden) return;
-  const body=$("#brCardBody"); body.textContent="";
+  const q=$("#qkBrief"); if(!q || !BRIEFS) return;           // (the dashboard can draw before this part of the file has run)
+  if($("#dBrief")) $("#dBrief").hidden=true;                  // everything about the briefing lives in its window now
+  q.hidden=!brCanSee(); if(q.hidden) return;
   const d=ymd(new Date()), b=BRIEFS[d];
-  const st=mk("div","br-state"+(b && b.done ? " ok" : ""));
-  st.textContent = !b ? "● השיחה של היום עוד לא נעשתה" : b.done ? "✓ השיחה של היום נעשתה ב-"+(b.doneAt||"").slice(11,16)+(b.leader?" · "+b.leader:"") : "● יש טיוטה להיום — עוד לא נסגרה";
-  body.appendChild(st);
-  const last=Object.values(BRIEFS).filter(x=>x.id<d).sort((a,c)=>c.id.localeCompare(a.id))[0], ref=b && brCounts(b).in ? b : last, rc=ref ? brCounts(ref) : null;
-  const tl=mk("div","br-tiles");
-  const tile=(n,l,hot)=>{ const x=mk("div","br-tile"+(hot?" hot":"")); x.append(mk("b",null,n),mk("span",null,l)); tl.appendChild(x); };
-  tile(rc && (rc.in+rc.out) ? rc.in+"/"+(rc.in+rc.out) : "—", ref===b && b ? "נוכחים היום" : "נוכחים בשיחה הקודמת");
-  const H=(b&&b.hide)||{}, nl=brLinkedTasks(d).filter(t=>!H[t.id]).length; tile(nf(nl),"תקלות וקצוות פתוחים",nl>0);
-  tile(nf(brRepTasks(d).filter(t=>!H[t.id]).length),"סבבים להיום");
-  body.appendChild(tl);
-  // one button: a new briefing (today's draft, if one was started, is that new briefing); saved briefings live in the folder
-  // a new briefing: today's — or, once today's is saved, the next day that has none (a draft for tomorrow)
+  // the next briefing to open: today's — or, once today's is saved, the next day that has none (a draft for tomorrow)
   let nd=d; if(b && b.done){ const x=new Date(d+"T12:00"); do{ x.setDate(x.getDate()+1); nd=ymd(x); }while(BRIEFS[nd] && BRIEFS[nd].done); }
-  const tmr=ymd(new Date(new Date(d+"T12:00").getTime()+864e5));
-  const when=nd===tmr ? "מחר" : "-"+dmy(nd).slice(0,5);
-  const go=mk("button","btn primary br-go", nd===d ? (b ? "המשך את השיחה של היום" : "＋ שיחה חדשה") : BRIEFS[nd] ? "המשך את הטיוטה ל"+when : "＋ שיחה חדשה ל"+when); go.type="button";
-  go.onclick=()=>openBrief(nd);
-  body.appendChild(go);
-  // drafts prepared ahead (tomorrow and later): one tap to continue
-  const ahead=Object.values(BRIEFS).filter(x=>x.id>d && !x.done && x.id!==nd).sort((x,y)=>x.id.localeCompare(y.id));
-  if(ahead.length){ const ul=mk("div","br-hist"); ahead.forEach(x=>ul.appendChild(brItem(x,true))); body.appendChild(ul); }
-  const fo=mk("button","btn br-folder","📁 תיקיית שיחות הבוקר ("+nf(Object.keys(BRIEFS).length)+")"); fo.type="button";
-  fo.onclick=openBriefs; body.appendChild(fo);
+  const st=$("#qkBrSt");
+  st.className="qk-st "+(b && b.done ? "ok" : "todo");
+  st.textContent = b && b.done ? "✓ נעשתה "+(b.doneAt||"").slice(11,16) : b ? "● טיוטה" : "● עוד לא היום";
+  q.onclick=()=>openBrief(nd);
 }
 /* one briefing in a list: day · date · time, then who led it and what came out of it */
 function brItem(x, short){
@@ -4064,6 +4048,7 @@ function brItem(x, short){
   pdf.onclick=()=>brPdfOut(x, pdf); w.append(r,pdf); return w;
 }
 /* the folder (📁): every briefing, newest first, by month; search by name, topic or note; open any date (new or existing) */
+if($("#brFolderBtn")) $("#brFolderBtn").onclick=()=>openBriefs();
 function openBriefs(){ if(!brCanSee()) return; $("#brfQ").value=""; $("#brfDate").value=ymd(new Date()); paintBriefs(); $("#dlgBriefs").showModal(); }
 function paintBriefs(){
   const L=$("#brfList"); L.textContent="";

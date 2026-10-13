@@ -2051,7 +2051,6 @@ form .btn.primary, dialog .row .btn.primary, #viewNew .btn.primary{flex:1 1 auto
 .br-lock{display:none}
 .bd-head h3{white-space:nowrap}
 .bd-head .btn{white-space:nowrap}
-@media (max-width:380px){ #bsOpen{font-size:0!important;padding:6px 10px} #bsOpen::before{content:"🖥️";font-size:15px} }
 
 /* task card actions: small and quiet — "✎ עדכון" and "⋯" */
 .tk-acts{gap:6px;margin-top:8px}
@@ -2060,3 +2059,21 @@ form .btn.primary, dialog .row .btn.primary, #viewNew .btn.primary{flex:1 1 auto
 .tk-acts .tk-more-b{color:var(--ink-2);letter-spacing:1px}
 .tk-acts .tk-upd-btn:hover,.tk-acts .tk-more-b:hover{background:var(--water-soft);border-color:var(--water)}
 .theme-row{margin-bottom:10px}
+
+/* dashboard: the notice board and the morning briefing as two small buttons */
+.dquick{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
+.qk-btn{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--edge);background:var(--panel);color:var(--ink);border-radius:99px;
+  padding:6px 14px;font:inherit;font-size:14px;font-weight:700;cursor:pointer}
+.qk-btn:hover{border-color:var(--water)}
+.qk-btn[hidden]{display:none}
+.qk-btn b{min-width:20px;height:20px;border-radius:99px;background:var(--water);color:#fff;font-size:12px;display:inline-grid;place-items:center;padding:0 6px}
+.qk-btn b.imp{background:var(--fault)}
+.qk-btn b[hidden]{display:none}
+.qk-st{font-size:12.5px;font-weight:700}
+.qk-st.todo{color:var(--alarm)}
+.qk-st.ok{color:var(--water)}
+#dBrief{display:none!important}
+/* the board, managed in settings → מסך משרד */
+.bd-set{margin-top:14px;padding-top:12px;border-top:1px solid var(--edge)}
+.bd-set h4{margin:0;font-size:15px}
+.br-fold{margin-inline-start:auto;margin-inline-end:8px}
