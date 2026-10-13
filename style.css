@@ -2088,3 +2088,11 @@ form .btn.primary, dialog .row .btn.primary, #viewNew .btn.primary{flex:1 1 auto
 #viewDash .dsel{height:36px;box-sizing:border-box;padding:0 10px;width:150px;border-radius:10px;font-size:13.5px}
 #viewDash .dteam{margin:0 0 4px}
 #viewDash .dsh-scope{margin:0 0 12px}
+
+/* one toolbar line: notice board + briefing on one side, the filters on the other; the title with its range below */
+#viewDash .dsh-head .dquick{margin:0;margin-inline-end:auto}
+.dsh-title{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;margin:4px 0 12px}
+.dsh-title h2{margin:0;font-size:21px;font-weight:900;letter-spacing:-.02em}
+#viewDash .dsh-title .dsh-scope{margin:0}
+html.lite #viewDash .dsh-head{display:flex!important}
+html.lite #viewDash .dsh-title{display:none}
