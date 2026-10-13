@@ -2077,3 +2077,14 @@ form .btn.primary, dialog .row .btn.primary, #viewNew .btn.primary{flex:1 1 auto
 .bd-set{margin-top:14px;padding-top:12px;border-top:1px solid var(--edge)}
 .bd-set h4{margin:0;font-size:15px}
 .br-fold{margin-inline-start:auto;margin-inline-end:8px}
+/* dashboard top: one control size (36px, radius 10px), one gap (8px), one rhythm between rows (12px) */
+#viewDash .ticker{margin-bottom:12px}
+.dquick{gap:8px;margin:0 0 12px}
+.qk-btn{height:36px;box-sizing:border-box;border-radius:10px;padding:0 14px;font-size:13.5px}
+#viewDash .dsh-head{justify-content:flex-start;gap:8px;margin:0 0 8px}
+#viewDash .dsh-head h2{margin-inline-end:auto}
+#viewDash .seg{height:36px;box-sizing:border-box;padding:2px;border-radius:10px;align-items:stretch}
+#viewDash .seg button{padding:0 12px;border-radius:8px;font-size:13.5px}
+#viewDash .dsel{height:36px;box-sizing:border-box;padding:0 10px;width:150px;border-radius:10px;font-size:13.5px}
+#viewDash .dteam{margin:0 0 4px}
+#viewDash .dsh-scope{margin:0 0 12px}
