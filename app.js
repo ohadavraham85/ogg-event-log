@@ -1500,7 +1500,7 @@ const darkMQ=window.matchMedia ? matchMedia("(prefers-color-scheme: dark)") : {m
 function isDark(){ const t=document.documentElement.getAttribute("data-theme"); return t ? t==="dark" : darkMQ.matches; }
 function paintThemeBtn(){
   const d=isDark(), b=$("#themeBtn");
-  b.textContent = d ? "☀" : "☾";
+  b.textContent = d ? "☀ רקע בהיר" : "☾ רקע כהה";
   b.title = b.ariaLabel = d ? "מעבר לרקע בהיר" : "מעבר לרקע כהה";
   const m=document.querySelector('meta[name="theme-color"]'); if(m) m.content = d ? "#0E161C" : (getComputedStyle(document.documentElement).getPropertyValue("--water").trim() || "#0E7C86");
   const t=document.documentElement.getAttribute("data-theme"), cs=document.querySelector('meta[name="color-scheme"]');
@@ -2032,7 +2032,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.90", APP_DATE="13/10/2026";
+const APP_VER="2.91", APP_DATE="13/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2678,7 +2678,7 @@ function renderLog(t, c){
     row.append(auto ? whoTxt : who, no, ok); f.append(ta,row); box.appendChild(f);   // the plane at the far end, like a chat
     setTimeout(()=>{ ta.focus({preventScroll:tkFocus===t.id}); ta.setSelectionRange(ta.value.length,ta.value.length); },50);
   } else if(open){
-    const u=mk("button","btn upd tk-upd-btn","+ עדכון"); u.type="button";
+    const u=mk("button","btn upd tk-upd-btn","✎ עדכון"); u.type="button";
     u.onclick=()=>{ tkUpdFor=t.id; renderTasks(); };
     box.appendChild(u);
   }
@@ -2798,7 +2798,6 @@ function renderTasks(){
       if(cls==="primary" || cls==="keep"){ const b=mk("button","btn"+(cls==="primary"?" primary":""),label); b.type="button"; b.onclick=fn; acts.appendChild(b); }
       else more.push([label,cls,fn]); };
     if(tkOpen(t)){
-      btn("✓ השלם","primary",()=>openTaskDone(t.id));
       btn(t.status==="בטיפול"?"החזר לפתוחה":"בטיפול","",()=>{ t.status = t.status==="בטיפול" ? "פתוחה" : "בטיפול";
         tkLog(t, t.status==="בטיפול" ? "הועברה לטיפול" : "הוחזרה לפתוחה", "", true); t.upd=new Date().toISOString(); saveTasks(); });
       // בהמתנה: the task is waiting (a part, an approval, a contractor…) — set aside without closing it
@@ -3460,7 +3459,7 @@ function tourSteps(){
     {sel:"#inboxBtn", title:"הודעות", text:"🔔 כאן מגיעות הקצאות ועדכונים במשימות שלך. החלקה ימינה מעבירה הודעה לארכיון."},
     {sel:"#fbBtn", title:"משוב", text:"משהו לא עובד או חסר? 💬 מצלם את המסך, מסמנים עליו ושולחים למנהל."},
     {sel:"#setBtn", title:"הגדרות", text: lite ? "בטלפון מוצג רק מה שצריך בשטח. ⚙ ← כללי ← \"עבור לתצוגה מלאה\" מציג הכל." : "ערכת צבעים, צוות וחשבון"+(mgr?", ניהול רשימות, גיבוי":"")+"."},
-    {sel:"#helpBtn", title:"זהו!", text:"ההדרכה ותרשים התהליך נמצאים תמיד כאן, ב-?.", end:true}
+    {sel:"#setBtn", title:"זהו!", text:"ההדרכה, תרשים התהליך ורקע בהיר/כהה — תמיד בהגדרות ← כללי.", end:true}
   ].filter(s=>{ if(!s) return false;             // controls that are off for this user (not just on another tab) are left out, so the count is right
     let x=document.querySelector(s.sel); if(!x) return true;
     for(; x; x=x.parentElement) if(x.hidden && x.tagName!=="SECTION") return false;
@@ -3524,7 +3523,7 @@ function openFlow(which){
 }
 function flowTab(w){ document.querySelectorAll("#dlgFlow [data-fl]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.fl===w))); $("#flowEv").hidden=w!=="ev"; $("#flowTk").hidden=w!=="tk"; $(".fl-legend").hidden=w!=="tk"; }
 document.querySelectorAll("#dlgFlow [data-fl]").forEach(b=>b.onclick=()=>flowTab(b.dataset.fl));
-$("#helpBtn").onclick=()=>openFlow();
+if($("#helpBtn")) $("#helpBtn").onclick=()=>openFlow();
 $("#flClose").onclick=()=>$("#dlgFlow").close();
 $("#tourStart").onclick=()=>{ $("#dlgFlow").close(); tourStart(); };
 $("#tourStart2").onclick=tourStart; $("#flowOpen2").onclick=()=>openFlow();

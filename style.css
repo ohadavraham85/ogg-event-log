@@ -2052,3 +2052,11 @@ form .btn.primary, dialog .row .btn.primary, #viewNew .btn.primary{flex:1 1 auto
 .bd-head h3{white-space:nowrap}
 .bd-head .btn{white-space:nowrap}
 @media (max-width:380px){ #bsOpen{font-size:0!important;padding:6px 10px} #bsOpen::before{content:"🖥️";font-size:15px} }
+
+/* task card actions: small and quiet — "✎ עדכון" and "⋯" */
+.tk-acts{gap:6px;margin-top:8px}
+.tk-acts .tk-upd-btn,.tk-acts .tk-more-b{padding:4px 12px!important;font-size:13.5px!important;font-weight:700;border-width:1px;border-radius:99px;
+  background:transparent;color:var(--water);border-color:color-mix(in srgb,var(--water) 35%,var(--edge));box-shadow:none;min-width:0;line-height:1.4}
+.tk-acts .tk-more-b{color:var(--ink-2);letter-spacing:1px}
+.tk-acts .tk-upd-btn:hover,.tk-acts .tk-more-b:hover{background:var(--water-soft);border-color:var(--water)}
+.theme-row{margin-bottom:10px}
