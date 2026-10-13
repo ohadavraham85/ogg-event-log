@@ -2013,3 +2013,39 @@ html:not(.tv) #tvRoot{display:none}
 .tip-more:not(.tip-show){display:none}
 .tip-more.tip-show{display:block;margin-top:3px}
 @keyframes tipIn{from{opacity:0}to{opacity:1}}
+
+/* task card: one action in sight, the rest in ⋯; empty checklist / files stay out of the way until asked for */
+.tk-acts{align-items:center}
+.tk-acts .btn.primary{flex:0 1 auto;padding:8px 18px}
+.tk-more-b{min-width:44px;font-size:18px!important;line-height:1;padding:6px 12px!important}
+.tk-more-b[aria-expanded="true"]{border-color:var(--water);color:var(--water)}
+.tk-more{flex-basis:100%;display:flex;flex-wrap:wrap;gap:6px;padding:8px;border:1px solid var(--edge);border-radius:12px;background:var(--panel-2)}
+.tk-more[hidden]{display:none}
+.tk-more .btn{padding:6px 11px;font-size:13.5px;flex:none;background:var(--panel)}
+.tk-fbtns{display:none}
+.tk-files.none{display:none}
+.tk .tk-check.ck-empty{display:none}
+.tk.ck-on .tk-check.ck-empty{display:block}
+
+/* dashboard: quiet team line */
+.dteam{gap:5px;margin:2px 0 8px}
+.dt-lbl{display:inline-flex;align-items:center;gap:6px;border:0;background:none;padding:2px 2px;font:inherit;font-size:13px;font-weight:800;color:var(--ink-2);cursor:pointer}
+.dt-lbl small{font-size:12px;color:var(--ink-3);font-weight:700}
+.dt-lbl .dt-dot{width:8px;height:8px;border-radius:50%;background:var(--ink-3)}
+.dt-lbl .dt-dot.on{background:#22c55e}
+.dt-p{padding:2px 9px;font-size:12.5px;gap:5px}
+.dt-p i{width:7px;height:7px}
+.dt-p small{font-size:11px}
+/* explanation lines that only repeat what the guide says */
+.dlay-hint{display:none}
+/* proportion: buttons as big as their words, not as the card */
+.btn{padding:10px 16px;font-size:15px}
+.btn.primary{flex:0 1 auto}
+form .btn.primary, dialog .row .btn.primary, #viewNew .btn.primary{flex:1 1 auto}
+.btn.br-go{width:auto;padding:9px 18px}
+.btn.br-folder{width:auto;padding:8px 14px;font-size:14px}
+.br-state{font-size:13px;padding:6px 10px}
+.tk-acts .tk-upd-btn{margin:0;padding:8px 14px;font-size:14px;flex:none}
+/* the whole tile opens the list — no need to say so on each one; managers know the briefing is theirs */
+.kpi .kgo,.kgo{display:none}
+.br-lock{display:none}

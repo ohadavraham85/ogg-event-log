@@ -1329,10 +1329,14 @@ window.paintTeamStrip=function(){
   const st=M.map(m=>({m, s:window.memberState(m), t:(window.teamSeen()[m.email]||0)}))
     .sort((a,b)=>(a.s.k==="on"?0:1)-(b.s.k==="on"?0:1) || b.t-a.t || (a.m.name||a.m.email).localeCompare(b.m.name||b.m.email,"he"));
   box.textContent=""; box.hidden=false;
-  const on=st.filter(x=>x.s.k==="on").length;
-  box.appendChild(mk("span","dt-lbl","👥 הצוות · "+on+" מחוברים"));
-  st.forEach(({m,s})=>{ const c=mk("span","dt-p st-"+s.k); c.title=(m.name||m.email)+" — "+s.t;
-    c.append(mk("i"), mk("b",null,m.name||m.email.split("@")[0]), mk("small",null, s.k==="on" ? "מחובר" : s.k==="was" ? s.t.replace(/^התחבר /,"").replace(/^הצטרף.*/,"הצטרף") : s.k==="inv" ? "הוזמן" : "טרם הוזמן"));
+  const onL=st.filter(x=>x.s.k==="on"), all=box.classList.contains("all");
+  const head=mk("button","dt-lbl"); head.type="button"; head.setAttribute("aria-expanded",String(all));
+  head.append(mk("i","dt-dot"+(onL.length?" on":"")), mk("span",null,onL.length ? onL.length+" מחוברים עכשיו" : "אין מחוברים עכשיו"), mk("small",null, all ? "▴ פחות" : "▾ כל הצוות"));
+  head.onclick=()=>{ box.classList.toggle("all"); window.paintTeamStrip(); };
+  box.appendChild(head);
+  (all ? st : onL).forEach(({m,s})=>{ const c=mk("span","dt-p st-"+s.k); c.title=(m.name||m.email)+" — "+s.t;
+    c.append(mk("i"), mk("b",null,m.name||m.email.split("@")[0]));
+    if(all && s.k!=="on") c.appendChild(mk("small",null, s.k==="was" ? s.t.replace(/^התחבר /,"").replace(/^הצטרף.*/,"הצטרף") : s.k==="inv" ? "הוזמן" : "טרם הוזמן"));
     box.appendChild(c); });
 };
 /* feedback (💬, bottom corner): a picture of the screen exactly as it is now; tap the picture to circle the spot,
@@ -2028,7 +2032,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.88", APP_DATE="13/10/2026";
+const APP_VER="2.89", APP_DATE="13/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2789,9 +2793,12 @@ function renderTasks(){
     renderFiles(t, c);
     if(!tkOpen(t) && t.act) c.appendChild(mk("div","tk-d","בוצע: "+t.act));
     renderLog(t, c);
-    const acts=mk("div","tk-acts"), btn=(label,cls,fn)=>{ const b=mk("button","btn"+(cls?" "+cls:""),label); b.type="button"; b.onclick=fn; acts.appendChild(b); };
+    // one visible action ("✓ השלם", or "↩ פתח מחדש"); the rest wait in "⋯" so the card stays quiet
+    const acts=mk("div","tk-acts"), more=[], btn=(label,cls,fn)=>{
+      if(cls==="primary" || cls==="keep"){ const b=mk("button","btn"+(cls==="primary"?" primary":""),label); b.type="button"; b.onclick=fn; acts.appendChild(b); }
+      else more.push([label,cls,fn]); };
     if(tkOpen(t)){
-      btn("✓ השלם משימה","primary",()=>openTaskDone(t.id));
+      btn("✓ השלם","primary",()=>openTaskDone(t.id));
       btn(t.status==="בטיפול"?"החזר לפתוחה":"בטיפול","",()=>{ t.status = t.status==="בטיפול" ? "פתוחה" : "בטיפול";
         tkLog(t, t.status==="בטיפול" ? "הועברה לטיפול" : "הוחזרה לפתוחה", "", true); t.upd=new Date().toISOString(); saveTasks(); });
       // בהמתנה: the task is waiting (a part, an approval, a contractor…) — set aside without closing it
@@ -2801,7 +2808,7 @@ function renderTasks(){
       if(!isViewer()) btn("⧉ שכפל","",()=>dupTask(t.id));
     } else if(!isViewer()){
       // a completed task can be reopened (its event in the log reopens with it) and edited
-      btn("↩ פתח מחדש","",()=>reopenTask(t));
+      btn("↩ פתח מחדש","keep",()=>reopenTask(t));
       btn("ערוך","",()=>openTaskForm(t.id));
       btn("⧉ שכפל","",()=>dupTask(t.id));
     }
@@ -2820,9 +2827,27 @@ function renderTasks(){
       if(!await confirmDel("למחוק את המשימה?", (t.title||"")+((t.log||[]).length?"\nכולל יומן העדכונים ("+t.log.length+")":"")+(t.eventId?"\nהאירוע שנרשם ביומן נשאר.":"")+(CLOUD_ON?"\nהמשימה תימחק לכל הצוות.":""))) return;
       tasks=tasks.filter(x=>x.id!==t.id); saveTasks(); toast("המשימה נמחקה");
     });
+    if(tkOpen(t) && !isViewer()){                       // adding things to the task: photo, file, checklist
+      const ins=c.querySelectorAll(".tk-fadd input");
+      if(ins[0]) more.unshift(["📷 צילום","",()=>ins[0].click()]);
+      if(ins[1]) more.unshift(["📎 קובץ","",()=>ins[1].click()]);
+      if(!(t.check||[]).some(x=>x && !x.del)) more.unshift(["☑ רשימת בדיקה","",()=>{ tkCkOn.add(t.id); c.classList.add("ck-on");
+        const i=c.querySelector(".ck-add input"); if(i) i.focus(); }]);
+    }
+    if(tkCkOn.has(t.id)) c.classList.add("ck-on");
+    // "+ עדכון" joins the action line (next to "✓ השלם"); an update log with nothing else in it then goes
+    const ub=c.querySelector(".tk-upd-btn"); if(ub){ const lb=ub.parentNode; acts.appendChild(ub); if(lb && !lb.children.length) lb.remove(); }
+    if(more.length){
+      const mb=mk("button","btn tk-more-b","⋯"); mb.type="button"; mb.title="פעולות נוספות"; mb.setAttribute("aria-label","פעולות נוספות"); mb.setAttribute("aria-expanded","false");
+      const menu=mk("div","tk-more"); menu.hidden=true;
+      more.forEach(([label,cls,fn])=>{ const b=mk("button","btn"+(cls?" "+cls:""),label); b.type="button"; b.onclick=()=>{ menu.hidden=true; mb.setAttribute("aria-expanded","false"); fn(); }; menu.appendChild(b); });
+      mb.onclick=()=>{ menu.hidden=!menu.hidden; mb.setAttribute("aria-expanded",String(!menu.hidden)); };
+      acts.append(mb, menu);
+    }
     c.appendChild(acts); box.appendChild(c);
   });
 }
+const tkCkOn=new Set();                                   // tasks where "☑ רשימת בדיקה" was asked for (the empty list shows)
 /* the round "complete" mark at the start of a task: open → tap opens the same completion window as "✓ השלם משימה";
    completed → a filled ✓ (a personal task can be ticked back) */
 function tkCircle(t, onDone, priv){
