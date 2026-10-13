@@ -52,7 +52,7 @@
 *,*::before,*::after{box-sizing:border-box}
 html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
 body{margin:0;height:100%;background:var(--bg);color:var(--ink);
-  font-family:Heebo,"Segoe UI",system-ui,Arial,sans-serif;font-size:17px;line-height:1.5;
+  font-family:Arial,Arimo,"Liberation Sans",sans-serif;font-size:17px;line-height:1.5;
   font-weight:500;letter-spacing:-.005em;
   -webkit-text-size-adjust:100%;overscroll-behavior-y:none}
 button,input,select,textarea{font:inherit;color:inherit}
@@ -483,7 +483,7 @@ button.pseg:hover,button.pseg:focus-visible{filter:brightness(1.12)}
   --accent:#1565A8; --accent-dark:#0E4A7D; --light:#29ABE2; --deep:#0B3A63;
   --ink:#12324F; --muted:#4A6378; --muted2:#5B7488; --bg:#F3F7FA;
   position:fixed;inset:0;z-index:100;overflow:auto;
-  font-family:Assistant,sans-serif;background:var(--bg);color:var(--ink);line-height:normal;
+  font-family:Arial,Arimo,"Liberation Sans",sans-serif;background:var(--bg);color:var(--ink);line-height:normal;
   transition:opacity .2s ease
 }
 #splash.out{opacity:0}
@@ -492,11 +492,11 @@ html.sp-open,html.sp-open body{overflow:hidden}
 #splash .sp-content{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:48px 32px 200px;gap:0;position:relative;z-index:1}
 #splash .sp-logo{width:190px;height:190px;display:block}
 #splash .sp-text{margin-top:36px;display:flex;flex-direction:column;align-items:center;gap:10px}
-#splash .sp-eyebrow{font-family:Rubik,sans-serif;font-weight:600;font-size:15px;letter-spacing:.08em;color:var(--accent)}
-#splash h1{margin:0;font-family:Rubik,sans-serif;font-weight:700;font-size:40px;line-height:1.15;letter-spacing:normal}
+#splash .sp-eyebrow{font-family:Arial,Arimo,"Liberation Sans",sans-serif;font-weight:600;font-size:15px;letter-spacing:.08em;color:var(--accent)}
+#splash h1{margin:0;font-family:Arial,Arimo,"Liberation Sans",sans-serif;font-weight:700;font-size:40px;line-height:1.15;letter-spacing:normal}
 #splash .sp-lead{margin:0;font-size:19px;line-height:1.5;color:var(--muted);max-width:500px}
 #splash .sp-actions{margin-top:44px;display:flex;flex-direction:column;align-items:stretch;gap:12px;width:min(280px,100%)}
-#splash .sp-btn{display:flex;align-items:center;justify-content:center;height:54px;border:none;border-radius:14px;background:var(--accent);color:#fff;font-family:Rubik,sans-serif;font-weight:500;font-size:20px;text-decoration:none;cursor:pointer}
+#splash .sp-btn{display:flex;align-items:center;justify-content:center;height:54px;border:none;border-radius:14px;background:var(--accent);color:#fff;font-family:Arial,Arimo,"Liberation Sans",sans-serif;font-weight:500;font-size:20px;text-decoration:none;cursor:pointer}
 #splash .sp-btn:hover{background:var(--accent-dark)}
 #splash .sp-btn:focus-visible{outline:3px solid var(--light);outline-offset:3px}
 #splash .sp-shift{font-size:16px;color:var(--muted2)}
@@ -657,7 +657,7 @@ html.sp-open,html.sp-open body{overflow:hidden}
 #wkDone:disabled{opacity:.45;cursor:not-allowed}
 .wk-open{margin-top:9px}
 /* PDF report pages: drawn off-screen, always light, A4 at 96 dpi */
-.rp-host{position:fixed;left:-10000px;top:0;direction:rtl;font-family:Heebo,"Segoe UI",Arial,sans-serif}
+.rp-host{position:fixed;left:-10000px;top:0;direction:rtl;font-family:Arial,Arimo,"Liberation Sans",sans-serif}
 .rp-page{width:794px;height:1123px;box-sizing:border-box;padding:40px 44px 30px;background:#fff;color:#16202A;
   display:flex;flex-direction:column;margin-bottom:10px}
 .rp-head{border-bottom:3px solid #0E7C86;padding-bottom:10px;margin-bottom:14px;display:flex;align-items:center;gap:16px}
@@ -2049,3 +2049,6 @@ form .btn.primary, dialog .row .btn.primary, #viewNew .btn.primary{flex:1 1 auto
 /* the whole tile opens the list — no need to say so on each one; managers know the briefing is theirs */
 .kpi .kgo,.kgo{display:none}
 .br-lock{display:none}
+.bd-head h3{white-space:nowrap}
+.bd-head .btn{white-space:nowrap}
+@media (max-width:380px){ #bsOpen{font-size:0!important;padding:6px 10px} #bsOpen::before{content:"🖥️";font-size:15px} }
