@@ -1,20 +1,23 @@
 /* Service worker — network first, cache as offline fallback.
    Online the app always loads the latest files (so "בדוק עדכון" keeps working);
    offline, or when the site answers with an error (404/5xx), it serves the last copy it saw. Data stays in localStorage, not here. */
-const CACHE = "ogg-log-3.05";   // bump together with APP_VER in app.js
+const CACHE = "ogg-log-3.06";   // bump together with APP_VER in app.js
+// the beta copy (…/beta/) keeps its own cache, so the two copies never clear each other's
+const BETA = self.location.pathname.includes("/beta/");
+const PFX = BETA ? "ogg-beta-" : "ogg-log-", CNAME = CACHE.replace("ogg-log-", PFX);
 const SHELL = ["./", "index.html", "style.css", "app.js", "cloud.js", "firebase-config.js", "vendor/firebase.js", "vendor/html2canvas.min.js", "manifest.webmanifest",
                "icons/icon-notebook.svg", "icons/icon-notebook-192.png", "icons/icon-notebook-512.png",
                "icons/icon-notebook-maskable-512.png", "icons/icon-notebook-apple-180.png",
                "icons/logo-header.png", "icons/badge-96.png", "icons/sc-new-192.png", "icons/sc-dash-192.png", "icons/sc-open-192.png"];
 
 self.addEventListener("install", ev => {
-  ev.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  ev.waitUntil(caches.open(CNAME).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
 });
 
 self.addEventListener("activate", ev => {
   ev.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
+      .then(keys => Promise.all(keys.filter(k => k !== CNAME && (k.startsWith(PFX) || (!BETA && !k.startsWith("ogg-beta-")))).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
@@ -39,7 +42,7 @@ self.addEventListener("fetch", ev => {
       .then(res => {
         if (res && (res.ok || res.type === "opaque")) {
           const copy = res.clone();
-          caches.open(CACHE).then(c => c.put(req, copy));
+          caches.open(CNAME).then(c => c.put(req, copy));
           return res;
         }
         // Site answered with an error (e.g. 404 after the site was taken down):

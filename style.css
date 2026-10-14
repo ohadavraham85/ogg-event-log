@@ -2151,3 +2151,4 @@ html.lite #viewDash .dsh-title{display:none}
 @media (min-width:800px) and (max-width:1099px){ .wrap{max-width:none} :root{ --wrapw:calc(100vw - 24px) } }
 .zoom-seg{width:max-content;max-width:100%;margin-top:6px}
 .zoom-seg button{padding:6px 12px}
+.ver.beta{background:#F59E0B;border-color:#F59E0B;color:#fff}

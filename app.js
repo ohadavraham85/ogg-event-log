@@ -2,6 +2,7 @@
 const $ = s => document.querySelector(s);
 /* office screen ("מסך משרד"): ?tv=1 in the address, or signed in as a "צופה" — the app shows only the big rotating screen */
 var TV = /[?&]tv=1\b/.test(location.search);
+var BETA = /\/beta\//.test(location.pathname);   // the test copy (…/beta/): marked in the header, no push, its own cache
 
 /* ================= seed lists ================= */
 const SEED = {
@@ -2058,8 +2059,8 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.05", APP_DATE="14/10/2026";
-$("#verChip").textContent="v"+APP_VER;
+const APP_VER="3.06", APP_DATE="14/10/2026";
+$("#verChip").textContent="v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
   const cur=["Dash","New","List","Data","Tasks","Cal"].find(v=>!$("#view"+v).hidden)||"Dash";
@@ -2118,7 +2119,7 @@ if(seenVer && newer(APP_VER,seenVer)) setTimeout(()=>toast("עודכן לגרס�
 async function hardUpdate(){
   const cur=["Dash","New","List","Data","Tasks","Cal"].find(v=>!$("#view"+v).hidden)||"Dash";
   try{ sessionStorage.setItem("ogg-refresh",cur); }catch(e){}
-  try{ const ks=await caches.keys(); await Promise.all(ks.map(k=>caches.delete(k))); }catch(e){}
+  try{ const ks=await caches.keys(), pf=BETA?"ogg-beta-":"ogg-log-"; await Promise.all(ks.filter(k=>k.startsWith(pf)).map(k=>caches.delete(k))); }catch(e){}
   // update the service worker in place — not unregister: that would drop this phone's push subscription
   try{ const rs=await navigator.serviceWorker.getRegistrations(); await Promise.all(rs.map(r=>r.update())); }catch(e){}
   location.replace(location.pathname+"?app=ogg-log-2&u="+Date.now());

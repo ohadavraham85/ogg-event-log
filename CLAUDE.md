@@ -8,3 +8,4 @@ Hebrew RTL PWA — event log for the Og wastewater plant. Static files only: `in
 - Team mode must stay safe: never let a stale local copy overwrite newer cloud data; keep `firestore.rules` free of real e-mails (`OWNER_EMAIL` placeholder).
 - Check phone widths (320px and ~400px) for horizontal overflow after layout changes.
 - GitHub Pages deploys from branch `claude/magical-bell-qcwse4`.
+- **Beta first:** a change goes to the beta copy (`beta/` on the site branch, via `tools/beta.sh <dev-branch>`) — `…/ogg-event-log/beta/`. Release to everyone (merge into the site branch root) only after the owner approves.
