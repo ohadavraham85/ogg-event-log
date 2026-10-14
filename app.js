@@ -1522,6 +1522,8 @@ function paintSettings(){
 }
 document.querySelectorAll("#sgNav button").forEach(b=>b.onclick=()=>{ sgCur=b.dataset.sg; try{ localStorage.setItem("ogg-settings-topic",sgCur); }catch(e){} paintSettings(); window.scrollTo({top:0}); });
 window.paintSettings=paintSettings;
+const _ps=paintSettings; paintSettings=function(){ _ps(); if(typeof relPaint==="function") relPaint(); if($("#relCard") && $("#relCard").dataset.off!=="1" && (sgCur||"general")==="general") $("#relCard").hidden=false; };
+window.paintSettings=paintSettings;
 /* theme: one tap switches between light and dark (whatever is showing now — the phone's setting or a saved choice) */
 const darkMQ=window.matchMedia ? matchMedia("(prefers-color-scheme: dark)") : {matches:false};
 function isDark(){ const t=document.documentElement.getAttribute("data-theme"); return t ? t==="dark" : darkMQ.matches; }
@@ -2059,7 +2061,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.08", APP_DATE="14/10/2026";
+const APP_VER="3.09", APP_DATE="14/10/2026";
 $("#verChip").textContent="v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -4564,6 +4566,29 @@ $("#brShare").onclick=async()=>{ if(!brCur) return; const btn=$("#brShare"), lbl
   catch(e){ toast("יצירת ה-PDF נכשלה"); } finally{ btn.disabled=false; btn.textContent=lbl; } };
 $("#brPdf").onclick=()=>{ if(brCur) brPdfOut(brCur, $("#brPdf")); };
 paintBriefCard();
+
+/* ===== "🚀 פרסם לכולם" — only in the beta, only managers, team log: the beta becomes what everyone gets (cloud function "release") */
+let relLive=null;
+async function relPaint(){
+  const c=$("#relCard"); if(!c) return;
+  const show=BETA && CLOUD_ON && isManager() && !isViewer(); c.dataset.off=show?"":"1"; if(!show){ c.hidden=true; return; }
+  let live="?"; try{ const r=await fetch("../version.txt?t="+Date.now(),{cache:"no-store"}); if(r.ok) live=(await r.text()).trim(); }catch(e){}
+  const st=$("#relSt"), b=$("#relGo"), same=live===APP_VER;
+  if(relLive && relLive.state==="requested"){ st.textContent="⏳ מפרסם את "+(relLive.ver||APP_VER)+"…"; b.disabled=true; return; }
+  st.textContent="בטא: "+APP_VER+" · אצל כולם: "+live+(same?" — זהה":"")+(relLive && relLive.state==="error" ? " · ⚠ הפרסום האחרון נכשל: "+(relLive.msg||"") : relLive && relLive.state==="done" && relLive.ver ? " · ✓ פורסם לאחרונה: "+relLive.ver : "");
+  b.disabled=same; b.textContent=same?"כבר אצל כולם":"פרסם את "+APP_VER+" לכולם";
+}
+window.relApply=d=>{ const was=relLive && relLive.state; relLive=d||null;
+  if(was==="requested" && relLive && relLive.state==="done") toast("🚀 פורסם לכולם: "+(relLive.ver||"")+" — באתר בעוד דקה-שתיים");
+  if(was==="requested" && relLive && relLive.state==="error") toast("הפרסום נכשל: "+(relLive.msg||""));
+  relPaint(); };
+$("#relGo").onclick=async()=>{
+  if(!confirm("לפרסם את הגרסה "+APP_VER+" לכל הצוות?\nמה שיש עכשיו בבטא יחליף את הגרסה הרגילה.")) return;
+  $("#relGo").disabled=true;
+  if(!window.cloudRelease || !await window.cloudRelease(APP_VER)){ toast("הבקשה נכשלה"); relPaint(); return; }
+  relLive={state:"requested",ver:APP_VER}; relPaint();
+};
+setTimeout(relPaint,1500);
 
 /* ===== recycle bin (🗑): deleted events and tasks, 30 days. This device keeps what it deleted; the team log also keeps every
    deleted document in the cloud (deleting only marks it _del), so the bin also shows what was deleted elsewhere. Restoring = a manager. */

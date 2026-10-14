@@ -4,6 +4,7 @@
    except the one who made the change and the office screen ("צופה").
    Deploy: see README → "התראות פוש". Needs the Blaze plan. */
 const { onDocumentWritten } = require("firebase-functions/v2/firestore");
+const { defineSecret } = require("firebase-functions/params");
 const { logger } = require("firebase-functions");
 const { initializeApp } = require("firebase-admin/app");
 const { getFirestore, FieldValue } = require("firebase-admin/firestore");
@@ -118,4 +119,42 @@ exports.pushTest = onDocumentWritten({ document: "push/{tok}", region: REGION, d
   if (!after || !after.test || !after.token || (before && before.test === after.test)) return;
   await sendAll([{ ref: ev.data.after.ref, mail: String(after.mail || "").toLowerCase(), msg: { token: after.token,
     data: { title: "בדיקה", body: "התראות פוש עובדות במכשיר הזה ✅", tag: "ogg-test", test: "1" }, webpush: WEBPUSH } }]);
+});
+
+/* "🚀 פרסם לכולם" (in the beta, managers): a manager writes board/_release {state:"requested"} — the site branch gets one new
+   commit whose root files are the beta's (same file contents, so nothing is re-uploaded). GitHub Pages then publishes it.
+   GH_TOKEN: a GitHub fine-grained token for this repository only, "Contents: read and write", kept as a Firebase secret. */
+const GH_TOKEN = defineSecret("GH_TOKEN");
+const REPO = "ohadavraham85/ogg-event-log", SITE_BRANCH = "claude/magical-bell-qcwse4";
+exports.release = onDocumentWritten({ document: "board/_release", region: REGION, database: DATABASE, secrets: [GH_TOKEN] }, async ev => {
+  const after = ev.data.after.exists ? ev.data.after.data() : null;
+  if (!after || after.state !== "requested") return;
+  const ref = ev.data.after.ref, by = String(after._by || "").toLowerCase();
+  const done = (state, msg, extra) => ref.set({ state, msg: String(msg || "").slice(0, 300), at: FieldValue.serverTimestamp(), ...(extra || {}) }, { merge: true });
+  const m = await db.doc("members/" + by).get();
+  if (!m.exists || m.data().role !== "admin") return done("error", "רק מנהל יכול לפרסם");
+  try {
+    const gh = async (method, path, body) => {
+      const r = await fetch("https://api.github.com/repos/" + REPO + path, { method, body: body ? JSON.stringify(body) : undefined,
+        headers: { Authorization: "Bearer " + GH_TOKEN.value(), Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", "User-Agent": "ogg-release" } });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error("GitHub " + r.status + ": " + (j.message || path));
+      return j;
+    };
+    const head = await gh("GET", "/git/ref/heads/" + SITE_BRANCH);
+    const commit = await gh("GET", "/git/commits/" + head.object.sha);
+    const tree = await gh("GET", "/git/trees/" + commit.tree.sha + "?recursive=1");
+    if (tree.truncated) throw new Error("the file list is too long");
+    const beta = tree.tree.filter(e => e.type === "blob" && e.path.startsWith("beta/"));
+    const vEntry = beta.find(e => e.path === "beta/version.txt");
+    if (!vEntry) throw new Error("no beta to publish");
+    const ver = Buffer.from((await gh("GET", "/git/blobs/" + vEntry.sha)).content, "base64").toString().trim();
+    const nt = await gh("POST", "/git/trees", { base_tree: commit.tree.sha,
+      tree: beta.map(e => ({ path: e.path.slice(5), mode: e.mode, type: "blob", sha: e.sha })) });
+    if (nt.sha === commit.tree.sha) return done("done", "כבר אצל כולם", { ver });
+    const nc = await gh("POST", "/git/commits", { message: "release " + ver + " (from beta, by " + by + ")", tree: nt.sha, parents: [head.object.sha] });
+    await gh("PATCH", "/git/refs/heads/" + SITE_BRANCH, { sha: nc.sha });
+    logger.info("released", ver, "by", by);
+    await done("done", "", { ver });
+  } catch (e) { logger.error("release failed", e.message); await done("error", e.message); }
 });
