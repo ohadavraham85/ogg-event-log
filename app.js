@@ -2058,7 +2058,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.04", APP_DATE="14/10/2026";
+const APP_VER="3.05", APP_DATE="14/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2146,7 +2146,7 @@ function autoUpdate(v){
 }
 async function checkUpdate(){
   const v=await latestVersion(); const bar=$("#updBar");
-  if(v && newer(v,APP_VER)){ $("#updTxt").textContent="גרסה חדשה "+v+" זמינה (יש לך "+APP_VER+")"; bar.hidden=false; autoUpdate(v); }
+  if(v && newer(v,APP_VER)){ $("#updTxt").textContent="גרסה חדשה "+v+" זמינה (יש לך "+APP_VER+")"; bar.hidden=false; }   // no automatic reload: the banner "עדכן עכשיו" waits for the user
   else bar.hidden=true;
   return v;
 }
