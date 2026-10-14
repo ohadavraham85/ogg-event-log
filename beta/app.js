@@ -527,7 +527,7 @@ function evThumbs(files, box, onDel){
     box.appendChild(b); });
 }
 function paintEvFiles(){ const box=$("#evPh"); if(box) evThumbs(evFiles, box, m=>{ evFiles=evFiles.filter(x=>x.id!==m.id); paintEvFiles(); }); }
-["#evCam","#evFile"].forEach(s=>{ const i=$(s); if(i) i.onchange=async()=>{ const fl=[...i.files]; i.value=""; if(!fl.length) return;
+["#evCam","#evGal","#evFile"].forEach(s=>{ const i=$(s); if(i) i.onchange=async()=>{ const fl=[...i.files]; i.value=""; if(!fl.length) return;
   if(evFiles.length+fl.length>8){ toast("עד 8 קבצים לאירוע"); return; }
   const out=await storeFiles(fl, s==="#evCam"); if(out.length){ evFiles.push(...out); paintEvFiles(); toast(out.length===1?"צורף":"צורפו "+out.length); } }; });
 function resetForm(){
@@ -2061,7 +2061,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.09", APP_DATE="14/10/2026";
+const APP_VER="3.10", APP_DATE="15/10/2026";
 $("#verChip").textContent="v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2656,11 +2656,12 @@ function renderFiles(t, c){
     grid.appendChild(b);
   });
   if(open){
+    // cam: the camera (one shot); "gallery": several pictures at once from the phone's gallery; otherwise any files
     const mkAdd=(label,cam)=>{ const l=mk("label","tk-fadd"), i=mk("input"); i.type="file"; i.hidden=true;
-      if(cam){ i.accept="image/*"; i.setAttribute("capture","environment"); } else i.multiple=true;
+      if(cam===true){ i.accept="image/*"; i.setAttribute("capture","environment"); } else if(cam==="gallery"){ i.accept="image/*"; i.multiple=true; } else i.multiple=true;
       i.onchange=()=>{ const fl=[...i.files]; i.value=""; if(fl.length) addFiles(t,fl,cam); };
       l.append(label,i); return l; };
-    var btns=mk("div","tk-fbtns"); btns.append(mkAdd("📷 צילום",true), mkAdd("📎 קובץ",false));
+    var btns=mk("div","tk-fbtns"); btns.append(mkAdd("📷 צילום",true), mkAdd("📎 קובץ",false), mkAdd("🖼 תמונות",'gallery'));
   }
   if(fs.length) box.appendChild(grid);
   if(btns) box.appendChild(btns);
@@ -2866,6 +2867,7 @@ function renderTasks(){
       const ins=c.querySelectorAll(".tk-fadd input");
       if(ins[0]) more.unshift(["📷 צילום","",()=>ins[0].click()]);
       if(ins[1]) more.unshift(["📎 קובץ","",()=>ins[1].click()]);
+      if(ins[2]) more.unshift(["🖼 כמה תמונות","",()=>ins[2].click()]);
       if(!(t.check||[]).some(x=>x && !x.del)) more.unshift(["☑ רשימת בדיקה","",()=>{ tkCkOn.add(t.id); c.classList.add("ck-on");
         const i=c.querySelector(".ck-add input"); if(i) i.focus(); }]);
     }
