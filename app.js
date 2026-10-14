@@ -2053,7 +2053,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.96", APP_DATE="14/10/2026";
+const APP_VER="2.97", APP_DATE="14/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -4564,7 +4564,7 @@ $("#binClose").onclick=()=>$("#dlgBin").close();
 
 /* ===== files folder (📁): every file and picture of the tasks and events I can see, newest first.
    Tapping one goes to where it belongs (the task or the event); 🔍 opens the file itself. */
-let flKind="";
+let fdKind="";
 function flAll(){
   const out=[];
   tkVis().forEach(t=>(t.files||[]).forEach(m=>{ if(m && !m.del) out.push({m, k:"t", id:t.id, src:(t.no?"#"+t.no+" ":"")+(t.title||"משימה")}); }));
@@ -4572,10 +4572,10 @@ function flAll(){
   return out.sort((a,b)=>String(b.m.at||"").localeCompare(String(a.m.at||"")));
 }
 function flPaint(){
-  const q=$("#flQ").value.trim().toLowerCase(), G=$("#flGrid"); G.textContent="";
+  const q=$("#fdQ").value.trim().toLowerCase(), G=$("#fdGrid"); G.textContent="";
   const isImg=m=>/^image\//.test(m.type||"");
-  const list=flAll().filter(x=>(!flKind || (flKind==="img")===isImg(x.m)) && (!q || (x.m.name+" "+x.src+" "+(x.m.by||"")).toLowerCase().includes(q)));
-  $("#flTitle").textContent="📁 קבצים ("+nf(list.length)+")";
+  const list=flAll().filter(x=>(!fdKind || (fdKind==="img")===isImg(x.m)) && (!q || (x.m.name+" "+x.src+" "+(x.m.by||"")).toLowerCase().includes(q)));
+  $("#fdTitle").textContent="📁 קבצים ("+nf(list.length)+")";
   if(!list.length){ G.appendChild(mk("p","hint","אין קבצים.")); return; }
   list.slice(0,300).forEach(x=>{ const c=mk("div","fd-it");
     const go=mk("button","fd-go"); go.type="button"; go.title="פתח את "+(x.k==="t"?"המשימה":"האירוע");
@@ -4586,10 +4586,10 @@ function flPaint(){
     c.append(go, z, mk("b","fd-n",x.m.name), mk("span","fd-s",(x.k==="t"?"📋 ":"⚠ ")+x.src), mk("span","fd-d",(x.m.at?fmtWhen(x.m.at).slice(0,10):"")+(x.m.by?" · "+x.m.by:"")));
     G.appendChild(c); });
 }
-$("#qkFiles").onclick=()=>{ $("#flQ").value=""; flPaint(); $("#dlgFiles").showModal(); };
-$("#flClose").onclick=()=>$("#dlgFiles").close();
-$("#flQ").oninput=flPaint;
-document.querySelectorAll("#flKind button").forEach(b=>b.onclick=()=>{ flKind=b.dataset.k; document.querySelectorAll("#flKind button").forEach(x=>x.setAttribute("aria-pressed",String(x===b))); flPaint(); });
+$("#qkFiles").onclick=()=>{ $("#fdQ").value=""; flPaint(); $("#dlgFiles").showModal(); };
+$("#fdClose").onclick=()=>$("#dlgFiles").close();
+$("#fdQ").oninput=flPaint;
+document.querySelectorAll("#fdKind button").forEach(b=>b.onclick=()=>{ fdKind=b.dataset.k; document.querySelectorAll("#fdKind button").forEach(x=>x.setAttribute("aria-pressed",String(x===b))); flPaint(); });
 
 /* ===== quiet screens: explanations behind a small ⓘ =====
    A card's description paragraph (the <p> right under its title) is hidden, with an ⓘ by the title that opens it.
