@@ -164,7 +164,7 @@ Object.keys(ROW).forEach(k=>{ $(ROW[k]).onclick = ()=>openSheet(k); });
 let shKey=null;
 function openSheet(k){
   shKey=k;
-  $("#shTitle").textContent = META[k].title + (META[k].multi && sel[k].length ? " — לחיצה על מסומן מבטלת אותו" : "");
+  $("#shTitle").textContent = META[k].title + (META[k].multi && sel[k].length ? " · נבחרו "+sel[k].length : "");
   $("#shQ").value=""; $("#shNew").value="";
   $("#shNew").placeholder = "הוסף " + META[k].title + " חדש";
   drawOpts();
@@ -205,8 +205,13 @@ function drawOpts(){
     b.onclick = ()=>{
       if(META[k].multi){
         const i=sel[k].indexOf(v);
-        if(i>=0){ sel[k].splice(i,1); drawOpts(); paintRows(); }      // un-pick: stay open
-        else { sel[k].push(v); paintRows(); closeSheet(); }        // pick: close (open again to add more)
+        // several at once: the list stays open (✓ marks; tap again removes); the search clears for the next name; "סיום" closes
+        if(i>=0) sel[k].splice(i,1); else sel[k].push(v);
+        paintRows();
+        if(i<0 && $("#shQ").value){ $("#shQ").value=""; }
+        drawOpts();
+        $("#shTitle").textContent = META[k].title + (sel[k].length ? " · נבחרו "+sel[k].length : "");
+        if(!ssPhone()) $("#shQ").focus({preventScroll:true});
       }else{
         sel[k]=[v]; paintRows(); closeSheet();
       }
@@ -2053,7 +2058,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.97", APP_DATE="14/10/2026";
+const APP_VER="2.98", APP_DATE="14/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
