@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>יומן אירועים ומשימות — מט"ש אוג</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Arimo:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css?v=3.06">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0E7C86">
+<meta name="color-scheme" content="light dark">
+<script>
+/* apply the saved light/dark choice before the first paint. "only light" also stops the phone's
+   browser from force-darkening the page (Chrome / Samsung Internet dark mode). */
+(function(){ try{ var a=localStorage.getItem("ogg-accent"); if(a && a!=="teal") document.documentElement.setAttribute("data-accent",a); }catch(e){} })();
+(function(){ try{ var t=localStorage.getItem("ogg-theme"); if(t!=="light"&&t!=="dark") return;
+  document.documentElement.setAttribute("data-theme",t);
+  document.querySelector('meta[name="color-scheme"]').content = t==="light" ? "only light" : "only dark"; }catch(e){} })();
+</script>
+<link rel="icon" href="icons/icon-notebook.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-notebook-apple-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="יומן אירועים ומשימות">
+</head>
+<body>
+<!-- Mabatei logo mark (vector, from icons/icon-notebook.svg) used as a faint watermark in the blue panels -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><symbol id="mbt-mark" viewBox="392 192 403 408"><g transform="translate(593.0 396) scale(0.52) translate(-648 -466)"><g transform="translate(0.000000,1480.000000) scale(0.100000,-0.100000)" fill="currentColor" fill-opacity=".62" stroke="none">
+<path d="M6020 14034 c-257 -21 -398 -41 -480 -69 -41 -14 -104 -32 -140 -41 -39 -9 -85 -29 -116 -49 -28 -19 -73 -42 -100 -50 -27 -8 -76 -31 -109 -51 -33 -20 -85 -49 -115 -65 -156 -83 -391 -288 -469 -409 -59 -91 -126 -185 -157 -222 -12 -15 -28 -44 -34 -65 -7 -21 -30 -73 -52 -115 -54 -105 -136 -431 -144 -573 -11 -174 52 -429 149 -606 51 -94 245 -295 343 -357 64 -40 291 -118 403 -137 206 -36 495 0 656 83 182 93 404 330 460 490 13 37 34 92 48 122 14 30 36 107 48 170 12 63 34 149 49 190 15 41 30 103 34 136 14 126 103 373 163 451 19 25 48 74 65 110 68 141 427 464 577 518 34 13 70 30 79 38 28 24 62 39 125 53 33 8 89 27 126 43 36 16 99 34 138 41 112 18 155 68 101 117 -49 44 -506 176 -721 207 -145 21 -582 56 -682 55 -44 -1 -154 -8 -245 -15z" />
+<path d="M7765 13388 c-171 -16 -325 -62 -540 -163 -143 -68 -204 -112 -314 -228 -184 -192 -194 -208 -250 -371 -94 -276 -90 -510 13 -766 47 -116 63 -144 131 -235 163 -218 339 -339 575 -395 132 -31 364 -39 477 -16 87 17 305 91 374 127 23 11 65 28 93 36 28 8 89 32 136 53 243 108 626 137 935 72 148 -32 177 -43 395 -152 79 -39 258 -154 295 -189 48 -46 172 -131 190 -131 30 0 45 13 45 39 0 42 -40 220 -62 275 -10 27 -28 88 -39 135 -11 47 -33 109 -48 136 -15 28 -38 80 -50 116 -12 36 -37 90 -57 120 -19 30 -69 119 -110 199 -140 271 -280 462 -511 695 -143 144 -378 336 -449 366 -16 7 -51 29 -79 50 -27 20 -81 48 -120 62 -38 14 -90 34 -115 45 -50 23 -171 64 -270 92 -129 37 -413 49 -645 28z" />
+<path d="M3755 12981 c-73 -34 -317 -290 -428 -449 -34 -49 -97 -135 -140 -192 -43 -57 -90 -126 -104 -154 -14 -28 -35 -64 -48 -81 -12 -16 -35 -55 -50 -85 -15 -30 -42 -80 -60 -110 -18 -30 -38 -73 -45 -95 -7 -22 -28 -71 -48 -110 -19 -38 -45 -103 -57 -145 -13 -41 -37 -115 -54 -165 -16 -49 -46 -160 -66 -245 -37 -155 -37 -155 -33 -425 5 -270 5 -270 47 -410 64 -214 119 -365 155 -420 18 -27 42 -75 55 -107 12 -31 37 -74 55 -95 18 -21 53 -70 78 -108 170 -265 572 -511 912 -557 214 -29 520 63 734 219 82 60 213 206 249 277 8 17 32 54 53 81 25 34 50 88 75 164 37 113 38 119 43 300 3 117 1 199 -6 221 -34 113 -83 244 -100 268 -11 15 -29 46 -41 70 -12 23 -43 67 -69 96 -26 29 -60 70 -75 90 -16 20 -54 58 -87 84 -216 175 -493 437 -557 526 -20 28 -53 69 -73 91 -73 79 -191 346 -248 560 -24 90 -22 638 2 745 41 180 30 207 -69 161z" />
+<path d="M8845 11263 c-16 -2 -75 -14 -130 -28 -55 -13 -117 -27 -137 -30 -20 -3 -59 -21 -86 -40 -27 -18 -65 -40 -84 -48 -78 -33 -240 -198 -343 -351 -22 -32 -48 -71 -57 -85 -28 -41 -99 -240 -114 -319 -43 -225 22 -523 154 -706 76 -105 190 -234 246 -279 235 -188 548 -476 582 -535 15 -26 39 -61 54 -78 49 -57 140 -243 195 -399 63 -182 83 -340 71 -560 -4 -66 -9 -160 -12 -210 -2 -49 -9 -121 -15 -158 -23 -145 31 -168 152 -65 64 54 234 245 281 315 20 31 48 67 61 82 14 14 40 49 58 77 19 29 61 85 95 125 34 41 75 102 92 135 17 34 44 81 60 105 15 24 37 64 47 89 11 25 37 72 57 104 21 33 43 78 48 100 6 23 26 75 45 116 19 41 42 111 51 155 9 44 25 103 36 130 53 132 99 398 105 615 5 142 3 169 -26 329 -36 198 -112 443 -165 531 -19 30 -43 73 -54 95 -87 171 -279 399 -429 512 -21 15 -61 47 -89 69 -29 23 -74 49 -101 58 -28 9 -62 29 -77 45 -43 45 -117 68 -331 102 -50 8 -185 9 -240 2z" />
+<path d="M2618 9285 c-15 -32 5 -183 37 -285 13 -41 31 -103 39 -137 9 -35 26 -84 39 -110 13 -27 34 -79 47 -118 30 -94 87 -223 167 -380 144 -282 238 -426 383 -589 25 -28 65 -77 89 -108 111 -148 398 -379 592 -478 24 -13 59 -36 79 -51 23 -19 61 -34 110 -45 41 -9 98 -28 125 -42 62 -31 279 -78 432 -93 213 -22 597 21 737 83 38 17 94 39 123 49 47 16 144 76 305 189 117 82 241 284 315 511 47 144 47 144 47 309 0 165 0 165 -48 295 -48 133 -128 286 -167 321 -12 10 -39 45 -60 76 -84 123 -345 294 -499 327 -61 13 -361 14 -480 2 -54 -6 -121 -22 -180 -44 -52 -19 -142 -50 -200 -70 -58 -19 -130 -44 -161 -55 -31 -12 -100 -28 -155 -37 -54 -9 -151 -25 -214 -35 -173 -30 -263 -26 -485 19 -200 40 -357 97 -485 175 -30 18 -80 45 -110 60 -31 14 -113 76 -185 138 -186 161 -213 175 -237 123z" />
+<path d="M7596 9109 c-96 -10 -332 -84 -372 -117 -12 -9 -52 -41 -88 -71 -84 -67 -228 -227 -257 -283 -12 -23 -32 -58 -45 -78 -38 -57 -114 -295 -125 -388 -8 -71 -46 -263 -79 -397 -38 -154 -65 -237 -94 -285 -19 -30 -45 -80 -59 -110 -57 -128 -130 -227 -277 -377 -135 -137 -153 -152 -255 -207 -213 -116 -301 -157 -383 -181 -147 -43 -232 -98 -232 -150 0 -31 32 -47 130 -65 36 -6 150 -36 254 -66 167 -48 221 -58 465 -90 370 -48 510 -42 996 40 165 28 427 106 530 158 28 14 68 31 90 38 85 26 341 206 469 329 164 159 386 479 460 666 122 305 135 727 31 983 -116 286 -417 557 -705 634 -88 23 -312 32 -454 17z" />
+</g><g transform="translate(0.000000,1480.000000) scale(0.100000,-0.100000)" fill="currentColor" stroke="none">
+<path d="M6020 14054 c-257 -21 -398 -41 -480 -69 -41 -14 -104 -32 -140 -41 -39 -9 -85 -29 -116 -49 -28 -19 -73 -42 -100 -50 -27 -8 -76 -31 -109 -51 -33 -20 -85 -49 -115 -65 -158 -85 -401 -297 -486 -424 -68 -103 -131 -193 -160 -227 -12 -15 -28 -44 -34 -65 -7 -21 -30 -73 -52 -115 -54 -105 -136 -431 -144 -573 -11 -171 48 -417 143 -595 52 -99 252 -311 359 -381 72 -46 289 -122 413 -144 237 -42 530 6 711 115 172 104 374 331 425 478 12 37 34 92 48 122 14 30 36 107 48 170 12 63 34 149 49 190 15 41 30 103 34 136 14 126 103 373 163 451 19 25 48 74 65 109 66 139 408 445 557 499 34 13 70 30 79 38 28 24 62 39 125 53 33 8 89 27 126 43 36 16 99 34 139 41 57 9 81 19 108 42 97 86 -13 151 -446 262 -213 54 -318 70 -637 96 -277 22 -338 23 -573 4z" />
+<path d="M10122 11267 c-34 -34 -62 -67 -62 -73 0 -6 32 -41 71 -79 l70 -68 60 59 c32 32 59 65 59 74 0 9 -30 46 -68 83 l-68 67 -62 -63z" />
+</g></g></symbol></svg>
+<!-- ============ SPLASH ============ -->
+<div id="splash" role="dialog" aria-modal="true" aria-labelledby="spTitle">
+  <main class="sp-main">
+    <section class="sp-content">
+      <img class="sp-logo" src="icons/icon-notebook.svg" alt="לוגו יומן אירועים ומשימות – פנקס עם סמל מבט״י">
+      <div class="sp-text">
+        <div class="sp-eyebrow">מט״ש אוג</div>
+        <h1 id="spTitle">יומן אירועים ומשימות</h1>
+        <p class="sp-lead">רישום מהיר של אירועי משמרת, תקלות, טיפולים ומשימות</p>
+      </div>
+      <div class="sp-actions">
+        <button class="sp-btn" id="spEnter" type="button">כניסה</button>
+        <div class="sp-shift" id="spShift"></div>
+      </div>
+    </section>
+
+    <aside class="sp-side" aria-hidden="true">
+      <svg viewBox="0 0 720 900" preserveAspectRatio="xMidYMax slice">
+        <path d="M0 420 C 120 360, 240 360, 360 410 S 600 470, 720 400 L 720 900 L 0 900 Z" fill="#29ABE2" opacity=".25"/>
+        <path d="M0 540 C 140 480, 270 492, 390 540 S 610 596, 720 530 L 720 900 L 0 900 Z" fill="#29ABE2" opacity=".4"/>
+        <path d="M0 670 C 150 620, 290 630, 420 668 S 630 716, 720 660 L 720 900 L 0 900 Z" fill="#0B3A63" opacity=".55"/>
+        <circle cx="560" cy="190" r="120" fill="none" stroke="#fff" stroke-opacity=".16" stroke-width="2"/><use href="#mbt-mark" class="wm" x="466" y="94" width="188" height="192" color="#fff" opacity=".2"/>
+        <circle cx="560" cy="190" r="180" fill="none" stroke="#fff" stroke-opacity=".10" stroke-width="2"/>
+        <circle cx="560" cy="190" r="240" fill="none" stroke="#fff" stroke-opacity=".06" stroke-width="2"/>
+      </svg>
+      <div class="sp-foot"><span>מבט״י · מפעלי ביוב וטיהור ירושלים</span><span id="spVer"></span></div>
+    </aside>
+  </main>
+
+  <div class="sp-waves" aria-hidden="true">
+    <svg viewBox="0 0 390 220" preserveAspectRatio="none">
+      <path d="M0 70 C 70 30, 140 30, 200 62 S 330 100, 390 58 L 390 220 L 0 220 Z" fill="#29ABE2" opacity=".22"/>
+      <path d="M0 110 C 80 76, 150 84, 215 110 S 330 142, 390 104 L 390 220 L 0 220 Z" fill="#29ABE2" opacity=".45"/>
+      <path d="M0 150 C 90 120, 170 128, 240 150 S 340 176, 390 146 L 390 220 L 0 220 Z" fill="#1565A8"/>
+    </svg>
+  </div>
+  <div class="sp-footer">מבט״י · מפעלי ביוב וטיהור ירושלים</div>
+</div>
+
+<!-- app background: the waves from the opening-screen design -->
+<div class="app-bg" aria-hidden="true">
+  <svg viewBox="0 0 390 220" preserveAspectRatio="none">
+    <path d="M0 70 C 70 30, 140 30, 200 62 S 330 100, 390 58 L 390 220 L 0 220 Z" fill="#29ABE2" opacity=".22"/>
+    <path d="M0 110 C 80 76, 150 84, 215 110 S 330 142, 390 104 L 390 220 L 0 220 Z" fill="#29ABE2" opacity=".45"/>
+    <path d="M0 150 C 90 120, 170 128, 240 150 S 340 176, 390 146 L 390 220 L 0 220 Z" fill="#1565A8"/>
+  </svg>
+</div>
+<!-- desktop: the blue side panel from the opening-screen design, on both sides -->
+<div class="app-side app-side-l" aria-hidden="true">
+    <svg viewBox="0 0 720 900" preserveAspectRatio="xMidYMax slice">
+      <path d="M0 420 C 120 360, 240 360, 360 410 S 600 470, 720 400 L 720 900 L 0 900 Z" fill="#29ABE2" opacity=".25"/>
+      <path d="M0 540 C 140 480, 270 492, 390 540 S 610 596, 720 530 L 720 900 L 0 900 Z" fill="#29ABE2" opacity=".4"/>
+      <path d="M0 670 C 150 620, 290 630, 420 668 S 630 716, 720 660 L 720 900 L 0 900 Z" fill="#0B3A63" opacity=".55"/>
+      <circle cx="560" cy="190" r="120" fill="none" stroke="#fff" stroke-opacity=".16" stroke-width="2"/><use href="#mbt-mark" class="wm" x="466" y="94" width="188" height="192" color="#fff" opacity=".2"/>
+      <circle cx="560" cy="190" r="180" fill="none" stroke="#fff" stroke-opacity=".10" stroke-width="2"/>
+      <circle cx="560" cy="190" r="240" fill="none" stroke="#fff" stroke-opacity=".06" stroke-width="2"/>
+    </svg>
+  <div class="app-side-foot">מבט״י · מפעלי ביוב וטיהור ירושלים</div>
+</div>
+<div class="app-side app-side-r" aria-hidden="true">
+    <svg viewBox="0 0 720 900" preserveAspectRatio="xMidYMax slice">
+      <path d="M0 420 C 120 360, 240 360, 360 410 S 600 470, 720 400 L 720 900 L 0 900 Z" fill="#29ABE2" opacity=".25"/>
+      <path d="M0 540 C 140 480, 270 492, 390 540 S 610 596, 720 530 L 720 900 L 0 900 Z" fill="#29ABE2" opacity=".4"/>
+      <path d="M0 670 C 150 620, 290 630, 420 668 S 630 716, 720 660 L 720 900 L 0 900 Z" fill="#0B3A63" opacity=".55"/>
+      <circle cx="560" cy="190" r="120" fill="none" stroke="#fff" stroke-opacity=".16" stroke-width="2"/><use href="#mbt-mark" class="wm" x="466" y="94" width="188" height="192" color="#fff" opacity=".2" transform="matrix(-1 0 0 1 1120 0)"/>
+      <circle cx="560" cy="190" r="180" fill="none" stroke="#fff" stroke-opacity=".10" stroke-width="2"/>
+      <circle cx="560" cy="190" r="240" fill="none" stroke="#fff" stroke-opacity=".06" stroke-width="2"/>
+    </svg>
+</div>
+<div class="wrap">
+  <header class="bar">
+    <div class="bar-row">
+      <img class="logo" src="icons/logo-header.png" alt="מבט&quot;י — מפעלי ביוב וטיהור ירושלים" width="101" height="137">
+      <div class="mark">יומן אירועים ומשימות <span class="sub">מט"ש אוג</span></div>
+      <div class="clock" id="clock" aria-live="off"><span class="c-hello" id="cHello" hidden></span><span class="c-day" id="cDay"></span><span class="c-date" id="cDate"></span><b class="c-time" id="cTime"></b></div>
+      <span class="ver" id="verChip" title="גרסה">v3.06</span>
+      <button class="icon-btn info-btn" id="infoBtn" type="button" aria-label="מה חדש בגרסה" title="מה חדש בגרסה"><span aria-hidden="true">i</span><span class="info-dot" id="infoDot" hidden></span></button>
+      <button class="icon-btn inbox-btn" id="inboxBtn" aria-label="הודעות" title="הודעות" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm7-6V11a7 7 0 0 0-5.5-6.84V3.5a1.5 1.5 0 0 0-3 0v.66A7 7 0 0 0 5 11v5l-2 2v1h18v-1z" fill="currentColor"/></svg><span class="newcnt" id="inboxN" hidden></span></button>
+      <button class="icon-btn" id="refreshBtn" aria-label="רענון" title="רענון — טעינה מחדש ובדיקת עדכון"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M20.5 3.5v5h-5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <button class="icon-btn" id="setBtn" aria-label="הגדרות" title="הגדרות" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.5 7.5 0 0 0-1.7-1L15 3.3h-4l-.4 2.6a7.5 7.5 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.5 7.5 0 0 0 1.7 1l.4 2.6h4l.4-2.6a7.5 7.5 0 0 0 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg></button>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button role="tab" id="tabTasks" aria-selected="false">משימות <span id="tkCnt"></span><span class="newcnt" id="tkMine" hidden></span></button>
+      <button role="tab" id="tabDash" class="tab-dash" aria-selected="true"><svg class="ti" viewBox="0 0 16 16" aria-hidden="true"><rect x="1" y="8" width="3.2" height="7" rx="1"/><rect x="6.4" y="4" width="3.2" height="11" rx="1"/><rect x="11.8" y="1" width="3.2" height="14" rx="1"/></svg>דשבורד</button>
+      <button role="tab" id="tabList" aria-selected="false">אירועים <span id="cnt"></span><span class="newcnt" id="newCnt" hidden></span></button>
+      <button role="tab" id="tabNew" aria-selected="false" hidden>רישום אירוע</button>
+      <button role="tab" id="tabCal" aria-selected="false" aria-label="לוח שנה" hidden><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2h2v2h6V2h2v2h2.5A1.5 1.5 0 0 1 21 5.5v14A1.5 1.5 0 0 1 19.5 21h-15A1.5 1.5 0 0 1 3 19.5v-14A1.5 1.5 0 0 1 4.5 4H7zM5 9v10h14V9zm2 2h3v3H7z"/></svg><span class="tl">לוח שנה</span></button>
+      <button role="tab" id="tabData" aria-selected="false" aria-label="הגדרות" hidden><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.5 7.5 0 0 0-1.7-1L15 3.3h-4l-.4 2.6a7.5 7.5 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.5 7.5 0 0 0 1.7 1l.4 2.6h4l.4-2.6a7.5 7.5 0 0 0 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg><span class="tl">הגדרות</span></button>
+    </nav>
+  </header>
+
+  <!-- ============ NEW ============ -->
+  <section id="viewNew">
+    <div class="when-card">
+      <div class="lbl">מתי קרה</div>
+      <div class="when-grid">
+        <input type="date" id="dDate" aria-label="תאריך">
+        <input type="time" id="dTime" aria-label="שעה">
+        <button class="now" id="nowBtn">עכשיו</button>
+      </div>
+    </div>
+
+    <button class="pick" id="pType"><span class="mid"><span class="k">סוג אירוע <span class="req">*</span></span><span class="v none">בחר מהרשימה</span></span><span class="arw">‹</span></button>
+    <button class="pick" id="pLoc"><span class="mid"><span class="k">מיקום <span class="req">*</span></span><span class="v none">בחר מהרשימה</span></span><span class="arw">‹</span></button>
+    <button class="pick" id="pEq"><span class="mid"><span class="k">ציוד</span><span class="v none">בחר מהרשימה</span></span><span class="arw">‹</span></button>
+    <button class="pick" id="pPpl"><span class="mid"><span class="k">מעורבים</span><span class="v none">בחר מהרשימה</span></span><span class="arw">‹</span></button>
+
+    <div class="block">
+      <label for="title">כותרת</label>
+      <input type="text" id="title" class="txt" placeholder="שורה אחת שמסכמת את האירוע">
+    </div>
+
+    <div class="block">
+      <label for="desc">מה קרה <span class="req" style="color:var(--fault)">*</span></label>
+      <div class="desc-wrap">
+        <textarea id="desc" placeholder="תאר את האירוע"></textarea>
+        <button class="mic" id="micBtn" aria-label="הכתבה קולית">🎙</button>
+      </div>
+      <p class="hint" id="micHint"></p>
+    </div>
+
+    <div class="block">
+      <label for="act">פעולה שננקטה</label>
+      <textarea id="act" placeholder="מה נעשה בפועל"></textarea>
+      <div class="ev-ph">
+        <div class="ev-ph-grid" id="evPh"></div>
+        <div class="ev-ph-add">
+          <label class="tk-fadd">📷 צילום<input type="file" id="evCam" accept="image/*" capture="environment" hidden></label>
+          <label class="tk-fadd">🖼 תמונה / קובץ<input type="file" id="evFile" multiple hidden></label>
+        </div>
+      </div>
+    </div>
+
+    <button class="pick" id="pStat"><span class="mid"><span class="k">סטטוס</span><span class="v">פתוח</span></span><span class="arw">‹</span></button>
+  </section>
+
+  <!-- ============ LIST ============ -->
+  <section id="viewList" hidden>
+    <button type="button" class="fab" id="fabNew" aria-label="רישום אירוע חדש" title="רישום אירוע חדש"><span aria-hidden="true">＋</span>חדש</button>
+    <div class="toolbar">
+      <input type="text" id="q" placeholder="חיפוש בתיאור, פעולה, ציוד">
+      <button class="btn fbtn" id="fToggle">סינון <span id="fBadge"></span></button>
+    </div>
+
+    <div class="fpanel" id="fPanel" hidden>
+      <div class="fgrid">
+        <label><span>סוג</span><select id="fType"></select></label>
+        <label><span>מיקום</span><select id="fLoc"></select></label>
+        <label><span>ציוד</span><select id="fEq"></select></label>
+        <label><span>מעורב</span><select id="fPpl"></select></label>
+        <label><span>סטטוס</span><select id="fStat"></select></label>
+        <label><span>מקור</span><select id="fSrc"></select></label>
+        <label><span>מתאריך</span><input type="date" id="fFrom"></label>
+        <label><span>עד תאריך</span><input type="date" id="fTo"></label>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn" id="fQuickYear">השנה</button>
+        <button class="btn" id="fQuick12">12 חודשים</button>
+        <button class="btn" id="fQuickOpen">רק פתוחים</button>
+        <button class="btn ghost" id="fClear" style="margin-inline-start:auto">נקה סינון</button>
+      </div>
+    </div>
+
+    <div class="resbar">
+      <span id="resCount"></span>
+      <button type="button" class="btn mini ghost ev-coll" id="evCollAll" aria-expanded="true">▾ מזער הכל</button>
+      <label class="sortwrap"><span>מיון</span>
+        <select id="sortBy">
+          <option value="when-desc">תאריך — חדש לישן</option>
+          <option value="when-asc">תאריך — ישן לחדש</option>
+          <option value="type">סוג אירוע</option>
+          <option value="loc">מיקום</option>
+          <option value="stat">סטטוס</option>
+          <option value="edit">עודכן לאחרונה</option>
+        </select>
+      </label>
+      <div class="seg lv" role="group" aria-label="תצוגה" id="listView">
+        <button type="button" data-v="tiles">אריחים</button>
+        <button type="button" data-v="rows">רשימה</button>
+      </div>
+      <button class="btn mini cal-open" id="evCalBtn" type="button"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M7 2h2v2h6V2h2v2h2.5A1.5 1.5 0 0 1 21 5.5v14A1.5 1.5 0 0 1 19.5 21h-15A1.5 1.5 0 0 1 3 19.5v-14A1.5 1.5 0 0 1 4.5 4H7zM5 9v10h14V9zm2 2h3v3H7z"/></svg>לוח שנה</button>
+      <button class="btn mini" id="expView">ייצוא לאקסל</button>
+    </div>
+
+    <div id="listBox"></div>
+    <div style="text-align:center;margin:14px 0 4px">
+      <button class="btn" id="moreRows" hidden>הצג עוד</button>
+    </div>
+  </section>
+
+  <!-- ============ DASHBOARD ============ -->
+  <section id="viewDash" hidden>
+    <div class="ticker" id="dTicker" hidden aria-label="מבזקים — מה פתוח עכשיו">
+      <span class="tk-live" aria-hidden="true"><i></i>לייב</span>
+      <div class="tk-vp"><div class="tk-track" id="dTickTrack"></div></div>
+    </div>
+    <div class="card brief-card" id="dBrief" hidden>
+      <div class="bd-head"><h3>🗒️ שיחת בוקר</h3><span class="br-lock">🔒 מנהלים בלבד</span></div>
+      <div id="brCardBody"></div>
+    </div>
+    <div class="dsh-head">
+      <div class="dquick" id="dQuick">
+        <button type="button" class="qk-btn" id="bsOpen" title="לוח המודעות כפי שנראה על מסך המשרד">📌 לוח מודעות<b id="qkBdN" hidden></b></button>
+        <button type="button" class="qk-btn" id="qkFiles" title="כל הקבצים והתמונות — מהמשימות ומהאירועים">📁 קבצים</button>
+        <button type="button" class="qk-btn" id="qkBrief" hidden>🗒️ שיחת בוקר<span id="qkBrSt"></span></button>
+      </div>
+      <div class="seg" role="group" aria-label="טווח זמן" id="dRange">
+        <button type="button" data-r="30">30 יום</button>
+        <button type="button" data-r="90">90 יום</button>
+        <button type="button" data-r="365">12 חודשים</button>
+        <button type="button" data-r="all">הכל</button>
+      </div>
+      <select id="dDept" class="dsel" aria-label="סינון לפי מחלקה"></select>
+      <select id="dPpl" class="dsel" aria-label="סינון לפי מעורב"></select>
+    </div>
+    <p class="hint dlay-hint">אפשר לסדר את הכרטיסים: גוררים כרטיס בכותרת שלו (בטלפון — לחיצה ארוכה על הכותרת ואז גרירה).</p>
+    <div class="dteam" id="dTeam" hidden></div>
+    <div class="dsh-title"><h2>מצב אירועים</h2><p class="dsh-scope" id="dScope"></p></div>
+    <div class="kpis" id="dKpis"></div>
+    <div id="dCards"></div>
+    <button type="button" class="dlay-reset" id="dLayReset" hidden>החזר את סדר הכרטיסים לברירת המחדל</button>
+    <div class="dtip" id="dTip" role="tooltip" hidden></div>
+  </section>
+
+  <!-- ============ DATA ============ -->
+  <section id="viewTasks" hidden>
+    <div class="dsh-head">
+      <h2>משימות</h2>
+      <div class="tk-dseg" id="tkDeptSeg" hidden><select id="tkDeptSel" aria-label="הצגה לפי מחלקה"></select></div>
+      <div class="seg" id="tkSeg" role="group" aria-label="תצוגה">
+        <button type="button" data-v="mine" aria-pressed="false" id="tkSegMine">המשימות שלי</button>
+        <button type="button" data-v="opened" aria-pressed="false">שפתחתי</button>
+        <button type="button" data-v="open" aria-pressed="true">פתוחות</button>
+        <button type="button" data-v="done" aria-pressed="false">הושלמו</button>
+        <button type="button" data-v="priv" aria-pressed="false" class="seg-priv">🔒 אישיות</button>
+      </div>
+    </div>
+    <div class="tk-me" id="tkMe"></div>
+    <div class="toolbar">
+      <input type="text" id="tq" placeholder="חיפוש בכותרת, תיאור, עדכונים, רשימת בדיקה" aria-label="חיפוש משימות">
+      <button class="btn fbtn" id="tfToggle" aria-expanded="false" aria-controls="tfPanel">סינון <span id="tfBadge"></span></button>
+    </div>
+    <div class="fpanel" id="tfPanel" hidden>
+      <div class="tk-filters" id="tkFilters">
+        <select id="tfPpl" aria-label="סינון לפי אחראי"></select>
+        <select id="tfDept" aria-label="סינון לפי מחלקה"></select>
+        <select id="tfLoc" aria-label="סינון לפי מיקום"></select>
+        <select id="tfType" aria-label="סינון לפי סוג"></select>
+        <select id="tfPrio" aria-label="סינון לפי עדיפות"></select>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button type="button" class="btn" id="tfLate" aria-pressed="false">רק באיחור</button>
+        <button type="button" class="btn ghost" id="tfClear" style="margin-inline-start:auto">נקה סינון</button>
+      </div>
+    </div>
+    <div class="resbar">
+      <span id="tkResCount"></span>
+      <label class="sortwrap"><span>מיון</span><select id="tkSort" aria-label="מיון משימות"><option value="new">החדשות למעלה</option><option value="due">לפי תאריך יעד</option><option value="prio">לפי עדיפות ויעד</option></select></label>
+      <div class="seg lv" role="group" aria-label="תצוגה" id="tkListView">
+        <button type="button" data-v="tiles">אריחים</button>
+        <button type="button" data-v="rows">רשימה</button>
+      </div>
+      <button class="btn mini cal-open" id="tkCalBtn" type="button"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M7 2h2v2h6V2h2v2h2.5A1.5 1.5 0 0 1 21 5.5v14A1.5 1.5 0 0 1 19.5 21h-15A1.5 1.5 0 0 1 3 19.5v-14A1.5 1.5 0 0 1 4.5 4H7zM5 9v10h14V9zm2 2h3v3H7z"/></svg>לוח שנה</button>
+      <button class="btn mini" id="tkExp" type="button">ייצוא לאקסל</button>
+    </div>
+    <button type="button" class="fab" id="tkNewBtn" aria-label="משימה חדשה" title="משימה חדשה"><span aria-hidden="true">＋</span>חדש</button>
+    <div class="card tk-form" id="tkForm" hidden>
+      <h3 id="tkFormTitle">משימה חדשה</h3>
+      <div class="seg tk-scope" id="tkScope" role="group" aria-label="איזו משימה"><button type="button" data-s="team" aria-pressed="true">👥 משימת צוות</button><button type="button" data-s="me" aria-pressed="false">🔒 אישית — רק לי</button></div>
+      <p class="hint tk-scope-hint" id="tkScopeHint" hidden>משימה אישית: רק אתה רואה אותה, היא לא מוקצית לאף אחד, לא נשלחת כהודעה ולא נרשמת ביומן כשמסיימים. היא מופיעה ברשימת המשימות שלך עם 🔒.</p>
+      <label class="tk-f tk-title-f"><span>כותרת המשימה <i class="req">*</i></span><input id="tkTitle" maxlength="200" autocomplete="off" placeholder="מה צריך לעשות — בקצרה"></label>
+      <div class="tk-f tk-depts-f"><span>הקצאה למחלקות (אפשר כמה) — משתמש או מחלקה <i class="req">*</i></span><div class="tk-depts" id="tkDepts"></div></div>
+      <div class="tk-grid tk-sels">
+        <label class="tk-f"><span>סוג <i class="req">*</i></span><select id="tkType"></select></label>
+        <label class="tk-f"><span>עדיפות <i class="req">*</i></span><select id="tkPrio" class="prio-sel"></select></label>
+        <label class="tk-f"><span>תאריך התחלה</span><input type="date" id="tkStart"></label>
+        <label class="tk-f"><span>תאריך יעד</span><input type="date" id="tkDue"></label>
+        <div class="tk-f tk-rep-f"><span>מחזוריות</span>
+          <div class="tk-rep">
+            <select id="tkRep" aria-label="מחזוריות"><option value="">ללא — משימה חד-פעמית</option><option value="d">כל יום</option><option value="w">כל שבוע</option><option value="m">כל חודש</option><option value="y">כל שנה</option><option value="c">מותאם אישית…</option></select>
+            <span class="tk-rep-c" id="tkRepC" hidden>כל <input type="number" id="tkRepN" min="1" max="366" value="2" inputmode="numeric" aria-label="כל כמה"> <select id="tkRepU" aria-label="יחידה"><option value="d">ימים</option><option value="w">שבועות</option><option value="m">חודשים</option><option value="y">שנים</option></select></span>
+          </div>
+          <small class="tk-rep-hint" id="tkRepHint" hidden>כשמסיימים את המשימה נפתחת אוטומטית הבאה, עם אותם פרטים ותאריכים מוזזים.</small>
+        </div>
+        <div class="tk-f tk-ppl-f"><span>הקצאה למשתמשים (הראשון = אחראי ★) <i class="req">*</i></span><select id="tkPpl" aria-label="הוסף משתמש למשימה"></select><div class="pchips" id="tkPplChips" hidden></div></div>
+        <label class="tk-f"><span>מיקום <i class="req">*</i></span><select id="tkLoc"></select></label>
+        <label class="tk-f"><span>ציוד <i class="req">*</i></span><select id="tkEq"></select></label>
+      </div>
+      <label class="tk-f"><span>פרטים</span><textarea id="tkDesc" rows="3"></textarea></label>
+      <div class="tk-f" id="tkCkWrap"><span>רשימת בדיקה (לא חובה)</span><div class="tk-check tk-ck-form" id="tkCk"></div></div>
+      <div class="tk-f tk-files-f" id="tkFilesF"><span>תמונות וקבצים (לא חובה)</span>
+        <div class="tk-file-grid" id="tkPendList"></div>
+        <div class="tk-fbtns">
+          <label class="tk-fadd">📷 צילום<input type="file" id="tkPendCam" accept="image/*" capture="environment" hidden></label>
+          <label class="tk-fadd">📎 קובץ / תמונה<input type="file" id="tkPendFile" multiple hidden></label>
+        </div></div>
+      <div class="row"><button class="btn primary" id="tkSave">שמור משימה</button><button class="btn ghost" id="tkCancel">ביטול</button></div>
+    </div>
+    <p class="hint tk-hint">משימה שמשלימים עוברת ל"הושלמו" — ואפשר לבחור לרשום אותה גם ביומן כאירוע סגור, עם מה שבוצע.</p>
+    <div id="tkList"></div>
+    <datalist id="dlPpl"></datalist><datalist id="dlRoles"></datalist><datalist id="dlDepts"></datalist>
+  </section>
+
+  <section id="viewCal" hidden>
+    <div class="dsh-head">
+      <h2 id="calH">לוח שנה</h2>
+      <button class="btn mini" id="calBack" type="button">→ חזרה לרשימה</button>
+      <div class="seg" id="calMode" role="group" aria-label="מה להציג" hidden>
+        <button type="button" data-m="all">הכל</button>
+        <button type="button" data-m="ev">אירועים</button>
+        <button type="button" data-m="tk">משימות</button>
+      </div>
+      <div class="cal-legend" id="calLeg" role="group" aria-label="הצג רק"><button type="button" data-l="ev"><i class="cl-ev"></i>אירוע (בצבע הסוג)</button><button type="button" data-l="tk"><i class="cl-tk"></i>משימה ליעד</button><button type="button" data-l="late"><i class="cl-late"></i>משימה באיחור</button><button type="button" data-l="done"><i class="cl-done"></i>משימה שהושלמה</button><button type="button" data-l="rep"><i class="cl-rep"></i>משימה מחזורית (צפויה)</button></div>
+      <div class="cal-dept" id="calDept" role="group" aria-label="הצג לפי מחלקה" hidden></div>
+    </div>
+    <div class="cal-nav">
+      <button type="button" class="icon-btn" id="calPrev" aria-label="חודש קודם">›</button>
+      <b id="calTitle"></b>
+      <button type="button" class="icon-btn" id="calNext" aria-label="חודש הבא">‹</button>
+      <button type="button" class="btn" id="calToday">היום</button>
+    </div>
+    <div class="cal-grid" id="calGrid" role="grid"></div>
+    <div class="card cal-day" id="calDay"></div>
+  </section>
+
+  <section id="viewData" hidden>
+    <div class="dsh-head"><h2>הגדרות</h2></div>
+    <nav class="sg-nav" id="sgNav" aria-label="נושאי הגדרות">
+      <button type="button" data-sg="lists">📋 ניהול רשימות</button>
+      <button type="button" data-sg="team" hidden>👥 צוות וחשבון</button>
+      <button type="button" data-sg="files">💾 קבצים וגיבוי</button>
+      <button type="button" data-sg="sec">🔒 אבטחה<i class="sec-dot" id="secDot" hidden></i></button>
+      <button type="button" data-sg="general">⚙ כללי</button>
+    </nav>
+    <div class="card" data-sg="general" id="newsCard">
+      <h3>🔔 הודעות על משימות</h3>
+      <p>כל עובד מקבל הודעה על כל שינוי במשימות שלו, של המחלקה שלו, ובמשימות שפתח או עדכן — הקצאה, עדכון, סטטוס, פרטים, רשימת בדיקה, קבצים, סיום, מחיקה.</p>
+      <label class="tk-chk"><input type="checkbox" id="newsAll"> כמנהל: הודעה על כל שינוי בכל משימות הצוות</label>
+    </div>
+    <div class="card" data-sg="general" id="binCard">
+      <h3>🗑 סל מיחזור</h3>
+      <p>אירועים ומשימות שנמחקו ב-30 הימים האחרונים. מנהל יכול לשחזר.</p>
+      <div class="row"><button class="btn" id="binOpen" type="button">פתח את סל המיחזור</button></div>
+    </div>
+    <div class="card" data-sg="general" id="tvCard">
+      <h3>📺 מסך משרד</h3>
+      <p>תצוגה למסך גדול במשרד: מבזקים, המשימות והאירועים הפתוחים ולוח המודעות — מתחלפים לבד ומתעדכנים בלייב. במחשב של המסך מתחברים עם משתמש שתפקידו <b>צופה — מסך משרד</b> (רואה הכל, לא יכול לשנות כלום); מצב המסך נפתח אצלו לבד.</p>
+      <div class="row"><button class="btn primary" id="tvOpen" type="button">פתח את מצב המסך</button><button class="btn" id="tvCopy" type="button">העתק קישור</button></div>
+      <div class="row"><button class="btn" id="bsOpen2" type="button">📌 עריכת לוח המודעות</button><button class="btn" id="tvCfgOpen" type="button">⚙ התאמת המסך</button></div>
+    <div class="board-card bd-set" id="dBoard">
+      <div class="bd-head"><h4>📌 לוח מודעות</h4><button type="button" class="btn mini" id="bdAdd" hidden>＋ מודעה</button></div>
+      <form class="bd-form" id="bdForm" hidden autocomplete="off">
+        <textarea id="bdText" rows="2" maxlength="400" placeholder="מה רוצים שכולם יראו?" aria-label="נוסח המודעה"></textarea>
+        <div class="row bd-row"><label class="bd-l">מוצגת עד <input type="date" id="bdUntil"></label>
+          <label class="tk-chk bd-imp"><input type="checkbox" id="bdImp"> חשוב — מודגש</label></div>
+        <div class="row"><button class="btn primary" type="submit">פרסם</button><button class="btn ghost" type="button" id="bdCancel">ביטול</button></div>
+      </form>
+      <div class="bd-list" id="bdList"></div>
+    </div>
+
+    </div>
+    <div class="card" data-sg="general">
+      <h3>עזרה</h3>
+      <p>סיור קצר שמראה את הכפתורים לפי סדר העבודה, ותרשים שמסביר איך רושמים אירוע ואיך משימה עוברת מפתיחה לסגירה.</p>
+      <div class="row"><button class="btn primary" id="tourStart2" type="button">▶ הדרכה על האפליקציה</button><button class="btn" id="flowOpen2" type="button">תרשים התהליך</button></div>
+    </div>
+    <div class="card" data-sg="general" id="liteCard" hidden>
+      <h3>תצוגת טלפון</h3>
+      <p>בטלפון מוצג רק מה שצריך בשטח: רישום, מעקב ועדכון. ייצוא, גרפים, ניהול רשימות, קבצים וניהול הצוות — במחשב, או כאן בתצוגה מלאה.</p>
+      <div class="row"><button class="btn" id="liteToggle" type="button">עבור לתצוגה מלאה</button>
+        <button class="btn" id="liteTheme" type="button">☾ בהיר / כהה</button><button class="btn" id="liteReload" type="button">↻ רענון ובדיקת עדכון</button></div>
+      <label class="tk-chk"><input type="checkbox" id="hapOn"> רטט קל בלחיצה על כפתור</label>
+    </div>
+    <div class="card" data-sg="general">
+      <h3>ערכת צבעים</h3>
+      <p>צבע הכפתורים, הלשוניות וההדגשות, ורקע בהיר או כהה. נשמר במכשיר הזה.</p>
+      <div class="row theme-row"><button class="btn" id="themeBtn" type="button">☾ רקע כהה</button></div>
+      <div class="acc-list" id="accList" role="group" aria-label="ערכת צבעים"></div>
+      <label class="glass-f" for="glassR"><span>שקיפות הרקע — רואים את הכחול מאחור</span><b id="glassV">0%</b></label>
+      <input type="range" id="glassR" min="0" max="80" step="5" value="0" aria-describedby="glassV">
+      <div class="glass-f"><span>גודל הכתב</span></div>
+      <div class="seg zoom-seg" id="zoomSeg" role="group" aria-label="גודל הכתב">
+        <button type="button" data-z="90" aria-pressed="false" style="font-size:12px">קטן</button><button type="button" data-z="100" aria-pressed="true" style="font-size:14px">רגיל</button><button type="button" data-z="112" aria-pressed="false" style="font-size:16px">גדול</button><button type="button" data-z="125" aria-pressed="false" style="font-size:18px">גדול מאוד</button>
+      </div>
+    </div>
+    <div class="card" data-sg="general">
+      <h3>מה יש ביומן</h3>
+      <div class="stat" id="stats"></div>
+    </div>
+
+    <div class="card" data-sg="lists">
+      <h3>ניהול רשימות</h3>
+      <p>אנשים, מיקומים, ציוד וסוגי אירוע — מה שכאן פעיל מופיע בכל רשימות הבחירה (רישום אירוע, משימות). <b>הוצא משימוש</b> מסתיר ערך מכל הרשימות (עובד שעזב, ציוד שהוחלף) — האירועים הישנים לא משתנים, וההיסטוריה עדיין מוצאת אותו בסינון. ביומן המשותף — לכל הצוות.</p>
+      <div id="listMgr"></div>
+      <div class="row fix-open"><button class="btn" id="fixBtn">טען קובץ תיקונים</button>
+        <input type="file" id="fixFile" accept=".json,application/json" class="sr"></div>
+      <p class="hint">קובץ תיקונים = רשימת מיזוגים ופיצולים מוכנה מראש. לפני שמשהו משתנה מוצגת רשימה לבדיקה.</p>
+    </div>
+
+    <div class="card" data-sg="files">
+      <h3>הקובץ ב-OneDrive</h3>
+      <p id="fileState">הרישומים נשמרים בדפדפן. חבר קובץ בתיקייה מסונכרנת כדי שיהיה גיבוי וגישה ממחשבים אחרים.</p>
+      <div class="row">
+        <button class="btn primary" id="fileAllow" hidden>אשר גישה לקובץ</button>
+        <button class="btn" id="linkFile">חבר קובץ</button>
+        <button class="btn" id="saveNow">שמור עכשיו</button>
+      </div>
+    </div>
+
+    <div class="card" data-sg="files">
+      <h3>גיבוי וייצוא</h3>
+      <div class="row">
+        <button class="btn" id="expJson">הורד גיבוי</button>
+        <button class="btn" id="expCsv">ייצוא לאקסל</button>
+        <button class="btn" id="impBtn">טען גיבוי</button>
+        <input type="file" id="impFile" accept=".json,application/json" class="sr">
+      </div>
+      <div class="row wk-open"><button class="btn" id="wkOpen">סיכום וגיבוי שבועי</button></div>
+      <p class="hint" id="wkLast"></p>
+    </div>
+
+    <div class="card" data-sg="sec" id="secCard">
+      <h3>🔒 בדיקת אבטחה</h3>
+      <p>בודקת שהמידע מוגן: שהיומן לא פתוח למי שלא בצוות, שהכללים בענן מעודכנים ומחמירים, שמפתח הגישה מוגבל לאתר, מי בצוות ובאיזה תפקיד, מתי היה הגיבוי האחרון ומצב המכשיר הזה. הבדיקה רק קוראת — היא לא משנה שום נתון.</p>
+      <div class="sec-sum" id="secSum"></div>
+      <div class="row"><button class="btn primary" id="secRun" type="button">הרץ בדיקה עכשיו</button><button class="btn" id="secShow" type="button" hidden>הצג דוח מלא</button><button class="btn" id="secDl" type="button" hidden>הורד דוח</button></div>
+      <label class="tk-chk"><input type="checkbox" id="secAuto"> בדיקה אוטומטית פעם ביום (הודעה רק אם נמצאה בעיה)</label>
+    </div>
+    <div class="card" data-sg="general">
+      <h3>אייקון האפליקציה</h3>
+      <p>לחיצה ארוכה על אייקון האפליקציה פותחת קיצורים: רישום אירוע, דשבורד, אירועים פתוחים.</p>
+      <label class="sortwrap stack"><span>מספר על האייקון</span>
+        <select id="badgeMode">
+          <option value="recent">פתוחים מ-30 הימים האחרונים</option>
+          <option value="open">כל הפתוחים</option>
+          <option value="faults">תקלות פתוחות</option>
+          <option value="none">בלי מספר</option>
+        </select>
+      </label>
+      <p class="hint" id="badgeNote"></p>
+    </div>
+
+    <div class="card" data-sg="general">
+      <h3>גרסה</h3>
+      <p id="verLine">גרסה 3.06 · 14/10/2026</p>
+      <div class="row"><button class="btn" id="reloadApp">בדוק עדכון</button></div>
+    </div>
+
+    <div class="card" data-sg="general">
+      <h3>ניקוי</h3>
+      <p>אירועי הארכיון שנטענו מהיומנים הישנים נעולים לעריכה ולמחיקה (אפשר רק לסגור או לפתוח אותם מחדש). אפשר למחוק רק את מה שרשמת באפליקציה.</p>
+      <div class="row">
+        <button class="btn danger" id="wipe">מחק את הרישומים שלי</button>
+        <button class="btn ghost" id="wipeAll">מחק הכל כולל ארכיון</button>
+      </div>
+    </div>
+  </section>
+  <footer class="credit">כל הזכויות לפיתוח ובנייה שמורות לאוהד אברהם · <a href="tel:0535505382" dir="ltr">053-5505382</a></footer>
+</div>
+
+<div class="savebar" id="savebar">
+  <div class="inner">
+    <button class="btn ghost" id="clearBtn">נקה</button>
+    <button class="btn ghost danger" id="delEvBtn" hidden>מחיקה</button>
+    <button class="btn primary" id="saveBtn">שמור אירוע</button>
+  </div>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="shTitle">
+  <div class="grab"></div>
+  <div class="head"><h3 id="shTitle"></h3><button class="x" id="shClose" aria-label="סגור">✕</button></div>
+  <div class="srch"><input type="text" id="shQ" placeholder="חיפוש ברשימה"></div>
+  <div class="opts" id="shOpts"></div>
+  <div class="foot">
+    <input type="text" id="shNew" placeholder="הוסף ערך חדש">
+    <button class="btn" id="shAdd">הוסף</button>
+    <button class="btn primary" id="shDone" style="flex:0 0 auto">סיום</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span></span></div>
+<div class="upd-bar" id="updBar" hidden role="status"><span id="updTxt"></span><button type="button" class="btn" id="updGo">עדכן עכשיו</button></div>
+
+<dialog id="dlgDup">
+  <h3>אולי כבר רשמת את זה</h3>
+  <div class="dup" id="dupText"></div>
+  <p>אפשר לשמור בכל זאת אם זה אירוע נפרד.</p>
+  <div class="row">
+    <button class="btn primary" id="dupSave">שמור בכל זאת</button>
+    <button class="btn" id="dupCancel">חזור לעריכה</button>
+  </div>
+</dialog>
+
+<dialog id="dlgFix" aria-labelledby="fixTitle">
+  <h3 id="fixTitle" tabindex="-1" autofocus>תיקוני רשימות</h3>
+  <p id="fixSum"></p>
+  <div class="fix-list" id="fixList"></div>
+  <div class="row"><button class="btn primary" id="fixOk">החל את המסומנים</button><button class="btn ghost" id="fixNo">ביטול</button></div>
+</dialog>
+
+<dialog id="dlgDel" aria-labelledby="delTitle">
+  <h3 id="delTitle" tabindex="-1" autofocus></h3>
+  <div class="del-what" id="delWhat"></div>
+  <p class="del-warn" id="delWarn" hidden>⚠ אישור שני: המחיקה סופית ואי אפשר לבטל אותה.</p>
+  <label class="tk-f del-type" id="delTypeWrap" hidden><span>כדי לאשר, הקלד: <b>מחק</b></span><input id="delType" autocomplete="off"></label>
+  <div class="row"><button class="btn danger" id="delOk">המשך למחיקה</button><button class="btn ghost" id="delNo">ביטול</button></div>
+</dialog>
+
+<dialog id="dlgQk" aria-labelledby="qkTitle">
+  <h3 id="qkTitle" tabindex="-1" autofocus></h3>
+  <div class="qk-sub" id="qkSub"></div>
+  <div id="qkBody"></div>
+  <div class="row qk-row"><button class="btn primary" id="qkOk" type="button">שמור</button><button class="btn ghost" id="qkNo" type="button">ביטול</button><button class="btn ghost qk-full" id="qkFull" type="button">עריכה מלאה</button></div>
+</dialog>
+
+<dialog id="dlgFlow" aria-labelledby="flTitle">
+  <h3 id="flTitle" tabindex="-1">איך זה עובד</h3>
+  <div class="row fl-top"><button class="btn primary" id="tourStart" type="button">▶ הדרכה צעד אחר צעד</button></div>
+  <div class="seg fl-seg" role="group" aria-label="איזה תהליך"><button type="button" data-fl="tk" aria-pressed="true">ממשימה לאירוע</button><button type="button" data-fl="ev" aria-pressed="false">רישום אירוע ישיר</button></div>
+  <div class="fl-legend"><span class="fl-who fl-mgr">מנהל / מי שפתח</span><span class="fl-who fl-wkr">האחראי במשימה</span><span class="fl-who fl-sys">המערכת — לבד</span></div>
+  <ol class="tline" id="flowTk">
+    <li class="tl-st"><span class="tl-pill">משימה חדשה</span></li>
+    <li class="fl-mgr"><b>1 · פותחים משימה</b><span>משימות ← ＋ חדש: כותרת, הקצאה למחלקה או לעובדים (הראשון — האחראי ★), עדיפות ותאריך יעד ← שמור</span></li>
+    <li class="fl-sys"><b>2 · המשימה נשלחת</b><span>מקבלת מספר (#). כל מי שהוקצה — והמחלקה — מקבל הודעה 🔔, והמשימה מופיעה אצלו ב"המשימות שלי" מסומנת ✨ חדשה</span></li>
+    <li class="fl-wkr"><b>3 · האחראי מקבל</b><span>פותח את ההודעה או את "המשימות שלי" ורואה מה צריך, איפה ועד מתי</span></li>
+    <li class="tl-st"><span class="tl-pill w">בטיפול</span></li>
+    <li class="fl-wkr"><b>4 · מתחילים לעבוד</b><span>לוחצים "בטיפול" — מי שפתח את המשימה מקבל הודעה</span></li>
+    <li class="fl-wkr"><b>5 · מתעדים תוך כדי</b><span>"+ עדכון" לכל התקדמות · ☑ סימון ברשימת הבדיקה · 📷 צילום או קובץ. כל עדכון מגיע כהודעה למי שפתח</span></li>
+    <li class="fl-sys"><b>המערכת עוקבת אחרי היעד</b><span class="fl-lights"><span class="fl-l fut">בהמשך — כתום</span><span class="fl-l today">היום — ירוק</span><span class="fl-l late">עבר היעד — אדום, ונספרת ב"באיחור"</span></span></li>
+    <li class="fl-wkr"><b>6 · ✓ השלם משימה</b><span>בחלון שנפתח: מה בוצע, ו"רשום גם ביומן" (סוג האירוע ומתי) ← אישור</span></li>
+    <li class="tl-st"><span class="tl-pill ok">הושלמה</span></li>
+    <li class="fl-sys"><b>7 · נוצר אירוע ביומן</b><span>אירוע סגור, עם מספר משלו: הכותרת והפרטים מהמשימה, "פעולה שננקטה" = מה בוצע, ונסגר על ידי + מתי. המשימה עוברת ל"הושלמו"</span></li>
+    <li class="fl-sys fl-rep"><b>משימה מחזורית?</b><span>אם כן — נפתחת לבד המשימה הבאה עם התאריכים של הסבב הבא, וחוזרים לשלב 2</span></li>
+    <li class="tl-st"><span class="tl-pill ev">אירוע ביומן</span></li>
+    <li class="fl-final"><b>מעכשיו זה חלק מהיומן</b><span>מופיע בלשונית אירועים, נספר בדשבורד, נכנס לסיכום השבועי ולייצוא</span></li>
+  </ol>
+  <div class="flow" id="flowEv" hidden>
+    <div class="fl-n fl-start">קרה משהו בשטח — תקלה, אחזקה, ביקור…</div>
+    <div class="fl-a"></div>
+    <div class="fl-n"><b>אירועים ← ＋ חדש</b><span>נפתח טופס רישום</span></div>
+    <div class="fl-a"></div>
+    <div class="fl-n"><b>מתי קרה</b><span>"עכשיו" ממלא את השעה הנוכחית</span></div>
+    <div class="fl-a"></div>
+    <div class="fl-n"><b>סוג ★ · מיקום ★ · ציוד · מעורבים</b><span>בוחרים מהרשימה; אפשר להוסיף ערך חדש</span></div>
+    <div class="fl-a"></div>
+    <div class="fl-n"><b>כותרת · מה קרה ★ · פעולה שננקטה</b><span>🎙 אפשר להכתיב בקול</span></div>
+    <div class="fl-a"></div>
+    <div class="fl-d" data-q="טופל במקום?"><span>טופל במקום?</span></div>
+    <div class="fl-split">
+      <div class="fl-br"><em class="fl-yes">כן</em><div class="fl-n fl-ok"><b>סטטוס: נסגר</b></div></div>
+      <div class="fl-br"><em class="fl-no">לא</em><div class="fl-n fl-warn"><b>סטטוס: פתוח</b><span>נספר ב"אירועים פתוחים" בדשבורד</span></div></div>
+    </div>
+    <div class="fl-a"></div>
+    <div class="fl-n"><b>שמור</b><span>האירוע מקבל מספר סידורי (#), נשמר ביומן ומגיע לכל הצוות</span></div>
+    <div class="fl-a"></div>
+    <div class="fl-n fl-end"><b>אירוע פתוח שטופל ← "סגור אירוע"</b><span>נרשם מי סגר ומתי. אפשר תמיד "פתח מחדש"</span></div>
+  </div>
+  <div class="row"><button class="btn" id="flClose" type="button">סגור</button></div>
+</dialog>
+<dialog id="dlgInbox" aria-labelledby="inbTitle">
+  <h3 id="inbTitle" tabindex="-1" autofocus>הודעות</h3>
+  <div class="seg inb-seg" role="group" aria-label="הודעות או ארכיון"><button type="button" data-ib="in" aria-pressed="true">הודעות</button><button type="button" data-ib="arch" aria-pressed="false" id="inbArchBtn">ארכיון</button></div>
+  <p class="inb-hint" id="inbHint"></p>
+  <div class="inb-list" id="inbList"></div>
+  <div class="row"><button class="btn primary" id="inbClose">קראתי</button><button class="btn" id="inbAll" type="button"></button></div>
+</dialog>
+
+<dialog id="dlgStudio" class="bs-dlg" aria-labelledby="bsTitle">
+  <div class="bs-bar">
+    <h3 id="bsTitle" tabindex="-1" autofocus>📌 לוח המודעות — כפי שנראה על המסך</h3>
+    <div class="bs-acts"><button class="btn primary" id="bsAdd" type="button">＋ מודעה חדשה</button><button class="btn" id="bsPlay" type="button">▶ הצג</button><button class="btn" id="bsClose" type="button">סגור</button></div>
+  </div>
+  <p class="bs-hint" id="bsHint"></p>
+  <div class="bs-tools" id="bsTools" hidden>
+    <textarea id="bsText" rows="2" maxlength="400" aria-label="נוסח המודעה" placeholder="מה רוצים שכולם יראו?"></textarea>
+    <div class="bs-row">
+      <label class="bd-l">מוצגת עד <input type="date" id="bsUntil"></label>
+      <label class="tk-chk"><input type="checkbox" id="bsImp"> ❗ חשוב — מודגש</label>
+      <span class="bs-sp"></span>
+      <button class="btn primary" id="bsSave" type="button">✓ שמור</button><button class="btn ghost" id="bsCancel" type="button">ביטול</button><button class="btn danger" id="bsDel" type="button">🗑 הסר</button>
+    </div>
+  </div>
+  <div class="bs-slides" id="bsSlides"></div>
+</dialog>
+
+<dialog id="dlgTvCfg" aria-labelledby="tvcTitle">
+  <h3 id="tvcTitle" tabindex="-1" autofocus>⚙ התאמת מסך המשרד</h3>
+  <p>מה מוצג על המסך הגדול. כל שינוי נשמר מיד ומגיע למסך תוך שניות.</p>
+  <div id="tvcBody"></div>
+  <div class="row"><button class="btn primary" id="tvcClose" type="button">סגור</button></div>
+</dialog>
+
+<dialog id="dlgFiles" class="fd-dlg" aria-labelledby="fdTitle">
+  <div class="fd-top"><h3 id="fdTitle" tabindex="-1" autofocus>📁 קבצים</h3><button type="button" class="bd-del br-x" id="fdClose" aria-label="סגור">✕</button></div>
+  <div class="fd-bar"><input class="txt" id="fdQ" type="search" placeholder="חיפוש: שם קובץ, משימה, אירוע" aria-label="חיפוש קבצים">
+    <div class="seg" id="fdKind" role="group" aria-label="סוג"><button type="button" data-k="" aria-pressed="true">הכל</button><button type="button" data-k="img" aria-pressed="false">תמונות</button><button type="button" data-k="doc" aria-pressed="false">מסמכים</button></div></div>
+  <div class="fd-grid" id="fdGrid"></div>
+</dialog>
+
+<dialog id="dlgBin" aria-labelledby="binTitle">
+  <div class="fd-top"><h3 id="binTitle" tabindex="-1" autofocus>🗑 סל מיחזור</h3><button type="button" class="bd-del br-x" id="binClose" aria-label="סגור">✕</button></div>
+  <p>אירועים ומשימות שנמחקו ב-30 הימים האחרונים. "שחזר" מחזיר אותם למקום.</p>
+  <div class="bin-list" id="binList"></div>
+</dialog>
+
+<dialog id="dlgNews" aria-labelledby="newsTitle">
+  <h3 id="newsTitle" tabindex="-1" autofocus>מה חדש</h3>
+  <div class="news-list" id="newsList"></div>
+  <div class="row"><button class="btn primary" id="newsClose" type="button">סגור</button><button class="btn" id="newsMore" type="button">גרסאות קודמות</button></div>
+</dialog>
+
+<dialog id="dlgSec" aria-labelledby="secTitle">
+  <h3 id="secTitle" tabindex="-1" autofocus>🔒 דוח אבטחה</h3>
+  <p id="secWhen"></p>
+  <div class="sec-list" id="secList"></div>
+  <div class="row"><button class="btn primary" id="secClose" type="button">סגור</button><button class="btn" id="secAgain" type="button">הרץ שוב</button><button class="btn" id="secDl2" type="button">הורד דוח</button></div>
+</dialog>
+
+<button type="button" class="fb-btn" id="fbBtn" aria-label="שליחת משוב" title="משוב — צילום המסך והערה">💬</button>
+<dialog id="dlgFb" aria-labelledby="fbTitle">
+  <h3 id="fbTitle" tabindex="-1">משוב</h3>
+  <p class="fb-hint">צילום המסך מצורף. לחץ על התמונה כדי לסמן איפה הבעיה.</p>
+  <div class="fb-shot"><canvas id="fbCanvas" aria-label="צילום המסך — לחיצה מסמנת"></canvas></div>
+  <label class="tk-f"><span>מה רצית לומר?</span><textarea id="fbText" rows="3" placeholder="מה לא עובד / מה להוסיף / מה לשפר"></textarea></label>
+  <div class="row"><button class="btn primary" id="fbSend" type="button">שלח משוב</button><button class="btn ghost" id="fbUndo" type="button" hidden>בטל סימון אחרון</button><button class="btn ghost" id="fbCancel" type="button">ביטול</button></div>
+</dialog>
+
+<dialog id="dlgImg" aria-label="תמונה">
+  <img id="imgView" alt="">
+  <div class="row img-row"><span id="imgName"></span><a class="btn" id="imgDl" download>הורדה</a><button class="btn ghost" id="imgClose" type="button">סגור</button></div>
+</dialog>
+
+<dialog id="dlgTaskDone" aria-labelledby="tdTitle">
+  <h3 id="tdTitle" tabindex="-1" autofocus>השלמת משימה</h3>
+  <p id="tdName"></p>
+  <label class="tk-f"><span>מה בוצע</span><textarea id="tdAct" rows="3"></textarea></label>
+  <label class="tk-chk td-log"><input type="checkbox" id="tdLog"> רשום גם ביומן כאירוע סגור</label>
+  <div class="tk-grid" id="tdLogF">
+    <label class="tk-f"><span>סוג האירוע ביומן</span><select id="tdType"></select></label>
+    <label class="tk-f"><span>מתי</span><input type="datetime-local" id="tdWhen"></label>
+  </div>
+  <div class="row"><button class="btn primary" id="tdOk">✓ השלם משימה</button><button class="btn ghost" id="tdCancel">ביטול</button></div>
+</dialog>
+
+<dialog id="dlgBrief" class="brief-dlg" aria-labelledby="brTitle">
+  <div class="br-top"><h3 id="brTitle" tabindex="-1" autofocus>שיחת בוקר</h3><button type="button" class="btn mini br-fold" id="brFolderBtn">📁 תיקיית שיחות</button><button type="button" class="bd-del br-x" id="brClose" aria-label="סגור">✕</button></div>
+  <div class="br-meta" id="brMeta"></div>
+  <div class="br-sec"><div class="br-h"><i>1</i>נוכחות צוות</div>
+    <p class="hint br-how">השמות והתפקידים מגיעים מרשימת האנשים באפליקציה. לחיצה נוספת על הסימון מבטלת אותו.</p>
+    <div class="br-att" id="brAtt" role="table" aria-label="נוכחות צוות"></div>
+    <div class="row br-addp"><select id="brAddP" aria-label="הוסף אדם לנוכחות"></select></div>
+    <div class="br-newp" id="brNewP" hidden>
+      <input class="txt" id="brNpName" placeholder="שם מלא" aria-label="שם האדם החדש" maxlength="60" autocomplete="off">
+      <input class="txt" id="brNpRole" placeholder="תפקיד (לא חובה)" aria-label="תפקיד" list="dlRoles" maxlength="40" autocomplete="off">
+      <button class="btn mini primary" type="button" id="brNpOk">הוסף</button>
+      <button class="btn mini ghost" type="button" id="brNpNo">ביטול</button>
+    </div>
+  </div>
+  <div class="br-sec"><div class="br-h"><i>2</i>סטטוס משימות ותוכנית עבודה</div>
+    <p class="hint br-how br-flow-hint">לחיצה על המספר מסמנת ✓ דובר · גרירה ב-⠿ משנה את הסדר</p>
+    <div class="br-sub br-s-tk" id="brTkSum">משימות לדיון</div>
+    <div id="brTk"></div>
+    <div class="br-pick"><select id="brTkAdd" aria-label="הוסף משימה לדיון"></select></div>
+    <div id="brG-faults" hidden><div class="br-sub">תקלות פתוחות וסגירת קצוות <span>· משיחה קודמת</span></div>
+    <div class="br-rows" id="brR-faults"></div></div>
+    <div id="brG-maint" hidden><div class="br-sub">אחזקות קבועות וסבבים <span>· משיחה קודמת</span></div>
+    <div class="br-rows" id="brR-maint"></div></div>
+    <div class="br-sub br-s-ev" id="brEvSum">אירועים מהשבוע האחרון לדיון</div>
+    <div id="brEv"></div>
+    <div class="br-pick"><select id="brEvAdd" aria-label="הוסף אירוע מהשבוע האחרון לדיון"></select></div>
+    <div class="br-sub br-s-pl"><i>2.3</i>תוכנית עבודה להיום <span>· נשאר בשיחה בלבד</span></div>
+    <div class="br-rows" id="brR-plan"></div>
+    <div id="brG-contr" hidden><div class="br-sub">קבלני משנה וגורמי חוץ <span>· משיחה קודמת</span></div>
+    <div class="br-rows" id="brR-contr"></div></div>
+  </div>
+  <div class="br-sec"><div class="br-h"><i>3</i>דגשי בטיחות להיום</div>
+    <textarea id="brSafety" rows="3" placeholder="הנחיות בטיחות יומיות" aria-label="הנחיות בטיחות יומיות"></textarea>
+    <div id="brChecks"></div>
+  </div>
+  <div class="br-sec"><div class="br-h"><i>4</i>פתוח לצוות וסגירת קצוות <span class="br-hs">· נשאר בשיחה בלבד</span></div>
+    <div class="br-rows br-s-op" id="brR-open"></div>
+  </div>
+  <div class="br-sec"><div class="br-h"><i>5</i>אישור וחתימה</div>
+    <div class="br-sig"><canvas id="brSig" aria-label="חתימה"></canvas><button type="button" class="btn mini ghost br-sigclr" id="brSigClr">נקה חתימה</button></div>
+  </div>
+  <div class="br-sum" id="brSum"></div>
+  <div class="row br-acts">
+    <button class="btn primary" type="button" id="brDone">סיים ושמור שיחה</button>
+    <button class="btn" type="button" id="brPdf" title="פתח את ה-PDF לצפייה, שמירה או הדפסה">פתח PDF</button>
+    <button class="btn" type="button" id="brShare" title="שתף את ה-PDF">שתף</button>
+    <button class="btn ghost" type="button" id="brLater" title="שמור טיוטה">טיוטה</button>
+  </div>
+  <button class="br-delb" type="button" id="brDel">מחק את השיחה</button>
+</dialog>
+
+<dialog id="dlgBriefs" class="brief-dlg" aria-labelledby="brfTitle">
+  <div class="br-top"><h3 id="brfTitle" tabindex="-1" autofocus>📁 תיקיית שיחות הבוקר</h3><button type="button" class="bd-del br-x" id="brfClose" aria-label="סגור">✕</button></div>
+  <p class="hint br-how">כל שיחות הבוקר, מהחדשה לישנה. בוחרים תאריך ולוחצים "פתח" כדי לפתוח שיחה חדשה או קיימת בכל תאריך.</p>
+  <div class="row br-ftools">
+    <label class="br-mf"><span>תאריך</span><input type="date" id="brfDate"></label>
+    <button class="btn primary" type="button" id="brfOpen">פתח</button>
+  </div>
+  <input class="txt br-fq" id="brfQ" type="search" placeholder="חיפוש: שם, נושא, הערה או תאריך" aria-label="חיפוש בשיחות הבוקר">
+  <p class="br-fc" id="brfCount"></p>
+  <div class="br-flist" id="brfList"></div>
+</dialog>
+
+<dialog id="dlgWeek" aria-labelledby="wkTitle">
+  <h3 id="wkTitle" tabindex="-1" autofocus>סיכום וגיבוי שבועי</h3>
+  <p id="wkIntro">פעם בשבוע שולחים סיכום אירועים ב-PDF וגיבוי מלא של היומן. החלון ייסגר אחרי ששני השלבים בוצעו.</p>
+  <label class="wk-to"><span>לשלוח אל (לא חובה)</span>
+    <input type="email" id="wkMailTo" dir="ltr" placeholder="name@example.com" autocomplete="email" multiple></label>
+  <div class="wk-step" id="wkS1">
+    <div class="wk-h"><span class="wk-n">1</span><b>סיכום אירועים (PDF)</b></div>
+    <div class="wk-range">
+      <label><span>מתאריך</span><input type="date" id="wkFrom"></label>
+      <label><span>עד תאריך</span><input type="date" id="wkTo"></label>
+    </div>
+    <div class="wk-sum" id="wkSum"></div>
+    <div class="row">
+      <button class="btn primary" id="wkPdf" disabled>מכין PDF…</button>
+      <button class="btn" id="wkPdfShare" hidden>שתף</button>
+    </div>
+  </div>
+  <div class="wk-step" id="wkS2">
+    <div class="wk-h"><span class="wk-n">2</span><b>גיבוי מלא</b></div>
+    <div class="row"><button class="btn primary" id="wkBackup">שלח במייל</button>
+      <button class="btn" id="wkBkShare" hidden>שתף</button></div>
+  </div>
+  <p class="hint wk-how">"שלח במייל" מוריד את הקובץ ופותח מייל מוכן — נשאר רק לצרף אותו.<span id="wkShareHint" hidden> "שתף" שולח עם הקובץ כבר מצורף (בוחרים באפליקציית המייל).</span></p>
+  <div class="row"><button class="btn primary" id="wkDone" disabled>סיום</button>
+    <button class="btn ghost" id="wkClose" hidden>סגור</button></div>
+</dialog>
+
+<script src="firebase-config.js?v=3.06"></script>
+<script src="app.js?v=3.06"></script>
+<script src="cloud.js?v=3.06"></script>
+<script>
+if("serviceWorker" in navigator){
+  window.addEventListener("load",()=>{ navigator.serviceWorker.register("sw.js").catch(()=>{}); });
+}
+</script>
+</body>
+</html>
