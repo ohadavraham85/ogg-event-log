@@ -2059,7 +2059,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.06", APP_DATE="14/10/2026";
+const APP_VER="3.07", APP_DATE="14/10/2026";
 $("#verChip").textContent="v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2867,6 +2867,7 @@ function renderTasks(){
       if(!(t.check||[]).some(x=>x && !x.del)) more.unshift(["☑ רשימת בדיקה","",()=>{ tkCkOn.add(t.id); c.classList.add("ck-on");
         const i=c.querySelector(".ck-add input"); if(i) i.focus(); }]);
     }
+    if(!isViewer()) more.push(["📤 שלח בוואטסאפ","",()=>tkWhatsApp(t)]);
     if(tkCkOn.has(t.id)) c.classList.add("ck-on");
     // "+ עדכון" joins the action line (next to "✓ השלם"); an update log with nothing else in it then goes
     const ub=c.querySelector(".tk-upd-btn"); if(ub){ const lb=ub.parentNode; acts.appendChild(ub); if(lb && !lb.children.length) lb.remove(); }
@@ -2880,7 +2881,23 @@ function renderTasks(){
     c.appendChild(acts); box.appendChild(c);
   });
 }
-const tkCkOn=new Set();                                   // tasks where "☑ רשימת בדיקה" was asked for (the empty list shows)
+const tkCkOn=new Set();
+/* a task as a WhatsApp message (the person picks the chat): number, title, who, due, priority, place, description, checklist,
+   and a link that opens the task in the app (always the regular address, also when sent from the beta) */
+function tkWhatsApp(t){
+  const dm=v=>v ? v.slice(8,10)+"/"+v.slice(5,7) : "", pr=prioOf(t), L=[];
+  L.push("📋 משימה"+(t.no?" #"+t.no:"")+" · "+(t.title||""));
+  if((t.ppl||[]).length) L.push("👤 אחראי: "+t.ppl[0]+(t.ppl.length>1?" · משויכים: "+t.ppl.slice(1).join(", "):""));
+  if((t.depts||[]).length) L.push("🏢 "+t.depts.join(", "));
+  const when=[t.due?"📅 יעד: "+dm(t.due):"", pr && pr!=="רגילה" ? "⚠️ עדיפות: "+pr : ""].filter(Boolean).join(" · "); if(when) L.push(when);
+  const where=[(t.loc||[]).join(", "),(t.eq||[]).join(", ")].filter(Boolean).join(" · "); if(where) L.push("📍 "+where);
+  if(t.desc){ L.push(""); L.push(t.desc); }
+  const ck=(t.check||[]).filter(x=>x && !x.del);
+  if(ck.length){ L.push(""); L.push("☑ רשימת בדיקה:"); ck.forEach(x=>L.push((x.done?"✓ ":"▫ ")+x.text)); }
+  const base=location.origin+location.pathname.replace(/beta\/(index\.html)?$/,"").replace(/index\.html$/,"");
+  L.push(""); L.push("🔗 לפתיחה באפליקציה:"); L.push(base+"?app=ogg-log-2&view=Tasks&task="+encodeURIComponent(t.id));
+  window.open("https://wa.me/?text="+encodeURIComponent(L.join("\n")),"_blank","noopener");
+}                                   // tasks where "☑ רשימת בדיקה" was asked for (the empty list shows)
 /* the round "complete" mark at the start of a task: open → tap opens the same completion window as "✓ השלם משימה";
    completed → a filled ✓ (a personal task can be ticked back) */
 function tkCircle(t, onDone, priv){
