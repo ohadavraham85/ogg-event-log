@@ -2058,7 +2058,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.03", APP_DATE="14/10/2026";
+const APP_VER="3.04", APP_DATE="14/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -3470,10 +3470,18 @@ function applyGlass(v){ v=Math.max(0,Math.min(80,+v||0)); const r=document.docum
 try{ applyGlass(localStorage.getItem(GLASS_KEY)); }catch(e){ applyGlass(0); }
 /* text size (this device): the whole app scales — 85%…130% */
 const ZOOM_KEY="ogg-zoom";
-function applyZoom(v){ v=Math.max(85,Math.min(130,+v||100)); document.documentElement.style.zoom = v===100 ? "" : String(v/100);
-  if($("#zoomR")){ $("#zoomR").value=v; $("#zoomV").textContent=v+"%"; } }
+const ZOOMS=[90,100,112,125];
+function applyZoom(v){ v=+v||100; if(!ZOOMS.includes(v)) v=ZOOMS.reduce((a,b)=>Math.abs(b-v)<Math.abs(a-v)?b:a);
+  document.documentElement.style.zoom = v===100 ? "" : String(v/100);
+  document.querySelectorAll("#zoomSeg button").forEach(b=>b.setAttribute("aria-pressed",String(+b.dataset.z===v))); }
 try{ applyZoom(localStorage.getItem(ZOOM_KEY)||100); }catch(e){ applyZoom(100); }
-if($("#zoomR")) $("#zoomR").oninput=e=>{ applyZoom(e.target.value); try{ localStorage.setItem(ZOOM_KEY, e.target.value); }catch(_){} };
+// one step per tap; the page stays put — the button you tapped is where it was
+document.querySelectorAll("#zoomSeg button").forEach(b=>b.onclick=()=>{
+  const y0=b.getBoundingClientRect().top;
+  applyZoom(b.dataset.z); try{ localStorage.setItem(ZOOM_KEY, b.dataset.z); }catch(_){}
+  let n=0; const fix=()=>{ const d=b.getBoundingClientRect().top-y0; if(Math.abs(d)>1 && n++<4){ window.scrollBy(0,d); requestAnimationFrame(fix); } };
+  requestAnimationFrame(fix);
+});
 if($("#glassR")) $("#glassR").oninput=e=>{ applyGlass(e.target.value); try{ localStorage.setItem(GLASS_KEY, e.target.value); }catch(_){} };
 if($("#hapOn")){ $("#hapOn").checked=hapOn(); $("#hapOn").onchange=e=>{ try{ localStorage.setItem(HAP_KEY,e.target.checked?"1":"0"); }catch(_){} if(e.target.checked) haptic(); }; }
 /* ===== help: a guided tour of the controls in working order, and a flow chart of the process =====
