@@ -2143,3 +2143,9 @@ html.lite #viewDash .dsh-title{display:none}
 .cm-push.on{color:var(--water);background:var(--water-soft)}
 .cm-push.bad{color:var(--fault);background:color-mix(in srgb,var(--fault) 12%,transparent)}
 .cm-push.off{color:var(--ink-3);background:var(--panel-2)}
+/* computers: full width, narrow margins (the side strips give way) */
+@media (min-width:1100px){
+  :root{ --side:12px; --wrapw:calc(100vw - 24px) }
+  .app-side{display:none}
+}
+@media (min-width:800px) and (max-width:1099px){ .wrap{max-width:none} :root{ --wrapw:calc(100vw - 24px) } }
