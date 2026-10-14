@@ -184,6 +184,16 @@
   }
   window.cloudScreenPut=async cfg=>{ if(!started || !me) return false;
     try{ await F.setDoc(F.doc(db,"board","_screen"),{cfg:JSON.stringify(cfg),text:"",_upd:F.serverTimestamp(),_by:me}); return true; }catch(e){ return false; } };
+  /* recycle bin: deleted documents stay in the cloud marked _del — list the ones deleted since <since>, or bring one back */
+  window.cloudBinList=async since=>{ if(!started || !me) return [];
+    const out=[], ms=d=>d._upd && d._upd.toMillis ? d._upd.toMillis() : 0;
+    const ev=await F.getDocs(F.query(F.collection(db,"events"), F.where("_del","==",true)));
+    ev.docs.forEach(s=>{ const d=s.data(); if(ms(d)>=since && (d.desc || d.title)) out.push({k:"e", id:s.id, item:clean(d), at:ms(d), by:whoOf(d._by)}); });
+    const tk=await F.getDocs(F.query(F.collection(db,"meta"), F.where("_del","==",true)));
+    tk.docs.forEach(s=>{ if(s.id.indexOf("task-")!==0) return; const d=s.data(); if(ms(d)>=since && d.title) out.push({k:"t", id:s.id.slice(5), item:clean(d), at:ms(d), by:whoOf(d._by)}); });
+    return out; };
+  window.cloudRestore=async (k,id)=>{ if(!started || !me) return false;
+    try{ await F.setDoc(k==="e" ? F.doc(db,"events",id) : F.doc(db,"meta","task-"+id), {id, _del:false, _upd:F.serverTimestamp(), _by:me}, {merge:true}); return true; }catch(e){ return false; } };
   window.cloudBoardPut=async it=>{ if(!started || !me) return false;
     try{ await F.setDoc(F.doc(db,"board",it.id),{text:it.text,until:it.until||"",important:!!it.important,by:it.by||"",at:it.at||"",_upd:F.serverTimestamp(),_by:me}); return true; }catch(e){ return false; } };
   window.cloudBoardDel=async id=>{ if(!started || !me) return false; try{ await F.deleteDoc(F.doc(db,"board",id)); return true; }catch(e){ return false; } };
@@ -244,10 +254,48 @@
       const op=mk("button","btn mini","פתח"); op.type="button"; op.onclick=()=>fbShow(f);
       const hd=mk("button","btn mini",f.handled?"החזר לפתוח":"✓ טופל"); hd.type="button";
       hd.onclick=async()=>{ try{ await F.setDoc(F.doc(db,f.col,f.docId),{handled:!f.handled,_upd:F.serverTimestamp(),_by:me},{merge:true}); }catch(e){ toast("השמירה נכשלה"); } };
+      const cp=mk("button","btn mini","📋 העתק"); cp.type="button"; cp.title="מעתיק את המשוב עם צילום המסך — להדבקה בצ'אט לתיקון"; cp.onclick=()=>fbCopy(f,true);
+      const ct=mk("button","btn mini","📝 טקסט"); ct.type="button"; ct.title="מעתיק רק את הטקסט"; ct.onclick=()=>fbCopy(f,false);
+      const rp=mk("button","btn mini","↩ ענה"); rp.type="button";
+      const rbox=mk("div","fb-reply"); rbox.hidden=true;
+      const ta=mk("textarea"); ta.rows=2; ta.maxLength=500; ta.placeholder="התשובה תגיע לשולח (בהודעות 🔔)";
+      const send=mk("button","btn mini primary","שלח"); send.type="button";
+      send.onclick=async()=>{ const t=ta.value.trim(); if(!t){ ta.focus(); return; } send.disabled=true;
+        const ok=await fbReply(f,t); send.disabled=false; if(ok){ ta.value=""; rbox.hidden=true; toast("התשובה נשלחה ל"+(f.by||f.mail)); } else toast("השליחה נכשלה"); };
+      rbox.append(ta,send);
+      rp.onclick=()=>{ rbox.hidden=!rbox.hidden; if(!rbox.hidden) ta.focus(); };
       const dl=mk("button","btn mini ghost","מחק"); dl.type="button";
       dl.onclick=async()=>{ if(!await confirmDel("למחוק את המשוב?", (f.text||"")+"\n"+(f.by||f.mail||""))) return; try{ await F.deleteDoc(F.doc(db,f.col,f.docId)); }catch(e){ toast("המחיקה נכשלה"); } };
-      acts.append(op,hd,dl); body.appendChild(acts); r.appendChild(body); box.appendChild(r);
+      acts.append(op,cp,ct,rp,hd,dl); body.appendChild(acts);
+      (Array.isArray(f.replies)?f.replies:[]).forEach(x=>body.appendChild(mk("div","fb-ans","↩ "+(x.by||"")+": "+(x.text||""))));
+      body.appendChild(rbox); r.appendChild(body); box.appendChild(r);
     });
+  }
+  // copy a feedback to paste into a chat (the screenshot as a picture + the details as text)
+  async function fbCopy(f, withImg){
+    const txt="משוב מ"+(f.by||f.mail||"")+(f.at?" · "+fmtWhen(f.at):"")+(f.view?" · מסך: "+f.view:"")+(f.ver?" · גרסה "+f.ver:"")+(f.screen?" · "+f.screen:"")+"\n"+(f.text||"(סימון על צילום המסך)");
+    try{
+      const img=withImg && okImg(f.img);
+      if(img && window.ClipboardItem && navigator.clipboard && navigator.clipboard.write){
+        const png=await new Promise(res=>{ const im=new Image(); im.onload=()=>{ const c=document.createElement("canvas"); c.width=im.naturalWidth; c.height=im.naturalHeight;
+          c.getContext("2d").drawImage(im,0,0); c.toBlob(res,"image/png"); }; im.onerror=()=>res(null); im.src=img; });
+        if(png){ await navigator.clipboard.write([new ClipboardItem({"text/plain":new Blob([txt],{type:"text/plain"}),"image/png":png})]);
+          toast("הועתק — צילום המסך והטקסט. אם הודבקה רק התמונה: \"📝 טקסט\""); return; }
+      }
+      await navigator.clipboard.writeText(txt); toast("טקסט המשוב הועתק");
+    }catch(e){ prompt("העתק את המשוב:",txt); }
+  }
+  // reply to a feedback: kept on the feedback, and sent to the sender — meta/me-<mail> (a manager may write it; its owner reads it)
+  async function fbReply(f, text){
+    if(!f.mail) return false;
+    const r={id:Date.now().toString(36)+Math.random().toString(36).slice(2,6), text:text.slice(0,500), by:window.cloudMyName()||me, at:typeof nowLocal==="function"?nowLocal():"", fbText:String(f.text||"").slice(0,120)};
+    try{
+      await F.setDoc(F.doc(db,f.col,f.docId),{replies:(Array.isArray(f.replies)?f.replies:[]).concat(r),_upd:F.serverTimestamp(),_by:me},{merge:true});
+      const ref=F.doc(db,"meta","me-"+String(f.mail).toLowerCase()), s=await F.getDoc(ref);
+      const cur=s.exists() && Array.isArray(s.data().fbReplies) ? s.data().fbReplies : [];
+      await F.setDoc(ref,{fbReplies:cur.concat(r).slice(-20),_upd:F.serverTimestamp(),_by:me},{merge:true});
+      return true;
+    }catch(e){ return false; }
   }
   let unsubSeen=null, lastBeat=0; const seen={};
   window.teamSeen=()=>seen; window.teamMembers=()=>members; window.cloudIsAdmin=()=>role==="admin";
@@ -309,7 +357,14 @@
     // the first server answer on a brand-new device is the initial download, not news
     let maxU=+get(K_SYNC_T)||0, changed=false; const firstEver=tFresh && !tInit, fresh=[], assigned=[], news=[]; let mergedLog=false;
     snap.docChanges().forEach(c=>{
-      const id=c.doc.id; if(c.type==="removed" || id.indexOf("task-")!==0) return;
+      const id=c.doc.id;
+      if(c.type!=="removed" && id==="me-"+me && !firstEver){                 // a manager answered my feedback
+        const R=c.doc.data().fbReplies;
+        if(Array.isArray(R) && R.length && typeof inboxAdd==="function"){
+          inboxAdd(R.map(x=>({id:"fbr:"+x.id, kind:"fb", reply:true, title:"תשובה למשוב שלך"+(x.fbText?": "+x.fbText.slice(0,40):""), text:x.text||"", by:x.by||"", at:x.at})), false);
+          notifyDevice("תשובה למשוב שלך", R[R.length-1].text||"", "ogg-fbr", ()=>{ if(typeof openInbox==="function") openInbox(); }); }
+      }
+      if(c.type==="removed" || id.indexOf("task-")!==0) return;
       const d=c.doc.data({serverTimestamps:"estimate"}), tid=id.slice(5);
       if(!c.doc.metadata.hasPendingWrites && d._upd && d._upd.toMillis) maxU=Math.max(maxU,d._upd.toMillis());
       const i=tasks.findIndex(t=>t.id===tid);
@@ -629,7 +684,7 @@
   window.cloudNameFromAdmin=()=>{ const m=members.find(x=>x.email===me); return !!(m && m.name); };
   window.cloudSetMyName=async name=>{
     selfName=name||""; try{ localStorage.setItem(K_SELF(),selfName); }catch(e){}
-    try{ await F.setDoc(F.doc(db,"meta","me-"+me),{name:selfName,_upd:F.serverTimestamp(),_by:me}); }catch(e){ toast("השמירה בענן נכשלה — נשמר במכשיר"); }
+    try{ await F.setDoc(F.doc(db,"meta","me-"+me),{name:selfName,_upd:F.serverTimestamp(),_by:me},{merge:true}); }catch(e){ toast("השמירה בענן נכשלה — נשמר במכשיר"); }
     if(typeof renderTasks==="function") renderTasks();
   };
   async function loadSelfName(){

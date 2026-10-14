@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Arimo:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=2.95">
+<link rel="stylesheet" href="style.css?v=2.96">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0E7C86">
 <meta name="color-scheme" content="light dark">
@@ -112,7 +112,7 @@
       <img class="logo" src="icons/logo-header.png" alt="מבט&quot;י — מפעלי ביוב וטיהור ירושלים" width="101" height="137">
       <div class="mark">יומן אירועים ומשימות <span class="sub">מט"ש אוג</span></div>
       <div class="clock" id="clock" aria-live="off"><span class="c-hello" id="cHello" hidden></span><span class="c-day" id="cDay"></span><span class="c-date" id="cDate"></span><b class="c-time" id="cTime"></b></div>
-      <span class="ver" id="verChip" title="גרסה">v2.95</span>
+      <span class="ver" id="verChip" title="גרסה">v2.96</span>
       <button class="icon-btn info-btn" id="infoBtn" type="button" aria-label="מה חדש בגרסה" title="מה חדש בגרסה"><span aria-hidden="true">i</span><span class="info-dot" id="infoDot" hidden></span></button>
       <button class="icon-btn inbox-btn" id="inboxBtn" aria-label="הודעות" title="הודעות" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm7-6V11a7 7 0 0 0-5.5-6.84V3.5a1.5 1.5 0 0 0-3 0v.66A7 7 0 0 0 5 11v5l-2 2v1h18v-1z" fill="currentColor"/></svg><span class="newcnt" id="inboxN" hidden></span></button>
       <button class="icon-btn" id="refreshBtn" aria-label="רענון" title="רענון — טעינה מחדש ובדיקת עדכון"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M20.5 3.5v5h-5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
@@ -161,6 +161,13 @@
     <div class="block">
       <label for="act">פעולה שננקטה</label>
       <textarea id="act" placeholder="מה נעשה בפועל"></textarea>
+      <div class="ev-ph">
+        <div class="ev-ph-grid" id="evPh"></div>
+        <div class="ev-ph-add">
+          <label class="tk-fadd">📷 צילום<input type="file" id="evCam" accept="image/*" capture="environment" hidden></label>
+          <label class="tk-fadd">🖼 תמונה / קובץ<input type="file" id="evFile" multiple hidden></label>
+        </div>
+      </div>
     </div>
 
     <button class="pick" id="pStat"><span class="mid"><span class="k">סטטוס</span><span class="v">פתוח</span></span><span class="arw">‹</span></button>
@@ -233,6 +240,7 @@
     <div class="dsh-head">
       <div class="dquick" id="dQuick">
         <button type="button" class="qk-btn" id="bsOpen" title="לוח המודעות כפי שנראה על מסך המשרד">📌 לוח מודעות<b id="qkBdN" hidden></b></button>
+        <button type="button" class="qk-btn" id="qkFiles" title="כל הקבצים והתמונות — מהמשימות ומהאירועים">📁 קבצים</button>
         <button type="button" class="qk-btn" id="qkBrief" hidden>🗒️ שיחת בוקר<span id="qkBrSt"></span></button>
       </div>
       <div class="seg" role="group" aria-label="טווח זמן" id="dRange">
@@ -400,7 +408,7 @@
     <div class="card" data-sg="general">
       <h3>ערכת צבעים</h3>
       <p>צבע הכפתורים, הלשוניות וההדגשות, ורקע בהיר או כהה. נשמר במכשיר הזה.</p>
-      <div class="row theme-row"><button class="btn" id="themeBtn" type="button">☾ רקע כהה</button></div>
+      <div class="row theme-row"><button class="btn" id="binOpen" type="button">🗑 סל מיחזור</button><button class="btn" id="themeBtn" type="button">☾ רקע כהה</button></div>
       <div class="acc-list" id="accList" role="group" aria-label="ערכת צבעים"></div>
       <label class="glass-f" for="glassR"><span>שקיפות הרקע — רואים את הכחול מאחור</span><b id="glassV">0%</b></label>
       <input type="range" id="glassR" min="0" max="80" step="5" value="0" aria-describedby="glassV">
@@ -464,7 +472,7 @@
 
     <div class="card" data-sg="general">
       <h3>גרסה</h3>
-      <p id="verLine">גרסה 2.95 · 13/10/2026</p>
+      <p id="verLine">גרסה 2.96 · 14/10/2026</p>
       <div class="row"><button class="btn" id="reloadApp">בדוק עדכון</button></div>
     </div>
 
@@ -613,6 +621,19 @@
   <div class="row"><button class="btn primary" id="tvcClose" type="button">סגור</button></div>
 </dialog>
 
+<dialog id="dlgFiles" class="fd-dlg" aria-labelledby="flTitle">
+  <div class="fd-top"><h3 id="flTitle" tabindex="-1" autofocus>📁 קבצים</h3><button type="button" class="bd-del br-x" id="flClose" aria-label="סגור">✕</button></div>
+  <div class="fd-bar"><input class="txt" id="flQ" type="search" placeholder="חיפוש: שם קובץ, משימה, אירוע" aria-label="חיפוש קבצים">
+    <div class="seg" id="flKind" role="group" aria-label="סוג"><button type="button" data-k="" aria-pressed="true">הכל</button><button type="button" data-k="img" aria-pressed="false">תמונות</button><button type="button" data-k="doc" aria-pressed="false">מסמכים</button></div></div>
+  <div class="fd-grid" id="flGrid"></div>
+</dialog>
+
+<dialog id="dlgBin" aria-labelledby="binTitle">
+  <div class="fd-top"><h3 id="binTitle" tabindex="-1" autofocus>🗑 סל מיחזור</h3><button type="button" class="bd-del br-x" id="binClose" aria-label="סגור">✕</button></div>
+  <p>אירועים ומשימות שנמחקו ב-30 הימים האחרונים. "שחזר" מחזיר אותם למקום.</p>
+  <div class="bin-list" id="binList"></div>
+</dialog>
+
 <dialog id="dlgNews" aria-labelledby="newsTitle">
   <h3 id="newsTitle" tabindex="-1" autofocus>מה חדש</h3>
   <div class="news-list" id="newsList"></div>
@@ -742,9 +763,9 @@
     <button class="btn ghost" id="wkClose" hidden>סגור</button></div>
 </dialog>
 
-<script src="firebase-config.js?v=2.95"></script>
-<script src="app.js?v=2.95"></script>
-<script src="cloud.js?v=2.95"></script>
+<script src="firebase-config.js?v=2.96"></script>
+<script src="app.js?v=2.96"></script>
+<script src="cloud.js?v=2.96"></script>
 <script>
 if("serviceWorker" in navigator){
   window.addEventListener("load",()=>{ navigator.serviceWorker.register("sw.js").catch(()=>{}); });

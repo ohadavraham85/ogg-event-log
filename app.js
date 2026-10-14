@@ -506,7 +506,26 @@ function confirmDel(title, what, bulk, o){
 }
 
 /* ================= save ================= */
+/* photos and files on an event (same store as task files) */
+let evFiles=[];
+const okThumb=v=>typeof v==="string" && /^data:image\/(jpeg|png|webp);base64,/.test(v);
+function evThumbs(files, box, onDel){
+  box.textContent="";
+  files.filter(m=>m && !m.del).forEach(m=>{
+    const b=mk("button","tk-file"+(okThumb(m.thumb)?" img":"")); b.type="button"; b.title=m.name+(m.by?" · "+m.by:"");
+    if(okThumb(m.thumb)){ const im=mk("img"); im.src=m.thumb; im.alt=m.name; im.loading="lazy"; b.appendChild(im); }
+    else b.append(mk("span","tf-ic",fIcon(m)), mk("span","tf-n",m.name));
+    b.onclick=ev=>{ ev.stopPropagation(); openFile(m); };
+    if(onDel){ const d=mk("span","tf-del","✕"); d.setAttribute("role","button"); d.setAttribute("aria-label","הסר את "+m.name);
+      d.onclick=ev=>{ ev.stopPropagation(); onDel(m); }; b.appendChild(d); }
+    box.appendChild(b); });
+}
+function paintEvFiles(){ const box=$("#evPh"); if(box) evThumbs(evFiles, box, m=>{ evFiles=evFiles.filter(x=>x.id!==m.id); paintEvFiles(); }); }
+["#evCam","#evFile"].forEach(s=>{ const i=$(s); if(i) i.onchange=async()=>{ const fl=[...i.files]; i.value=""; if(!fl.length) return;
+  if(evFiles.length+fl.length>8){ toast("עד 8 קבצים לאירוע"); return; }
+  const out=await storeFiles(fl, s==="#evCam"); if(out.length){ evFiles.push(...out); paintEvFiles(); toast(out.length===1?"צורף":"צורפו "+out.length); } }; });
 function resetForm(){
+  evFiles=[]; paintEvFiles();
   sel.type=[]; sel.loc=[]; sel.eq=[]; sel.ppl=[]; sel.stat=["פתוח"];
   $("#title").value=""; $("#desc").value=""; $("#act").value=""; editId=null;
   $("#saveBtn").textContent="שמור אירוע"; $("#delEvBtn").hidden=true; setNow(); paintRows(); window.scrollTo({top:0});
@@ -517,7 +536,7 @@ function collect(){
     type: sel.type.slice(), loc: sel.loc.slice(), eq: sel.eq.slice(), ppl: sel.ppl.slice(),
     stat: sel.stat.slice(), title: $("#title").value.trim(),
     desc: $("#desc").value.trim(), act: $("#act").value.trim(),
-    when: whenStr(), ts: new Date().toISOString()
+    when: whenStr(), ts: new Date().toISOString(), files: evFiles.slice()
   };
 }
 function findDup(e){
@@ -673,6 +692,7 @@ function renderList(reset){
     const b=document.createElement("div"); b.className="body";
     const sameAct = e.act && e.desc && e.act.trim()===e.desc.trim();
     b.textContent = e.desc;
+    if((e.files||[]).some(m=>m && !m.del)){ const ph=mk("div","ev-ph-grid ev-ph-card"); evThumbs(e.files, ph, null); b.appendChild(ph); }
     const det=document.createElement("div"); det.className="det"; det.hidden=true;
     const put=(k,v)=>{ if(!v) return;
       const dt=document.createElement("dt"); dt.textContent=k;
@@ -832,6 +852,7 @@ function loadInto(e){
   sel.type=(e.type||[]).slice(); sel.loc=(e.loc||[]).slice();
   sel.eq=(e.eq||[]).slice(); sel.ppl=(e.ppl||[]).slice(); sel.stat=(e.stat||["פתוח"]).slice();
   $("#title").value=e.title||""; $("#desc").value=e.desc||""; $("#act").value=e.act||"";
+  evFiles=(e.files||[]).filter(m=>m && !m.del).slice(); paintEvFiles();
   const parts=(e.when||"").split("T"); $("#dDate").value=parts[0]||""; $("#dTime").value=(parts[1]||"").slice(0,5);
   $("#saveBtn").textContent="עדכן אירוע"; $("#delEvBtn").hidden=!isManager(); show("New"); paintRows(); window.scrollTo({top:0});
 }
@@ -840,7 +861,7 @@ $("#delEvBtn").onclick=async()=>{
   const e=events.find(x=>x.id===editId); if(!e || !isManager()) return;
   const what=[fmtWhen(e.when),(e.type||[]).join(", "),e.title||String(e.desc||"").slice(0,80)].filter(Boolean).join(" · ");
   if(!await confirmDel("למחוק את האירוע?", what+(CLOUD_ON?"\nהאירוע יימחק לכל הצוות.":""))) return;
-  events=events.filter(x=>x.id!==e.id); persist(); resetForm(); renderAll(); show("List"); toast("האירוע נמחק"); };
+  binAdd("e",e); events=events.filter(x=>x.id!==e.id); persist(); resetForm(); renderAll(); show("List"); toast("האירוע נמחק — אפשר לשחזר מסל המיחזור (30 יום)"); };
 function renderFilters(){
   const fill=(id,vals,keep,labels)=>{
     const s=$(id); if(!s) return;
@@ -2032,7 +2053,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="2.95", APP_DATE="13/10/2026";
+const APP_VER="2.96", APP_DATE="14/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2370,7 +2391,7 @@ function openInbox(){
     r.appendChild(mk("span","inb-i",INBOX_ICON[x.kind]||"•"));
     const body=mk("span","inb-b"); body.appendChild(mk("b","inb-t",x.title||"(ללא כותרת)")); body.appendChild(mk("span","inb-x",x.text||""));
     body.appendChild(mk("span","inb-m",[x.by,fmtWhen(x.at)].filter(Boolean).join(" · "))); r.appendChild(body);
-    r.onclick=()=>{ if(r.dataset.swiped) return; d.close(); if(x.fb){ if(window.openFeedback) window.openFeedback(x.fb); } else goTask(x.tid); };
+    r.onclick=()=>{ if(r.dataset.swiped) return; d.close(); if(x.reply){ } else if(x.fb){ if(window.openFeedback) window.openFeedback(x.fb); } else goTask(x.tid); };
     row.appendChild(r);
     if(inArch){
       const act=mk("div","inb-act");
@@ -2552,6 +2573,15 @@ function shrinkImage(file, max, q){ return new Promise((res,rej)=>{ const img=ne
 const kb=n=>n>=1048576 ? (n/1048576).toFixed(1)+"MB" : Math.max(1,Math.round(n/1024))+"KB";
 const fIcon=m=>/pdf/.test(m.type)?"📄":/sheet|excel|csv/.test(m.type)?"📊":/word|document/.test(m.type)?"📝":/^image\//.test(m.type)?"🖼":/^video\//.test(m.type)?"🎬":"📎";
 async function addFiles(t, list, fromCam){
+  const out=await storeFiles(list, fromCam);
+  if(!out.length) return;
+  if(!Array.isArray(t.files)) t.files=[]; t.files.push(...out);
+  tkLog(t, out.length===1 ? "צורף קובץ: "+out[0].name : "צורפו "+out.length+" קבצים: "+out.map(x=>x.name).join(", "), "", true);
+  t.upd=new Date().toISOString(); saveTasks(); toast(out.length===1 ? "הקובץ צורף" : "צורפו "+out.length+" קבצים");
+}
+/* a picture is made smaller (and gets a thumbnail); other files up to F_MAX. The data goes to this device's store and to the cloud
+   ("files"); what is returned (name, type, size, thumbnail…) is kept on the task or event */
+async function storeFiles(list, fromCam){
   const out=[];
   for(const f of list){
     try{
@@ -2567,13 +2597,11 @@ async function addFiles(t, list, fromCam){
       const id=newId(), size=Math.round((data.length-data.indexOf(",")-1)*0.75);
       await fPut(id,{data,name,type,up:false});
       const meta={id,name,type,size,by:reporter()||"",at:nowLocal(),...(thumb?{thumb}:{})};
-      if(!Array.isArray(t.files)) t.files=[]; t.files.push(meta); out.push(meta);
+      out.push(meta);
       if(window.cloudPutFile) window.cloudPutFile(id);
     }catch(e){ toast("לא הצלחתי לקרוא את \""+(f.name||"הקובץ")+"\""); }
   }
-  if(!out.length) return;
-  tkLog(t, out.length===1 ? "צורף קובץ: "+out[0].name : "צורפו "+out.length+" קבצים: "+out.map(x=>x.name).join(", "), "", true);
-  t.upd=new Date().toISOString(); saveTasks(); toast(out.length===1 ? "הקובץ צורף" : "צורפו "+out.length+" קבצים");
+  return out;
 }
 async function fileRec(m){
   let rec=await fGet(m.id);
@@ -2824,7 +2852,7 @@ function renderTasks(){
     });
     if(isManager()) btn("מחק","ghost",async()=>{
       if(!await confirmDel("למחוק את המשימה?", (t.title||"")+((t.log||[]).length?"\nכולל יומן העדכונים ("+t.log.length+")":"")+(t.eventId?"\nהאירוע שנרשם ביומן נשאר.":"")+(CLOUD_ON?"\nהמשימה תימחק לכל הצוות.":""))) return;
-      tasks=tasks.filter(x=>x.id!==t.id); saveTasks(); toast("המשימה נמחקה");
+      binAdd("t",t); tasks=tasks.filter(x=>x.id!==t.id); saveTasks(); toast("המשימה נמחקה — אפשר לשחזר מסל המיחזור (30 יום)");
     });
     if(tkOpen(t) && !isViewer()){                       // adding things to the task: photo, file, checklist
       const ins=c.querySelectorAll(".tk-fadd input");
@@ -4498,6 +4526,70 @@ $("#brShare").onclick=async()=>{ if(!brCur) return; const btn=$("#brShare"), lbl
   catch(e){ toast("יצירת ה-PDF נכשלה"); } finally{ btn.disabled=false; btn.textContent=lbl; } };
 $("#brPdf").onclick=()=>{ if(brCur) brPdfOut(brCur, $("#brPdf")); };
 paintBriefCard();
+
+/* ===== recycle bin (🗑): deleted events and tasks, 30 days. This device keeps what it deleted; the team log also keeps every
+   deleted document in the cloud (deleting only marks it _del), so the bin also shows what was deleted elsewhere. Restoring = a manager. */
+const BIN_DAYS=30, K_BIN="ogg-bin";
+function binGet(){ try{ const a=JSON.parse(localStorage.getItem(K_BIN)||"[]"); return Array.isArray(a)?a:[]; }catch(e){ return []; } }
+function binPut(a){ const lim=Date.now()-BIN_DAYS*864e5; try{ localStorage.setItem(K_BIN,JSON.stringify(a.filter(x=>x && x.at>=lim).slice(0,300))); }catch(e){} }
+function binAdd(k,item){ const a=binGet().filter(x=>!(x.k===k && x.id===item.id)); a.unshift({k,id:item.id,item:JSON.parse(JSON.stringify(item)),at:Date.now(),by:reporter()||""}); binPut(a); }
+async function binList(){
+  const lim=Date.now()-BIN_DAYS*864e5, map=new Map();
+  binGet().forEach(x=>{ if(x.at>=lim) map.set(x.k+":"+x.id,x); });
+  if(CLOUD_ON && window.cloudBinList){ try{ (await window.cloudBinList(lim)).forEach(x=>{ const k=x.k+":"+x.id, l=map.get(k); map.set(k, Object.assign({}, x, l?{by:l.by||x.by}:{})); }); }catch(e){} }
+  // already back (restored elsewhere)? then it is not in the bin
+  return [...map.values()].filter(x=>!(x.k==="e" ? events.some(e=>e.id===x.id) : tasks.some(t=>t.id===x.id))).sort((a,b)=>b.at-a.at);
+}
+async function binPaint(){
+  const L=$("#binList"); L.textContent=""; L.appendChild(mk("p","hint","טוען…"));
+  const items=await binList(), mgr=isManager() && !isViewer(); L.textContent="";
+  if(!items.length){ L.appendChild(mk("p","hint","הסל ריק.")); return; }
+  items.forEach(x=>{ const it=x.item||{}, r=mk("div","bin-it");
+    const ttl = x.k==="e" ? (it.title || String(it.desc||"").slice(0,80) || "אירוע") : (it.title||"משימה");
+    const b=mk("div","bin-b"); b.append(mk("b",null,(x.k==="e"?"⚠ ":"📋 ")+(it.no?"#"+it.no+" ":"")+ttl),
+      mk("span","bin-m",(x.k==="e"?"אירוע":"משימה")+" · נמחק "+new Date(x.at).toLocaleDateString("he-IL")+(x.by?" · "+x.by:"")+" · נשארו "+Math.max(1,Math.ceil((x.at+BIN_DAYS*864e5-Date.now())/864e5))+" ימים"));
+    r.appendChild(b);
+    if(mgr){ const rs=mk("button","btn mini","↩ שחזר"); rs.type="button"; rs.onclick=async()=>{ rs.disabled=true; if(await binRestore(x)){ toast("שוחזר"); binPaint(); } else { rs.disabled=false; toast("השחזור נכשל"); } }; r.appendChild(rs); }
+    L.appendChild(r); });
+}
+async function binRestore(x){
+  if(CLOUD_ON && window.cloudRestore){ if(!await window.cloudRestore(x.k,x.id)) return false; }
+  else if(x.item){ if(x.k==="e"){ events.push(x.item); events.sort((a,b)=>(b.when||"").localeCompare(a.when||"")); persist(); renderAll(); }
+                   else { tasks.push(x.item); saveTasks(); } }
+  binPut(binGet().filter(y=>!(y.k===x.k && y.id===x.id)));
+  return true;
+}
+$("#binOpen").onclick=()=>{ binPaint(); $("#dlgBin").showModal(); };
+$("#binClose").onclick=()=>$("#dlgBin").close();
+
+/* ===== files folder (📁): every file and picture of the tasks and events I can see, newest first.
+   Tapping one goes to where it belongs (the task or the event); 🔍 opens the file itself. */
+let flKind="";
+function flAll(){
+  const out=[];
+  tkVis().forEach(t=>(t.files||[]).forEach(m=>{ if(m && !m.del) out.push({m, k:"t", id:t.id, src:(t.no?"#"+t.no+" ":"")+(t.title||"משימה")}); }));
+  events.forEach(e=>(e.files||[]).forEach(m=>{ if(m && !m.del) out.push({m, k:"e", id:e.id, src:(e.no?"#"+e.no+" ":"")+(e.title||String(e.desc||"").slice(0,50)||"אירוע")}); }));
+  return out.sort((a,b)=>String(b.m.at||"").localeCompare(String(a.m.at||"")));
+}
+function flPaint(){
+  const q=$("#flQ").value.trim().toLowerCase(), G=$("#flGrid"); G.textContent="";
+  const isImg=m=>/^image\//.test(m.type||"");
+  const list=flAll().filter(x=>(!flKind || (flKind==="img")===isImg(x.m)) && (!q || (x.m.name+" "+x.src+" "+(x.m.by||"")).toLowerCase().includes(q)));
+  $("#flTitle").textContent="📁 קבצים ("+nf(list.length)+")";
+  if(!list.length){ G.appendChild(mk("p","hint","אין קבצים.")); return; }
+  list.slice(0,300).forEach(x=>{ const c=mk("div","fd-it");
+    const go=mk("button","fd-go"); go.type="button"; go.title="פתח את "+(x.k==="t"?"המשימה":"האירוע");
+    if(okThumb(x.m.thumb)){ const im=mk("img"); im.src=x.m.thumb; im.alt=x.m.name; im.loading="lazy"; go.appendChild(im); }
+    else go.appendChild(mk("span","fd-ic",fIcon(x.m)));
+    go.onclick=()=>{ $("#dlgFiles").close(); x.k==="t" ? goTask(x.id) : evGo(x.id); };
+    const z=mk("button","fd-z","🔍"); z.type="button"; z.title="פתח את הקובץ"; z.onclick=()=>openFile(x.m);
+    c.append(go, z, mk("b","fd-n",x.m.name), mk("span","fd-s",(x.k==="t"?"📋 ":"⚠ ")+x.src), mk("span","fd-d",(x.m.at?fmtWhen(x.m.at).slice(0,10):"")+(x.m.by?" · "+x.m.by:"")));
+    G.appendChild(c); });
+}
+$("#qkFiles").onclick=()=>{ $("#flQ").value=""; flPaint(); $("#dlgFiles").showModal(); };
+$("#flClose").onclick=()=>$("#dlgFiles").close();
+$("#flQ").oninput=flPaint;
+document.querySelectorAll("#flKind button").forEach(b=>b.onclick=()=>{ flKind=b.dataset.k; document.querySelectorAll("#flKind button").forEach(x=>x.setAttribute("aria-pressed",String(x===b))); flPaint(); });
 
 /* ===== quiet screens: explanations behind a small ⓘ =====
    A card's description paragraph (the <p> right under its title) is hidden, with an ⓘ by the title that opens it.

@@ -5,11 +5,11 @@ import { initializeApp } from "firebase/app";
 import { initializeAuth, indexedDBLocalPersistence, browserLocalPersistence, sendSignInLinkToEmail,
   isSignInWithEmailLink, signInWithEmailLink, onAuthStateChanged, signOut, connectAuthEmulator } from "firebase/auth";
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, connectFirestoreEmulator,
-  collection, doc, getDoc, setDoc, deleteDoc, onSnapshot, query, where, writeBatch, serverTimestamp,
+  collection, doc, getDoc, getDocs, setDoc, deleteDoc, onSnapshot, query, where, writeBatch, serverTimestamp,
   Timestamp, terminate, clearIndexedDbPersistence } from "firebase/firestore";
 import { getMessaging, getToken, deleteToken, isSupported as messagingSupported } from "firebase/messaging";
 window.FB = { initializeApp, initializeAuth, indexedDBLocalPersistence, browserLocalPersistence, sendSignInLinkToEmail,
   isSignInWithEmailLink, signInWithEmailLink, onAuthStateChanged, signOut, connectAuthEmulator,
   initializeFirestore, persistentLocalCache, persistentMultipleTabManager, connectFirestoreEmulator,
-  collection, doc, getDoc, setDoc, deleteDoc, onSnapshot, query, where, writeBatch, serverTimestamp,
+  collection, doc, getDoc, getDocs, setDoc, deleteDoc, onSnapshot, query, where, writeBatch, serverTimestamp,
   Timestamp, terminate, clearIndexedDbPersistence, getMessaging, getToken, deleteToken, messagingSupported };
