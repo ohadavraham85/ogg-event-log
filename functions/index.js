@@ -109,7 +109,9 @@ exports.pushTest = onDocumentWritten({ document: "push/{tok}", region: REGION, d
   const before = ev.data.before.exists ? ev.data.before.data() : null;
   const after = ev.data.after.exists ? ev.data.after.data() : null;
   // a device was added or removed: recount that person's devices
-  if (!before || !after || before.mail !== after.mail) {
+  // (also when the app re-registers on opening: _upd changes — the server's own notes don't touch _upd)
+  const stamp = x => x && x._upd && x._upd.toMillis ? x._upd.toMillis() : 0;
+  if (!before || !after || before.mail !== after.mail || stamp(before) !== stamp(after)) {
     await countDevices(String((after && after.mail) || (before && before.mail) || "").toLowerCase());
     if (before && after && before.mail) await countDevices(String(before.mail).toLowerCase());
   }
