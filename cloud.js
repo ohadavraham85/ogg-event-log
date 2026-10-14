@@ -800,11 +800,18 @@
   function paintMembers(){
     const box=$("#cloudMembers"); if(!box) return; box.textContent="";
     const S=members.map(memberState), cnt=k=>S.filter(x=>x.k===k).length;
+    if(role==="admin") box.appendChild(mk("p","cm-sum","📱 "+members.filter(m=>+m.pushDevices>0).length+" מתוך "+members.length+" הפעילו פוש"));
     if(role==="admin") box.appendChild(mk("p","cm-sum","🟢 "+cnt("on")+" מחוברים עכשיו · "+(cnt("on")+cnt("was"))+" הצטרפו · "+cnt("inv")+" הוזמנו ועוד לא נכנסו · "+cnt("new")+" טרם הוזמנו"));
     members.forEach((m,i)=>{
       const r=mk("div","listrow"), who=mk("div","cm-who");
       who.appendChild(mk("b",null,m.name||"(בלי שם)")); who.appendChild(mk("span","cm-mail",m.email));
       if(role==="admin") who.appendChild(mk("span","cm-st st-"+S[i].k,S[i].t));   // who is connected: managers only
+      if(role==="admin"){                                  // 📱 push: on how many devices, and how the last one went
+        const n=+m.pushDevices||0, t=m.pushAt && m.pushAt.toDate ? m.pushAt.toDate().toLocaleString("he-IL",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}) : "";
+        const ps=mk("span","cm-push "+(!n?"off":m.pushAt && m.pushOk===false?"bad":"on"),
+          !n ? "📵 אין פוש" : "📱 פוש"+(n>1?" ("+n+" מכשירים)":"")+(t ? (m.pushOk===false ? " · ⚠ נכשל "+t : " · ✓ אחרון "+t) : " · עוד לא נשלח"));
+        if(m.pushErr) ps.title=m.pushErr; who.appendChild(ps);
+      }
       r.appendChild(who);
       const RL={admin:"מנהל",viewer:"צופה — מסך משרד",member:"איש צוות"};
       if(role==="admin" && m.email!==me){                 // a manager changes the role right here

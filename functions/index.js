@@ -46,8 +46,20 @@ async function sendAll(sends) {
     const code = r.error && r.error.code, ref = sends[i].ref;
     if (code === "messaging/registration-token-not-registered" || code === "messaging/invalid-registration-token") return ref.delete().catch(() => {});
     if (r.error) logger.warn("push failed", code);
-    return ref.set({ lastAt: FieldValue.serverTimestamp(), lastOk: !r.error, lastErr: code || "", lastTitle: String(sends[i].msg.data.title || "").slice(0, 80) }, { merge: true }).catch(() => {});
+    const st = { lastAt: FieldValue.serverTimestamp(), lastOk: !r.error, lastErr: code || "" };
+    return Promise.all([
+      ref.set({ ...st, lastTitle: String(sends[i].msg.data.title || "").slice(0, 80) }, { merge: true }).catch(() => {}),
+      // the team list shows it too (📱 next to the name): when the last push went to this person, and whether it got through
+      // update() — never set(): writing would create a members document, i.e. give access to someone no longer in the team
+      sends[i].mail ? db.doc("members/" + sends[i].mail).update({ pushAt: st.lastAt, pushOk: st.lastOk, pushErr: st.lastErr }).catch(() => {}) : null,
+    ]);
   }));
+}
+// how many devices a member has push on — kept on members/<mail>.pushDevices for the team list
+async function countDevices(mail) {
+  if (!mail) return;
+  const n = (await db.collection("push").where("mail", "==", mail).get()).size;
+  await db.doc("members/" + mail).update({ pushDevices: n }).catch(() => {});   // only an existing member (see sendAll)
 }
 
 exports.taskPush = onDocumentWritten({ document: "meta/{doc}", region: REGION, database: DATABASE }, async ev => {
@@ -76,7 +88,7 @@ exports.taskPush = onDocumentWritten({ document: "meta/{doc}", region: REGION, d
     if (!news.length) return;
     const body = news.slice(0, 4).map(n => (n.by && n.by !== who ? n.by + ": " : "") + n.text).join("\n") + (news.length > 4 ? "\n…" : "");
     const head = news.some(n => n.kind === "assign" && /הוקצתה/.test(n.text)) ? "הוקצתה לך משימה" : "משימה · " + who;
-    sends.push({ ref: d.ref, msg: { token: p.token, data: { title: head, body: (t.title || "") + "\n" + body, tag: "ogg-task-" + tid, tid }, webpush: WEBPUSH } });
+    sends.push({ ref: d.ref, mail, msg: { token: p.token, data: { title: head, body: (t.title || "") + "\n" + body, tag: "ogg-task-" + tid, tid }, webpush: WEBPUSH } });
   });
   await sendAll(sends);
 });
@@ -88,7 +100,7 @@ async function replyPush(mail, before, after) {
   if (!fresh.length) return;
   const tokens = await db.collection("push").where("mail", "==", mail).get();
   const r = fresh[fresh.length - 1];
-  await sendAll(tokens.docs.filter(d => d.data().token).map(d => ({ ref: d.ref, msg: { token: d.data().token,
+  await sendAll(tokens.docs.filter(d => d.data().token).map(d => ({ ref: d.ref, mail, msg: { token: d.data().token,
     data: { title: "תשובה למשוב שלך" + (r.by ? " · " + r.by : ""), body: String(r.text || ""), tag: "ogg-fbr" }, webpush: WEBPUSH } })));
 }
 
@@ -96,7 +108,12 @@ async function replyPush(mail, before, after) {
 exports.pushTest = onDocumentWritten({ document: "push/{tok}", region: REGION, database: DATABASE }, async ev => {
   const before = ev.data.before.exists ? ev.data.before.data() : null;
   const after = ev.data.after.exists ? ev.data.after.data() : null;
+  // a device was added or removed: recount that person's devices
+  if (!before || !after || before.mail !== after.mail) {
+    await countDevices(String((after && after.mail) || (before && before.mail) || "").toLowerCase());
+    if (before && after && before.mail) await countDevices(String(before.mail).toLowerCase());
+  }
   if (!after || !after.test || !after.token || (before && before.test === after.test)) return;
-  await sendAll([{ ref: ev.data.after.ref, msg: { token: after.token,
+  await sendAll([{ ref: ev.data.after.ref, mail: String(after.mail || "").toLowerCase(), msg: { token: after.token,
     data: { title: "בדיקה", body: "התראות פוש עובדות במכשיר הזה ✅", tag: "ogg-test", test: "1" }, webpush: WEBPUSH } }]);
 });
