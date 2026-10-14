@@ -2058,7 +2058,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.02", APP_DATE="14/10/2026";
+const APP_VER="3.03", APP_DATE="14/10/2026";
 $("#verChip").textContent="v"+APP_VER;
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -3468,6 +3468,12 @@ function applyGlass(v){ v=Math.max(0,Math.min(80,+v||0)); const r=document.docum
   r.style.setProperty("--glass", v+"%"); r.classList.toggle("glass", v>0);
   if($("#glassR")){ $("#glassR").value=v; $("#glassV").textContent=v+"%"; } }
 try{ applyGlass(localStorage.getItem(GLASS_KEY)); }catch(e){ applyGlass(0); }
+/* text size (this device): the whole app scales — 85%…130% */
+const ZOOM_KEY="ogg-zoom";
+function applyZoom(v){ v=Math.max(85,Math.min(130,+v||100)); document.documentElement.style.zoom = v===100 ? "" : String(v/100);
+  if($("#zoomR")){ $("#zoomR").value=v; $("#zoomV").textContent=v+"%"; } }
+try{ applyZoom(localStorage.getItem(ZOOM_KEY)||100); }catch(e){ applyZoom(100); }
+if($("#zoomR")) $("#zoomR").oninput=e=>{ applyZoom(e.target.value); try{ localStorage.setItem(ZOOM_KEY, e.target.value); }catch(_){} };
 if($("#glassR")) $("#glassR").oninput=e=>{ applyGlass(e.target.value); try{ localStorage.setItem(GLASS_KEY, e.target.value); }catch(_){} };
 if($("#hapOn")){ $("#hapOn").checked=hapOn(); $("#hapOn").onchange=e=>{ try{ localStorage.setItem(HAP_KEY,e.target.checked?"1":"0"); }catch(_){} if(e.target.checked) haptic(); }; }
 /* ===== help: a guided tour of the controls in working order, and a flow chart of the process =====
