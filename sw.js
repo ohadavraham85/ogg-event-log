@@ -1,7 +1,7 @@
 /* Service worker — network first, cache as offline fallback.
    Online the app always loads the latest files (so "בדוק עדכון" keeps working);
    offline, or when the site answers with an error (404/5xx), it serves the last copy it saw. Data stays in localStorage, not here. */
-const CACHE = "ogg-log-2.98";   // bump together with APP_VER in app.js
+const CACHE = "ogg-log-2.99";   // bump together with APP_VER in app.js
 const SHELL = ["./", "index.html", "style.css", "app.js", "cloud.js", "firebase-config.js", "vendor/firebase.js", "vendor/html2canvas.min.js", "manifest.webmanifest",
                "icons/icon-notebook.svg", "icons/icon-notebook-192.png", "icons/icon-notebook-512.png",
                "icons/icon-notebook-maskable-512.png", "icons/icon-notebook-apple-180.png",
@@ -70,7 +70,7 @@ self.addEventListener("push", ev => {
   let m = {}; try { m = ev.data ? ev.data.json() : {}; } catch (e) {}
   const d = m.data || m, ios = /iPhone|iPad|iPod/.test(self.navigator.userAgent);
   ev.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(list => {
-    if (!ios && list.some(c => c.focused)) return;
+    if (!ios && !d.test && list.some(c => c.focused)) return;      // a test push shows even with the app in front
     return self.registration.showNotification(d.title || "יומן אירועים", {
       body: d.body || "", tag: d.tag || "ogg-task", renotify: true, icon: "icons/icon-notebook-192.png", badge: "icons/badge-96.png", lang: "he", dir: "rtl", data: { tid: d.tid || "" } });
   }));

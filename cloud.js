@@ -888,7 +888,7 @@
   /* ---------- push to the phone (FCM): task messages even when the app is closed ----------
      Needs FIREBASE_VAPID_KEY (firebase-config.js) and the "taskPush" Cloud Function (functions/). This device's token is kept in
      push/<token> with its owner's mail and the manager's "every task" setting; the function sends what the 📨 list would show. */
-  const K_PUSH="ogg-push-token";
+  const K_PUSH="ogg-push-token"; let unsubPushDoc=null;
   let pushSup=null;
   async function pushSupported(){
     if(pushSup===null) pushSup=!!(window.FIREBASE_VAPID_KEY && "serviceWorker" in navigator && "Notification" in window && F && F.messagingSupported
@@ -928,9 +928,23 @@
     const ios=/iPhone|iPad|iPod/.test(navigator.userAgent);
     if(pushOn()){
       pb.appendChild(mk("p","hint","📱 התראות פוש פעילות במכשיר הזה: הודעה על שינוי במשימות שאתה עוקב אחריהן (כמו ברשימת ההודעות 📨) — גם כשהאפליקציה סגורה."));
+      // how the last push to this device went (written by the server) — and a test on demand
+      const st=mk("p","hint push-st"); st.textContent="בודק…"; pb.appendChild(st);
+      if(unsubPushDoc) unsubPushDoc();
+      unsubPushDoc=F.onSnapshot(F.doc(db,"push",get(K_PUSH)), s=>{
+        if(!s.exists()){ st.textContent="⚠ המכשיר לא רשום בענן — לחץ \"כבה\" ואז \"הפעל\" שוב"; return; }
+        const x=s.data(), t=x.lastAt && x.lastAt.toDate ? x.lastAt.toDate().toLocaleString("he-IL",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}) : "";
+        st.textContent = !t ? "✓ רשום. עוד לא נשלח פוש למכשיר הזה." : x.lastOk ? "✓ פוש אחרון נשלח "+t+(x.lastTitle?" · "+x.lastTitle:"") : "⚠ השליחה האחרונה נכשלה ("+t+"): "+(x.lastErr||"?");
+      }, ()=>{ st.textContent="⚠ אין גישה לרישום הפוש — צריך לפרסם את כללי האבטחה עם push"; });
+      const row=mk("div","row");
+      const ts=mk("button","btn","שלח לי פוש לבדיקה"); ts.type="button";
+      ts.onclick=async()=>{ ts.disabled=true;
+        try{ await F.setDoc(F.doc(db,"push",get(K_PUSH)),{test:Date.now(),_upd:F.serverTimestamp(),_by:me},{merge:true}); toast("נשלח — ההתראה אמורה להגיע תוך כמה שניות"); }
+        catch(e){ toast("השליחה נכשלה: "+(e.code||"")); }
+        setTimeout(()=>{ ts.disabled=false; },5000); };
       const b=mk("button","btn","כבה פוש במכשיר הזה"); b.type="button";
       b.onclick=async()=>{ b.disabled=true; await pushOff(); paintPush(pb); toast("התראות הפוש כובו במכשיר הזה"); };
-      pb.appendChild(b);
+      row.append(ts,b); pb.appendChild(row);
     } else if(Notification.permission!=="denied"){
       pb.appendChild(mk("p","hint","📱 התראות פוש לטלפון: הודעה על שינוי במשימות שלך, של המחלקה ושפתחת — גם כשהאפליקציה סגורה."+(ios?" באייפון — רק מהאפליקציה שהותקנה במסך הבית.":"")));
       const b=mk("button","btn primary","הפעל התראות פוש"); b.type="button";

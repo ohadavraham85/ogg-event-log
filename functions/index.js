@@ -6,7 +6,7 @@
 const { onDocumentWritten } = require("firebase-functions/v2/firestore");
 const { logger } = require("firebase-functions");
 const { initializeApp } = require("firebase-admin/app");
-const { getFirestore } = require("firebase-admin/firestore");
+const { getFirestore, FieldValue } = require("firebase-admin/firestore");
 const { getMessaging } = require("firebase-admin/messaging");
 const { newsFor, clean } = require("./news");
 
@@ -37,10 +37,24 @@ async function team() {
   return teamCache;
 }
 
+const WEBPUSH = { headers: { Urgency: "high", TTL: String(24 * 3600) } };
+// send, then note on each device how it went (the app shows it: "פוש אחרון נשלח…" / why it failed); forget removed devices
+async function sendAll(sends) {
+  if (!sends.length) return;
+  const res = await getMessaging().sendEach(sends.map(s => s.msg));
+  await Promise.all(res.responses.map((r, i) => {
+    const code = r.error && r.error.code, ref = sends[i].ref;
+    if (code === "messaging/registration-token-not-registered" || code === "messaging/invalid-registration-token") return ref.delete().catch(() => {});
+    if (r.error) logger.warn("push failed", code);
+    return ref.set({ lastAt: FieldValue.serverTimestamp(), lastOk: !r.error, lastErr: code || "", lastTitle: String(sends[i].msg.data.title || "").slice(0, 80) }, { merge: true }).catch(() => {});
+  }));
+}
+
 exports.taskPush = onDocumentWritten({ document: "meta/{doc}", region: REGION, database: DATABASE }, async ev => {
-  if (!ev.params.doc.startsWith("task-")) return;
   const before = ev.data.before.exists ? ev.data.before.data() : null;
   const after = ev.data.after.exists ? ev.data.after.data() : null;
+  if (ev.params.doc.startsWith("me-")) return replyPush(ev.params.doc.slice(3), before, after);
+  if (!ev.params.doc.startsWith("task-")) return;
   const writer = String((after && after._by) || (before && before._by) || "").toLowerCase();
   if (!writer) return;
   if (before && after && JSON.stringify(clean(before)) === JSON.stringify(clean(after)) && !!before._del === !!after._del) return;
@@ -62,19 +76,27 @@ exports.taskPush = onDocumentWritten({ document: "meta/{doc}", region: REGION, d
     if (!news.length) return;
     const body = news.slice(0, 4).map(n => (n.by && n.by !== who ? n.by + ": " : "") + n.text).join("\n") + (news.length > 4 ? "\n…" : "");
     const head = news.some(n => n.kind === "assign" && /הוקצתה/.test(n.text)) ? "הוקצתה לך משימה" : "משימה · " + who;
-    sends.push({ ref: d.ref, msg: {
-      token: p.token,
-      data: { title: head, body: (t.title || "") + "\n" + body, tag: "ogg-task-" + tid, tid },
-      webpush: { headers: { Urgency: "high", TTL: String(24 * 3600) } },
-    } });
+    sends.push({ ref: d.ref, msg: { token: p.token, data: { title: head, body: (t.title || "") + "\n" + body, tag: "ogg-task-" + tid, tid }, webpush: WEBPUSH } });
   });
-  if (!sends.length) return;
-  const res = await getMessaging().sendEach(sends.map(s => s.msg));
-  // devices that uninstalled the app / turned notifications off: forget them
-  await Promise.all(res.responses.map((r, i) => {
-    const code = r.error && r.error.code;
-    if (code === "messaging/registration-token-not-registered" || code === "messaging/invalid-registration-token") return sends[i].ref.delete().catch(() => {});
-    if (r.error) logger.warn("push failed", code);
-    return null;
-  }));
+  await sendAll(sends);
+});
+
+// a manager answered a feedback (meta/me-<mail>.fbReplies grew): tell that person's devices
+async function replyPush(mail, before, after) {
+  const was = new Set(((before && before.fbReplies) || []).map(r => r && r.id));
+  const fresh = ((after && after.fbReplies) || []).filter(r => r && !was.has(r.id));
+  if (!fresh.length) return;
+  const tokens = await db.collection("push").where("mail", "==", mail).get();
+  const r = fresh[fresh.length - 1];
+  await sendAll(tokens.docs.filter(d => d.data().token).map(d => ({ ref: d.ref, msg: { token: d.data().token,
+    data: { title: "תשובה למשוב שלך" + (r.by ? " · " + r.by : ""), body: String(r.text || ""), tag: "ogg-fbr" }, webpush: WEBPUSH } })));
+}
+
+// "שלח לי פוש לבדיקה" in the app: the device writes push/<token>.test — send it a test message
+exports.pushTest = onDocumentWritten({ document: "push/{tok}", region: REGION, database: DATABASE }, async ev => {
+  const before = ev.data.before.exists ? ev.data.before.data() : null;
+  const after = ev.data.after.exists ? ev.data.after.data() : null;
+  if (!after || !after.test || !after.token || (before && before.test === after.test)) return;
+  await sendAll([{ ref: ev.data.after.ref, msg: { token: after.token,
+    data: { title: "בדיקה", body: "התראות פוש עובדות במכשיר הזה ✅", tag: "ogg-test", test: "1" }, webpush: WEBPUSH } }]);
 });
