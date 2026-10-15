@@ -2157,3 +2157,18 @@ html.lite #viewDash .dsh-title{display:none}
 .tk-more .btn.wa{display:inline-flex;align-items:center;gap:6px;color:#128C4A;border-color:#25D366}
 .tk-more .btn.wa::before{content:"";width:16px;height:16px;flex:none;background:no-repeat center/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%2325D366' d='M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2z'/%3E%3Cpath fill='%23fff' d='M17.3 14.4c-.3-.1-1.7-.8-2-.9-.3-.1-.5-.1-.7.1-.2.3-.8.9-.9 1.1-.2.2-.3.2-.6.1-.3-.1-1.2-.5-2.3-1.4-.9-.8-1.4-1.7-1.6-2-.2-.3 0-.4.1-.6l.4-.5c.2-.2.2-.3.3-.5.1-.2 0-.4 0-.5l-.9-2.1c-.2-.5-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.4s1 2.8 1.2 3c.1.2 2 3.1 4.9 4.3 2.4 1 2.9.8 3.4.7.5-.1 1.7-.7 1.9-1.4.2-.7.2-1.3.2-1.4-.1-.1-.3-.2-.6-.3z'/%3E%3C/svg%3E")}
 .rel-st{font-size:14px;color:var(--ink-2)}
+
+/* 🔔 reminder on a task */
+.tk-bell{display:inline-flex;align-items:center;gap:4px;margin-inline-start:auto;flex:none;border:1px solid transparent;background:none;color:var(--ink-3);
+  border-radius:99px;padding:3px 6px;cursor:pointer;font:inherit;font-size:12px;font-weight:700}
+.tk-bell svg{width:17px;height:17px}
+.tk-bell:hover{color:var(--water);border-color:var(--edge)}
+.tk-bell.on{color:#B45309;background:#FEF3C7;border-color:#F59E0B}
+#dlgRem{width:min(440px,calc(100vw - 24px))}
+.rem-now{font-weight:700;color:#B45309}
+.rem-now:empty{display:none}
+.rem-opts{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.rem-opts .btn{padding:8px 12px;font-size:14px}
+.rem-at{display:flex;gap:8px;align-items:center;margin-bottom:12px}
+.rem-at input{flex:1;min-width:0;height:38px;box-sizing:border-box;font:inherit;border:1px solid var(--edge);border-radius:9px;padding:0 8px;background:var(--panel-2);color:var(--ink)}
+#remOff[hidden]{display:none}

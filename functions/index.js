@@ -5,6 +5,7 @@
    Deploy: see README → "התראות פוש". Needs the Blaze plan. */
 const { onDocumentWritten } = require("firebase-functions/v2/firestore");
 const { defineSecret } = require("firebase-functions/params");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { logger } = require("firebase-functions");
 const { initializeApp } = require("firebase-admin/app");
 const { getFirestore, FieldValue } = require("firebase-admin/firestore");
@@ -157,4 +158,23 @@ exports.release = onDocumentWritten({ document: "board/_release", region: REGION
     logger.info("released", ver, "by", by);
     await done("done", "", { ver });
   } catch (e) { logger.error("release failed", e.message); await done("error", e.message); }
+});
+
+/* 🔔 reminders: every 5 minutes, the people whose earliest reminder (meta/me-<mail>.remNext) is due get a push; sent ones are removed */
+exports.remindTick = onSchedule({ schedule: "every 5 minutes", region: REGION, timeZone: "Asia/Jerusalem" }, async () => {
+  const now = Date.now();
+  const q = await db.collection("meta").where("remNext", "<=", now).get();
+  for (const d of q.docs) {
+    if (!d.id.startsWith("me-")) continue;
+    const mail = d.id.slice(3), R = (Array.isArray(d.data().reminders) ? d.data().reminders : []).filter(r => r && r.at);
+    const due = R.filter(r => r.at <= now), rest = R.filter(r => r.at > now);
+    if (due.length) {
+      const tokens = await db.collection("push").where("mail", "==", mail).get(), sends = [];
+      tokens.docs.forEach(t => { if (!t.data().token) return;
+        due.forEach(r => sends.push({ ref: t.ref, mail, msg: { token: t.data().token,
+          data: { title: "🔔 תזכורת", body: String(r.title || "משימה"), tag: "ogg-task-" + r.tid, tid: String(r.tid || "") }, webpush: WEBPUSH } })); });
+      await sendAll(sends);
+    }
+    await d.ref.update({ reminders: rest, remNext: rest.length ? Math.min(...rest.map(r => r.at)) : null }).catch(() => {});
+  }
 });

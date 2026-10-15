@@ -362,6 +362,8 @@
     let maxU=+get(K_SYNC_T)||0, changed=false; const firstEver=tFresh && !tInit, fresh=[], assigned=[], news=[]; let mergedLog=false;
     snap.docChanges().forEach(c=>{
       const id=c.doc.id;
+      if(c.type!=="removed" && id==="me-"+me && !c.doc.metadata.hasPendingWrites && window.remApply){   // my reminders (another device, or the cloud sent one)
+        const RM=c.doc.data().reminders; if(Array.isArray(RM)) window.remApply(RM); }
       if(c.type!=="removed" && id==="me-"+me && !firstEver){                 // a manager answered my feedback
         const R=c.doc.data().fbReplies;
         if(Array.isArray(R) && R.length && typeof inboxAdd==="function"){
@@ -691,7 +693,14 @@
     try{ await F.setDoc(F.doc(db,"meta","me-"+me),{name:selfName,_upd:F.serverTimestamp(),_by:me},{merge:true}); }catch(e){ toast("השמירה בענן נכשלה — נשמר במכשיר"); }
     if(typeof renderTasks==="function") renderTasks();
   };
+  // my reminders (🔔): meta/me-<me>.reminders + remNext (the earliest) — the cloud function reads remNext to know when to send
+  let remT=null;
+  window.cloudSetRems=list=>{ if(!started || !me) return; clearTimeout(remT); remT=setTimeout(()=>{
+    const L=(list||[]).slice(0,50), nx=L.length ? Math.min(...L.map(r=>r.at)) : null;
+    F.setDoc(F.doc(db,"meta","me-"+me),{reminders:L, remNext:nx, _upd:F.serverTimestamp(), _by:me},{merge:true}).catch(()=>toast("שמירת התזכורת בענן נכשלה"));
+  },400); };
   async function loadSelfName(){
+    try{ const s0=await F.getDoc(F.doc(db,"meta","me-"+me)); if(s0.exists() && Array.isArray(s0.data().reminders) && window.remApply) window.remApply(s0.data().reminders); }catch(e){}
     try{ const s=await F.getDoc(F.doc(db,"meta","me-"+me)); if(s.exists() && s.data().name){ selfName=s.data().name; try{ localStorage.setItem(K_SELF(),selfName); }catch(e){} if(typeof renderTasks==="function") renderTasks(); } }catch(e){}
   }
   function paintMyName(){
