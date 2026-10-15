@@ -1,7 +1,7 @@
 /* Service worker — network first, cache as offline fallback.
    Online the app always loads the latest files (so "בדוק עדכון" keeps working);
    offline, or when the site answers with an error (404/5xx), it serves the last copy it saw. Data stays in localStorage, not here. */
-const CACHE = "ogg-log-3.10";   // bump together with APP_VER in app.js
+const CACHE = "ogg-log-3.11";   // bump together with APP_VER in app.js
 // the beta copy (…/beta/) keeps its own cache, so the two copies never clear each other's
 const BETA = self.location.pathname.includes("/beta/");
 const PFX = BETA ? "ogg-beta-" : "ogg-log-", CNAME = CACHE.replace("ogg-log-", PFX);
