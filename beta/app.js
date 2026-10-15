@@ -2061,7 +2061,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.11", APP_DATE="15/10/2026";
+const APP_VER="3.12", APP_DATE="15/10/2026";
 $("#verChip").textContent="v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2791,7 +2791,7 @@ function renderTasks(){
     const tx=mk("span","tk-tt",t.title||"(ללא כותרת)");
     { const tt=mk("div","tk-t"); tt.appendChild(tkCircle(t, ()=>tkOpen(t) ? openTaskDone(t.id) : reopenTask(t))); if(t.no) tt.appendChild(mk("span","sn","#"+t.no));
       (t.eq||[]).forEach(q=>{ const g=mk("span","tk-eqtag","⚙ "+q); g.title="ציוד"; tx.appendChild(g); });   // the equipment, right by the title
-      tt.appendChild(tx); c.appendChild(tt); }   // number and text side by side: a wrapped line starts under the text, not under the number
+      tt.appendChild(tx); if(tkOpen(t) && !isViewer()) tt.appendChild(remBell(t)); c.appendChild(tt); }   // number and text side by side: a wrapped line starts under the text, not under the number
     // tags sit in fixed slots, so in "רשימה" every kind lines up in its own column (in "אריחים" the slots just flow)
     const tags=mk("div","tk-tags"), SL={}; ["eq","who","dept","prio","type","stat","extra","due"].forEach(k=>{ SL[k]=mk("span","sl sl-"+k); tags.appendChild(SL[k]); });
     const tag=(txt,cls,hue,slot)=>{ const x=mk("span","tk-tag"+(cls?" "+cls:""),txt);
@@ -4593,6 +4593,63 @@ $("#relGo").onclick=async()=>{
   relLive={state:"requested",ver:APP_VER}; relPaint();
 };
 setTimeout(relPaint,1500);
+
+/* ===== reminders (🔔 on a task): "remind me" at a time I pick. Team log: kept on meta/me-<me> (reminders, remNext) — the cloud
+   function "remindTick" sends the push when the time comes (app closed too); with the app on screen a message says it here. */
+var REMS=null;                                    // (var + functions: the task list can draw before this part of the file has run)
+function remList(){ if(!REMS){ try{ const a=JSON.parse(localStorage.getItem("ogg-rems")||"[]"); REMS=Array.isArray(a)?a:[]; }catch(e){ REMS=[]; } } return REMS; }
+function remSave(){ try{ localStorage.setItem("ogg-rems",JSON.stringify(REMS)); }catch(e){} if(window.cloudSetRems) window.cloudSetRems(REMS); }
+window.remApply=list=>{ REMS=Array.isArray(list)?list.filter(r=>r && r.tid && r.at):[]; try{ localStorage.setItem("ogg-rems",JSON.stringify(REMS)); }catch(e){}
+  if(typeof renderTasks==="function") renderTasks(); };
+function remOf(tid){ return remList().find(r=>r.tid===tid); }
+function remWhen(ms){ const d=new Date(ms), p=n=>String(n).padStart(2,"0"), dd=ymd(d);
+  const day = dd===ymd(new Date()) ? "היום" : dd===ymd(new Date(Date.now()+864e5)) ? "מחר" : p(d.getDate())+"/"+p(d.getMonth()+1);
+  return day+" "+p(d.getHours())+":"+p(d.getMinutes()); }
+function remBell(t){
+  const r=remOf(t.id), b=mk("button","tk-bell"+(r?" on":"")); b.type="button";
+  b.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm7-6V11a7 7 0 0 0-5.5-6.84V3.5a1.5 1.5 0 0 0-3 0v.66A7 7 0 0 0 5 11v5l-2 2v1h18v-1z"/></svg>';
+  if(r) b.appendChild(mk("span","tk-bell-t",remWhen(r.at)));
+  b.title = r ? "תזכורת: "+remWhen(r.at)+" — לחץ לשינוי" : "תזכורת למשימה"; b.setAttribute("aria-label",b.title);
+  b.onclick=ev=>{ ev.stopPropagation(); remOpen(t); }; return b;
+}
+let remFor=null;
+function remOpen(t){
+  remFor=t; const r=remOf(t.id), d=$("#dlgRem"), at8=v=>new Date(v+"T08:00").getTime();
+  $("#remTitle").textContent="🔔 תזכורת · "+(t.no?"#"+t.no+" ":"")+(t.title||"");
+  $("#remNow").textContent = r ? "יש תזכורת ל"+remWhen(r.at) : "";
+  const box=$("#remOpts"); box.textContent="";
+  const opt=(label,ms)=>{ const b=mk("button","btn",label); b.type="button"; b.onclick=()=>remSet(ms()); box.appendChild(b); };
+  opt("בעוד שעה",()=>Date.now()+3600e3); opt("בעוד 3 שעות",()=>Date.now()+3*3600e3);
+  opt("מחר ב-08:00",()=>at8(ymd(new Date(Date.now()+864e5))));
+  if(t.due && at8(t.due)>Date.now()) opt("ביום היעד ב-08:00 ("+dmy(t.due).slice(0,5)+")",()=>at8(t.due));
+  const p=n=>String(n).padStart(2,"0"), dflt=new Date(Date.now()+864e5);
+  $("#remAt").value = r ? (()=>{ const x=new Date(r.at); return ymd(x)+"T"+p(x.getHours())+":"+p(x.getMinutes()); })() : ymd(dflt)+"T08:00";
+  $("#remAt").min = ymd(new Date())+"T00:00";
+  $("#remOff").hidden=!r;
+  if(!d.open) d.showModal();
+}
+function remSet(ms){
+  if(!remFor || !(ms>Date.now())){ toast("בחר זמן עתידי"); return; }
+  const t=remFor;
+  REMS=remList().filter(x=>x.tid!==t.id).concat({id:newId(), tid:t.id, at:Math.round(ms), title:(t.no?"#"+t.no+" ":"")+(t.title||"משימה")});
+  remSave(); $("#dlgRem").close(); renderTasks(); toast("🔔 תזכורת נקבעה ל"+remWhen(ms));
+}
+$("#remSetAt").onclick=()=>{ const v=$("#remAt").value; if(!v){ $("#remAt").focus(); return; } remSet(new Date(v).getTime()); };
+$("#remOff").onclick=()=>{ if(!remFor) return; REMS=remList().filter(x=>x.tid!==remFor.id); remSave(); $("#dlgRem").close(); renderTasks(); toast("התזכורת בוטלה"); };
+$("#remClose").onclick=()=>$("#dlgRem").close();
+// the time came: on screen — a message here; app in the background without push — a device notification; otherwise the push brings it
+function remTick(){
+  const now=Date.now(), due=remList().filter(r=>r.at<=now); if(!due.length) return;
+  let push=false; try{ push=!!localStorage.getItem("ogg-push-token") && "Notification" in window && Notification.permission==="granted"; }catch(e){}
+  if(document.hidden && CLOUD_ON && push) return;                 // the cloud sends it (and clears it)
+  due.forEach(r=>{
+    if(!document.hidden) toast("🔔 תזכורת: "+r.title,{label:"פתח",fn:()=>goTask(r.tid)});
+    else if("Notification" in window && Notification.permission==="granted" && navigator.serviceWorker)
+      navigator.serviceWorker.ready.then(g=>g.showNotification("🔔 תזכורת",{body:r.title, tag:"ogg-task-"+r.tid, icon:"icons/icon-notebook-192.png", badge:"icons/badge-96.png", lang:"he", dir:"rtl", data:{tid:r.tid}})).catch(()=>{});
+  });
+  REMS=REMS.filter(r=>r.at>now); remSave(); renderTasks();
+}
+setInterval(remTick,30e3); document.addEventListener("visibilitychange",()=>{ if(!document.hidden) setTimeout(remTick,800); }); setTimeout(remTick,3000);
 
 /* ===== recycle bin (🗑): deleted events and tasks, 30 days. This device keeps what it deleted; the team log also keeps every
    deleted document in the cloud (deleting only marks it _del), so the bin also shows what was deleted elsewhere. Restoring = a manager. */
