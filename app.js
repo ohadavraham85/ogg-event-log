@@ -1463,7 +1463,7 @@ if(navigator.serviceWorker) navigator.serviceWorker.addEventListener("message",e
 function showTaskSoon(tid){
   if(!tid) return;
   const sp=$("#splash"); if(sp && !sp.hidden && window.splashEnter && !$("#spEnter").hidden) window.splashEnter();
-  let n=0; const go=()=>{ if(tasks.some(x=>x.id===tid) || ++n>30) goTask(tid); else setTimeout(go,500); };
+  let n=0; const go=()=>{ if(tid.startsWith("p:") || tasks.some(x=>x.id===tid) || ++n>30) goTask(tid); else setTimeout(go,500); };
   setTimeout(go,0);
 }
 
@@ -2061,7 +2061,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.12", APP_DATE="15/10/2026";
+const APP_VER="3.13", APP_DATE="15/10/2026";
 $("#verChip").textContent="v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2423,10 +2423,10 @@ $("#inbAll").onclick=()=>{
   else { all.forEach(x=>{ if(!x.arch){ x.arch=true; x.read=true; } }); inboxPut(all); openInbox(); }
 };
 function goTask(tid){
-  const t=tasks.find(x=>x.id===tid); if(!t){ toast("המשימה כבר לא קיימת"); return; }
-  if(!window.tkVisible(t)){ toast("המשימה כבר לא משויכת אליך או למחלקה שלך"); return; }
+  const pv=tid.startsWith("p:"), t=pv ? privTasks().find(x=>x.id===tid) : tasks.find(x=>x.id===tid); if(!t){ toast("המשימה כבר לא קיימת"); return; }
+  if(!pv && !window.tkVisible(t)){ toast("המשימה כבר לא משויכת אליך או למחלקה שלך"); return; }
   Object.keys(tkF).forEach(k=>tkF[k]= k==="late" ? false : "");
-  tkView = !tkOpen(t) ? "done" : isMine(t) ? "mine" : "open"; tkOpenLogs.add(t.id); tkRowOpen.add(t.id);   // "רשימה": the line opens in full
+  tkView = pv ? "priv" : !tkOpen(t) ? "done" : isMine(t) ? "mine" : "open"; tkOpenLogs.add(t.id); tkRowOpen.add(t.id);   // "רשימה": the line opens in full
   closeTaskForm(); $("#tfPanel").hidden=true; $("#tfToggle").setAttribute("aria-expanded","false");
   paintTkSeg(); renderTasks(); show("Tasks");
   const c=document.querySelector('#tkList .tk[data-id="'+tid+'"]');
@@ -3682,7 +3682,7 @@ function privCard(t, today){
     tkRowOpen.has(t.id) ? tkRowOpen.delete(t.id) : tkRowOpen.add(t.id); c.classList.toggle("x"); });
   if(tkOpen(t) && t.due) c.classList.add(t.due<today?"tl-late":t.due===today?"tl-today":"tl-future");
   const tt=mk("div","tk-t"), lk=mk("span","sn priv-sn","🔒"); lk.title="משימה אישית — רק אתה רואה אותה";
-  tt.append(tkCircle(t, ()=>{ meSet(t.pid,{done:tkOpen(t), doneAt:tkOpen(t)?nowLocal():""}); toast(tkOpen(t)?"סומנה כבוצעה — לא נרשם ביומן":"הוחזרה לפתוחות"); }, true), lk, mk("span","tk-tt",t.title||"(ללא כותרת)")); c.appendChild(tt);
+  tt.append(tkCircle(t, ()=>{ meSet(t.pid,{done:tkOpen(t), doneAt:tkOpen(t)?nowLocal():""}); toast(tkOpen(t)?"סומנה כבוצעה — לא נרשם ביומן":"הוחזרה לפתוחות"); }, true), lk, mk("span","tk-tt",t.title||"(ללא כותרת)")); if(tkOpen(t)) tt.appendChild(remBell(t)); c.appendChild(tt);
   const tags=mk("div","tk-tags"), SL={}; ["eq","who","dept","prio","type","stat","extra","due"].forEach(k=>{ SL[k]=mk("span","sl sl-"+k); tags.appendChild(SL[k]); });
   const tag=(txt,cls,hue,slot)=>{ const x=mk("span","tk-tag"+(cls?" "+cls:""),txt); if(hue){ x.style.background="var(--c-"+hue+"-bg)"; x.style.color="var(--c-"+hue+")"; } SL[slot||"extra"].appendChild(x); };
   tag("אישית","privt",null,"who");
@@ -4615,7 +4615,7 @@ function remBell(t){
 let remFor=null;
 function remOpen(t){
   remFor=t; const r=remOf(t.id), d=$("#dlgRem"), at8=v=>new Date(v+"T08:00").getTime();
-  $("#remTitle").textContent="🔔 תזכורת · "+(t.no?"#"+t.no+" ":"")+(t.title||"");
+  $("#remTitle").textContent="🔔 תזכורת · "+(t.priv?"🔒 ":t.no?"#"+t.no+" ":"")+(t.title||"");
   $("#remNow").textContent = r ? "יש תזכורת ל"+remWhen(r.at) : "";
   const box=$("#remOpts"); box.textContent="";
   const opt=(label,ms)=>{ const b=mk("button","btn",label); b.type="button"; b.onclick=()=>remSet(ms()); box.appendChild(b); };
@@ -4631,7 +4631,7 @@ function remOpen(t){
 function remSet(ms){
   if(!remFor || !(ms>Date.now())){ toast("בחר זמן עתידי"); return; }
   const t=remFor;
-  REMS=remList().filter(x=>x.tid!==t.id).concat({id:newId(), tid:t.id, at:Math.round(ms), title:(t.no?"#"+t.no+" ":"")+(t.title||"משימה")});
+  REMS=remList().filter(x=>x.tid!==t.id).concat({id:newId(), tid:t.id, at:Math.round(ms), title:(t.priv?"🔒 ":t.no?"#"+t.no+" ":"")+(t.title||"משימה")});
   remSave(); $("#dlgRem").close(); renderTasks(); toast("🔔 תזכורת נקבעה ל"+remWhen(ms));
 }
 $("#remSetAt").onclick=()=>{ const v=$("#remAt").value; if(!v){ $("#remAt").focus(); return; } remSet(new Date(v).getTime()); };
