@@ -2061,7 +2061,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.10", APP_DATE="15/10/2026";
+const APP_VER="3.11", APP_DATE="15/10/2026";
 $("#verChip").textContent="v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2213,7 +2213,7 @@ let DEEP_OPEN=false;
    Storage: this device (localStorage); team mode syncs them through cloud.js (window.cloudPushTasks). */
 const LST = CLOUD_ON ? "ogg-cloud-tasks" : "ogg-tasks-v1";
 let tasks=[], tkView="open", tkEdit=null, tkDoneId=null;
-const tkF={ppl:"",loc:"",type:"",prio:"",dept:"",late:false,q:""};                 // list filters (dropdowns at the top)
+const tkF={ppl:"",loc:"",type:"",prio:"",dept:"",late:false,rep:false,q:""};                 // list filters (dropdowns at the top)
 const PRIOS=["דחופה","גבוהה","רגילה","נמוכה"];
 const PRIO_HUE={"דחופה":"fault","גבוהה":"flood","רגילה":"maint","נמוכה":"gen"};
 const prioOf=t=>PRIOS.includes(t.prio) ? t.prio : (t.urgent ? "דחופה" : "רגילה");   // older tasks: urgent flag
@@ -2491,9 +2491,10 @@ function renderTkFilters(){
   ["#tfPpl","#tfLoc","#tfType"].forEach(id=>$(id).classList.toggle("on",!!$(id).value));
   // like the events list: search + "סינון" (a panel), the badge counts the filters that are on
   paintDeptSeg(); $("#tfDept").hidden = $("#tfDept").hidden || !$("#tkDeptSeg").hidden;   // managers pick the department in the row above
-  const nOn=["ppl","loc","type","prio",$("#tkDeptSeg").hidden?"dept":"","late"].filter(k=>k && tkF[k]).length;
+  const nOn=["ppl","loc","type","prio",$("#tkDeptSeg").hidden?"dept":"","late","rep"].filter(k=>k && tkF[k]).length;
   $("#tfBadge").textContent = nOn ? String(nOn) : "";
   $("#tfLate").setAttribute("aria-pressed",String(!!tkF.late));
+  $("#tfRep").setAttribute("aria-pressed",String(!!tkF.rep));
   if($("#tq").value!==tkF.q) $("#tq").value=tkF.q;
   const dl=$("#dlPpl"); dl.textContent=""; (lists.ppl||[]).forEach(v=>{ const x=document.createElement("option"); x.value=v; dl.appendChild(x); });
 }
@@ -2502,6 +2503,7 @@ $("#tkSort").onchange=()=>{ tkSort=$("#tkSort").value; try{ localStorage.setItem
 $("#tfClear").onclick=()=>{ Object.keys(tkF).forEach(k=>tkF[k]= k==="late" ? false : ""); renderTasks(); };
 $("#tfToggle").onclick=()=>{ const p=$("#tfPanel"), open=p.hidden; p.hidden=!open; $("#tfToggle").setAttribute("aria-expanded",String(open)); };
 $("#tfLate").onclick=()=>{ tkF.late=!tkF.late; renderTasks(); };
+$("#tfRep").onclick=()=>{ tkF.rep=!tkF.rep; renderTasks(); };      // only the recurring (scheduled) tasks
 $("#tq").oninput=()=>{ tkF.q=$("#tq").value; renderTasks(); };
 ["ppl","loc","type","prio","dept"].forEach(k=>{ const el=$("#tf"+k[0].toUpperCase()+k.slice(1)); el.onchange=()=>{ tkF[k]=el.value; renderTasks(); }; });
 /* update log: every task keeps a running log — time, who reported, what happened.
@@ -2755,7 +2757,7 @@ function renderTasks(){
   const today=ymd(new Date());
   const pass=t=>(!tkF.ppl || (t.ppl||[]).includes(tkF.ppl)) && (!tkF.loc || (t.loc||[]).includes(tkF.loc))
              && (!tkF.type || t.type===tkF.type) && (!tkF.prio || prioOf(t)===tkF.prio)
-             && (!tkF.late || (t.due && t.due<today)) && (!tkF.dept || tkInDept(t,tkF.dept))
+             && (!tkF.late || (t.due && t.due<today)) && (!tkF.dept || tkInDept(t,tkF.dept)) && (!tkF.rep || !!t.rep)
              && (!tkF.q || tkText(t).includes(tkF.q.trim().toLowerCase()));
   const rows = tkView==="priv" ? [] : (tkView!=="done"
     ? tkVis().filter(t=>tkOpen(t) && (tkView!=="mine" || isMine(t)) && (tkView!=="opened" || openedByMe(t))).sort((a,b)=>{
@@ -2765,7 +2767,7 @@ function renderTasks(){
   $("#tkResCount").textContent = shown.length===rows.length ? nf(rows.length)+" משימות" : nf(shown.length)+" מתוך "+nf(rows.length);
   { // personal tasks (🔒): their own view; filters that only team tasks have (person, place, type, department) leave them out
     const pv=tkView==="priv" ? privTasks() : [];   // personal tasks only under "אישיות": all of mine, open first
-    const pPass=t=>(tkView==="priv" || !tkF.ppl && !tkF.loc && !tkF.type && !tkF.dept) && (!tkF.prio || prioOf(t)===tkF.prio) && (!tkF.late || (t.due && t.due<today))
+    const pPass=t=>!tkF.rep && (tkView==="priv" || !tkF.ppl && !tkF.loc && !tkF.type && !tkF.dept) && (!tkF.prio || prioOf(t)===tkF.prio) && (!tkF.late || (t.due && t.due<today))
       && (!tkF.q || [t.title,t.desc].concat(t.check.map(x=>x.text)).join(" ").toLowerCase().includes(tkF.q.trim().toLowerCase()));
     if(pv.length){ const cmp = tkView==="priv" ? (a,b)=>(tkOpen(b)-tkOpen(a)) || (tkOpen(a) ? tkCmp()(a,b) : String(b.doneAt||"").localeCompare(String(a.doneAt||""))) : tkView==="done" ? (a,b)=>String(b.doneAt||"").localeCompare(String(a.doneAt||"")) : (a,b)=>{ const na=tkIsNew(a), nb=tkIsNew(b); if(na!==nb) return na ? -1 : 1; return tkCmp()(a,b); };
       rows.push(...pv); shown.push(...pv.filter(pPass)); shown.sort(cmp);
