@@ -527,7 +527,7 @@ function evThumbs(files, box, onDel){
     box.appendChild(b); });
 }
 function paintEvFiles(){ const box=$("#evPh"); if(box) evThumbs(evFiles, box, m=>{ evFiles=evFiles.filter(x=>x.id!==m.id); paintEvFiles(); }); }
-["#evCam","#evFile"].forEach(s=>{ const i=$(s); if(i) i.onchange=async()=>{ const fl=[...i.files]; i.value=""; if(!fl.length) return;
+["#evCam","#evGal","#evFile"].forEach(s=>{ const i=$(s); if(i) i.onchange=async()=>{ const fl=[...i.files]; i.value=""; if(!fl.length) return;
   if(evFiles.length+fl.length>8){ toast("עד 8 קבצים לאירוע"); return; }
   const out=await storeFiles(fl, s==="#evCam"); if(out.length){ evFiles.push(...out); paintEvFiles(); toast(out.length===1?"צורף":"צורפו "+out.length); } }; });
 function resetForm(){
@@ -1522,6 +1522,8 @@ function paintSettings(){
 }
 document.querySelectorAll("#sgNav button").forEach(b=>b.onclick=()=>{ sgCur=b.dataset.sg; try{ localStorage.setItem("ogg-settings-topic",sgCur); }catch(e){} paintSettings(); window.scrollTo({top:0}); });
 window.paintSettings=paintSettings;
+const _ps=paintSettings; paintSettings=function(){ _ps(); if(typeof relPaint==="function") relPaint(); if($("#relCard") && $("#relCard").dataset.off!=="1" && (sgCur||"general")==="general") $("#relCard").hidden=false; };
+window.paintSettings=paintSettings;
 /* theme: one tap switches between light and dark (whatever is showing now — the phone's setting or a saved choice) */
 const darkMQ=window.matchMedia ? matchMedia("(prefers-color-scheme: dark)") : {matches:false};
 function isDark(){ const t=document.documentElement.getAttribute("data-theme"); return t ? t==="dark" : darkMQ.matches; }
@@ -2059,7 +2061,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.06", APP_DATE="14/10/2026";
+const APP_VER="3.11", APP_DATE="15/10/2026";
 $("#verChip").textContent="v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2211,7 +2213,7 @@ let DEEP_OPEN=false;
    Storage: this device (localStorage); team mode syncs them through cloud.js (window.cloudPushTasks). */
 const LST = CLOUD_ON ? "ogg-cloud-tasks" : "ogg-tasks-v1";
 let tasks=[], tkView="open", tkEdit=null, tkDoneId=null;
-const tkF={ppl:"",loc:"",type:"",prio:"",dept:"",late:false,q:""};                 // list filters (dropdowns at the top)
+const tkF={ppl:"",loc:"",type:"",prio:"",dept:"",late:false,rep:false,q:""};                 // list filters (dropdowns at the top)
 const PRIOS=["דחופה","גבוהה","רגילה","נמוכה"];
 const PRIO_HUE={"דחופה":"fault","גבוהה":"flood","רגילה":"maint","נמוכה":"gen"};
 const prioOf=t=>PRIOS.includes(t.prio) ? t.prio : (t.urgent ? "דחופה" : "רגילה");   // older tasks: urgent flag
@@ -2489,9 +2491,10 @@ function renderTkFilters(){
   ["#tfPpl","#tfLoc","#tfType"].forEach(id=>$(id).classList.toggle("on",!!$(id).value));
   // like the events list: search + "סינון" (a panel), the badge counts the filters that are on
   paintDeptSeg(); $("#tfDept").hidden = $("#tfDept").hidden || !$("#tkDeptSeg").hidden;   // managers pick the department in the row above
-  const nOn=["ppl","loc","type","prio",$("#tkDeptSeg").hidden?"dept":"","late"].filter(k=>k && tkF[k]).length;
+  const nOn=["ppl","loc","type","prio",$("#tkDeptSeg").hidden?"dept":"","late","rep"].filter(k=>k && tkF[k]).length;
   $("#tfBadge").textContent = nOn ? String(nOn) : "";
   $("#tfLate").setAttribute("aria-pressed",String(!!tkF.late));
+  $("#tfRep").setAttribute("aria-pressed",String(!!tkF.rep));
   if($("#tq").value!==tkF.q) $("#tq").value=tkF.q;
   const dl=$("#dlPpl"); dl.textContent=""; (lists.ppl||[]).forEach(v=>{ const x=document.createElement("option"); x.value=v; dl.appendChild(x); });
 }
@@ -2500,6 +2503,7 @@ $("#tkSort").onchange=()=>{ tkSort=$("#tkSort").value; try{ localStorage.setItem
 $("#tfClear").onclick=()=>{ Object.keys(tkF).forEach(k=>tkF[k]= k==="late" ? false : ""); renderTasks(); };
 $("#tfToggle").onclick=()=>{ const p=$("#tfPanel"), open=p.hidden; p.hidden=!open; $("#tfToggle").setAttribute("aria-expanded",String(open)); };
 $("#tfLate").onclick=()=>{ tkF.late=!tkF.late; renderTasks(); };
+$("#tfRep").onclick=()=>{ tkF.rep=!tkF.rep; renderTasks(); };      // only the recurring (scheduled) tasks
 $("#tq").oninput=()=>{ tkF.q=$("#tq").value; renderTasks(); };
 ["ppl","loc","type","prio","dept"].forEach(k=>{ const el=$("#tf"+k[0].toUpperCase()+k.slice(1)); el.onchange=()=>{ tkF[k]=el.value; renderTasks(); }; });
 /* update log: every task keeps a running log — time, who reported, what happened.
@@ -2654,11 +2658,12 @@ function renderFiles(t, c){
     grid.appendChild(b);
   });
   if(open){
+    // cam: the camera (one shot); "gallery": several pictures at once from the phone's gallery; otherwise any files
     const mkAdd=(label,cam)=>{ const l=mk("label","tk-fadd"), i=mk("input"); i.type="file"; i.hidden=true;
-      if(cam){ i.accept="image/*"; i.setAttribute("capture","environment"); } else i.multiple=true;
+      if(cam===true){ i.accept="image/*"; i.setAttribute("capture","environment"); } else if(cam==="gallery"){ i.accept="image/*"; i.multiple=true; } else i.multiple=true;
       i.onchange=()=>{ const fl=[...i.files]; i.value=""; if(fl.length) addFiles(t,fl,cam); };
       l.append(label,i); return l; };
-    var btns=mk("div","tk-fbtns"); btns.append(mkAdd("📷 צילום",true), mkAdd("📎 קובץ",false));
+    var btns=mk("div","tk-fbtns"); btns.append(mkAdd("📷 צילום",true), mkAdd("📎 קובץ",false), mkAdd("🖼 תמונות",'gallery'));
   }
   if(fs.length) box.appendChild(grid);
   if(btns) box.appendChild(btns);
@@ -2752,7 +2757,7 @@ function renderTasks(){
   const today=ymd(new Date());
   const pass=t=>(!tkF.ppl || (t.ppl||[]).includes(tkF.ppl)) && (!tkF.loc || (t.loc||[]).includes(tkF.loc))
              && (!tkF.type || t.type===tkF.type) && (!tkF.prio || prioOf(t)===tkF.prio)
-             && (!tkF.late || (t.due && t.due<today)) && (!tkF.dept || tkInDept(t,tkF.dept))
+             && (!tkF.late || (t.due && t.due<today)) && (!tkF.dept || tkInDept(t,tkF.dept)) && (!tkF.rep || !!t.rep)
              && (!tkF.q || tkText(t).includes(tkF.q.trim().toLowerCase()));
   const rows = tkView==="priv" ? [] : (tkView!=="done"
     ? tkVis().filter(t=>tkOpen(t) && (tkView!=="mine" || isMine(t)) && (tkView!=="opened" || openedByMe(t))).sort((a,b)=>{
@@ -2762,7 +2767,7 @@ function renderTasks(){
   $("#tkResCount").textContent = shown.length===rows.length ? nf(rows.length)+" משימות" : nf(shown.length)+" מתוך "+nf(rows.length);
   { // personal tasks (🔒): their own view; filters that only team tasks have (person, place, type, department) leave them out
     const pv=tkView==="priv" ? privTasks() : [];   // personal tasks only under "אישיות": all of mine, open first
-    const pPass=t=>(tkView==="priv" || !tkF.ppl && !tkF.loc && !tkF.type && !tkF.dept) && (!tkF.prio || prioOf(t)===tkF.prio) && (!tkF.late || (t.due && t.due<today))
+    const pPass=t=>!tkF.rep && (tkView==="priv" || !tkF.ppl && !tkF.loc && !tkF.type && !tkF.dept) && (!tkF.prio || prioOf(t)===tkF.prio) && (!tkF.late || (t.due && t.due<today))
       && (!tkF.q || [t.title,t.desc].concat(t.check.map(x=>x.text)).join(" ").toLowerCase().includes(tkF.q.trim().toLowerCase()));
     if(pv.length){ const cmp = tkView==="priv" ? (a,b)=>(tkOpen(b)-tkOpen(a)) || (tkOpen(a) ? tkCmp()(a,b) : String(b.doneAt||"").localeCompare(String(a.doneAt||""))) : tkView==="done" ? (a,b)=>String(b.doneAt||"").localeCompare(String(a.doneAt||"")) : (a,b)=>{ const na=tkIsNew(a), nb=tkIsNew(b); if(na!==nb) return na ? -1 : 1; return tkCmp()(a,b); };
       rows.push(...pv); shown.push(...pv.filter(pPass)); shown.sort(cmp);
@@ -2864,9 +2869,11 @@ function renderTasks(){
       const ins=c.querySelectorAll(".tk-fadd input");
       if(ins[0]) more.unshift(["📷 צילום","",()=>ins[0].click()]);
       if(ins[1]) more.unshift(["📎 קובץ","",()=>ins[1].click()]);
+      if(ins[2]) more.unshift(["🖼 כמה תמונות","",()=>ins[2].click()]);
       if(!(t.check||[]).some(x=>x && !x.del)) more.unshift(["☑ רשימת בדיקה","",()=>{ tkCkOn.add(t.id); c.classList.add("ck-on");
         const i=c.querySelector(".ck-add input"); if(i) i.focus(); }]);
     }
+    if(!isViewer()) more.push(["שלח בוואטסאפ","wa",()=>tkWhatsApp(t)]);
     if(tkCkOn.has(t.id)) c.classList.add("ck-on");
     // "+ עדכון" joins the action line (next to "✓ השלם"); an update log with nothing else in it then goes
     const ub=c.querySelector(".tk-upd-btn"); if(ub){ const lb=ub.parentNode; acts.appendChild(ub); if(lb && !lb.children.length) lb.remove(); }
@@ -2880,7 +2887,24 @@ function renderTasks(){
     c.appendChild(acts); box.appendChild(c);
   });
 }
-const tkCkOn=new Set();                                   // tasks where "☑ רשימת בדיקה" was asked for (the empty list shows)
+const tkCkOn=new Set();
+/* a task as a WhatsApp message (the person picks the chat): number, title, who, due, priority, place, description, checklist,
+   and a link that opens the task in the app (always the regular address, also when sent from the beta) */
+function tkWhatsApp(t){
+  // plain text + WhatsApp bold (*…*); no emoji — WhatsApp on a computer turns them into "�" when the text comes from a link
+  const dm=v=>v ? v.slice(8,10)+"/"+v.slice(5,7) : "", pr=prioOf(t), L=[];
+  L.push("*משימה"+(t.no?" #"+t.no:"")+" · "+(t.title||"")+"*");
+  if((t.ppl||[]).length) L.push("*אחראי:* "+t.ppl[0]+(t.ppl.length>1?" · *משויכים:* "+t.ppl.slice(1).join(", "):""));
+  if((t.depts||[]).length) L.push("*מחלקה:* "+t.depts.join(", "));
+  const when=[t.due?"*יעד:* "+dm(t.due):"", pr && pr!=="רגילה" ? "*עדיפות:* "+pr : ""].filter(Boolean).join(" · "); if(when) L.push(when);
+  const where=[(t.loc||[]).join(", "),(t.eq||[]).join(", ")].filter(Boolean).join(" · "); if(where) L.push("*מיקום:* "+where);
+  if(t.desc){ L.push(""); L.push(t.desc); }
+  const ck=(t.check||[]).filter(x=>x && !x.del);
+  if(ck.length){ L.push(""); L.push("*רשימת בדיקה:*"); ck.forEach(x=>L.push((x.done?"\u2713 ":"\u2610 ")+x.text)); }
+  const base=location.origin+location.pathname.replace(/beta\/(index\.html)?$/,"").replace(/index\.html$/,"");
+  L.push(""); L.push("לפתיחה באפליקציה:"); L.push(base+"?app=ogg-log-2&view=Tasks&task="+encodeURIComponent(t.id));
+  window.open("https://wa.me/?text="+encodeURIComponent(L.join("\n")),"_blank","noopener");
+}                                   // tasks where "☑ רשימת בדיקה" was asked for (the empty list shows)
 /* the round "complete" mark at the start of a task: open → tap opens the same completion window as "✓ השלם משימה";
    completed → a filled ✓ (a personal task can be ticked back) */
 function tkCircle(t, onDone, priv){
@@ -4546,6 +4570,29 @@ $("#brShare").onclick=async()=>{ if(!brCur) return; const btn=$("#brShare"), lbl
   catch(e){ toast("יצירת ה-PDF נכשלה"); } finally{ btn.disabled=false; btn.textContent=lbl; } };
 $("#brPdf").onclick=()=>{ if(brCur) brPdfOut(brCur, $("#brPdf")); };
 paintBriefCard();
+
+/* ===== "🚀 פרסם לכולם" — only in the beta, only managers, team log: the beta becomes what everyone gets (cloud function "release") */
+let relLive=null;
+async function relPaint(){
+  const c=$("#relCard"); if(!c) return;
+  const show=BETA && CLOUD_ON && isManager() && !isViewer(); c.dataset.off=show?"":"1"; if(!show){ c.hidden=true; return; }
+  let live="?"; try{ const r=await fetch("../version.txt?t="+Date.now(),{cache:"no-store"}); if(r.ok) live=(await r.text()).trim(); }catch(e){}
+  const st=$("#relSt"), b=$("#relGo"), same=live===APP_VER;
+  if(relLive && relLive.state==="requested"){ st.textContent="⏳ מפרסם את "+(relLive.ver||APP_VER)+"…"; b.disabled=true; return; }
+  st.textContent="בטא: "+APP_VER+" · אצל כולם: "+live+(same?" — זהה":"")+(relLive && relLive.state==="error" ? " · ⚠ הפרסום האחרון נכשל: "+(relLive.msg||"") : relLive && relLive.state==="done" && relLive.ver ? " · ✓ פורסם לאחרונה: "+relLive.ver : "");
+  b.disabled=same; b.textContent=same?"כבר אצל כולם":"פרסם את "+APP_VER+" לכולם";
+}
+window.relApply=d=>{ const was=relLive && relLive.state; relLive=d||null;
+  if(was==="requested" && relLive && relLive.state==="done") toast("🚀 פורסם לכולם: "+(relLive.ver||"")+" — באתר בעוד דקה-שתיים");
+  if(was==="requested" && relLive && relLive.state==="error") toast("הפרסום נכשל: "+(relLive.msg||""));
+  relPaint(); };
+$("#relGo").onclick=async()=>{
+  if(!confirm("לפרסם את הגרסה "+APP_VER+" לכל הצוות?\nמה שיש עכשיו בבטא יחליף את הגרסה הרגילה.")) return;
+  $("#relGo").disabled=true;
+  if(!window.cloudRelease || !await window.cloudRelease(APP_VER)){ toast("הבקשה נכשלה"); relPaint(); return; }
+  relLive={state:"requested",ver:APP_VER}; relPaint();
+};
+setTimeout(relPaint,1500);
 
 /* ===== recycle bin (🗑): deleted events and tasks, 30 days. This device keeps what it deleted; the team log also keeps every
    deleted document in the cloud (deleting only marks it _del), so the bin also shows what was deleted elsewhere. Restoring = a manager. */
