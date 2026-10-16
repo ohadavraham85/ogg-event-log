@@ -2,7 +2,7 @@
 const $ = s => document.querySelector(s);
 /* office screen ("מסך משרד"): ?tv=1 in the address, or signed in as a "צופה" — the app shows only the big rotating screen */
 var TV = /[?&]tv=1\b/.test(location.search);
-var BETA = /\/beta\//.test(location.pathname);   // the test copy (…/beta/): marked in the header, no push, its own cache
+var BETA = /\/beta\//.test(location.pathname);   // the test copy (…/beta/): marked in the header, its own cache
 
 /* ================= seed lists ================= */
 const SEED = {
@@ -2061,7 +2061,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.13", APP_DATE="15/10/2026";
+const APP_VER="3.14", APP_DATE="16/10/2026";
 $("#verChip").textContent="v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
