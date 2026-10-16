@@ -919,7 +919,6 @@
   let pushErr="";                                         // why the last try failed — shown to the user
   async function pushRegister(ask){
     pushErr="";
-    if(typeof BETA!=="undefined" && BETA){ pushErr="בגרסת הבטא אין פוש"; return false; }
     if(!me || role==="viewer" || !(await pushSupported())){ pushErr="הדפדפן הזה לא תומך בפוש"; return false; }
     if(ask && Notification.permission==="default"){ try{ await Notification.requestPermission(); }catch(e){} }
     if(Notification.permission!=="granted"){ if(Notification.permission==="denied") put(K_PUSH,null);
@@ -938,7 +937,6 @@
     put(K_PUSH,tok); return true;
   }
   async function pushOff(){
-    if(typeof BETA!=="undefined" && BETA) return;            // the beta leaves the phone's push as it is
     const tok=get(K_PUSH); put(K_PUSH,null);
     if(!tok) return;
     try{ await F.deleteDoc(F.doc(db,"push",tok)); }catch(e){}
@@ -947,7 +945,8 @@
   window.cloudPushPrefs=()=>{ if(me && get(K_PUSH)) pushRegister(false); };   // the manager's "every task" setting changed
   function paintPush(pb){
     pb.textContent="";
-    if(typeof BETA!=="undefined" && BETA){ pb.appendChild(mk("p","hint","📱 בגרסת הבטא אין התראות פוש — הן מגיעות מהגרסה הרגילה.")); return; }
+    // beta and regular share one push slot per device (same site): the copy that turned it on / was opened last gets the pushes
+    if(typeof BETA!=="undefined" && BETA) pb.appendChild(mk("p","hint","בטא: הפוש מגיע לגרסה שנפתחה אחרונה במכשיר — בטא או רגילה. לחיצה על פוש פותחת אותה."));
     const ios=/iPhone|iPad|iPod/.test(navigator.userAgent);
     if(pushOn()){
       pb.appendChild(mk("p","hint","📱 התראות פוש פעילות במכשיר הזה: הודעה על שינוי במשימות שאתה עוקב אחריהן (כמו ברשימת ההודעות 📨) — גם כשהאפליקציה סגורה."));
