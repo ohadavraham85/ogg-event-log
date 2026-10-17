@@ -2061,7 +2061,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.16", APP_DATE="17/10/2026";
+const APP_VER="3.17", APP_DATE="17/10/2026";
 $("#verChip").textContent="v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2234,8 +2234,12 @@ function tkCmp(){
   const due=t=>t.due||"9999-99-99", cr=t=>String(t.created||"");
   if(tkSort==="due") return (a,b)=>due(a).localeCompare(due(b)) || PRIOS.indexOf(prioOf(a))-PRIOS.indexOf(prioOf(b));
   if(tkSort==="prio") return (a,b)=>tkSortKey(a).localeCompare(tkSortKey(b));
+  if(tkSort==="chg") return (a,b)=>tkLastChg(b)-tkLastChg(a);
   return (a,b)=>cr(b).localeCompare(cr(a));
 }
+// the last time anyone changed the task: its last save, its last log line, or when it was opened
+function tkLastChg(t){ const ms=v=>{ const x=Date.parse(String(v||"")); return isNaN(x)?0:x; }, L=t.log||[];
+  return Math.max(ms(t.upd), ms(t.created), L.length ? ms(L[L.length-1] && L[L.length-1].at) : 0); }
 function tkSortKey(t){ return PRIOS.indexOf(prioOf(t))+(t.due||"9999-99-99")+(t.created||""); }
 /* "המשימות שלי": tasks assigned to me by name, or to my department (from "תפקיד ומחלקה").
    Team log: me = the signed-in member's team name. This device only: the person picked in "אני:" (saved here). */
