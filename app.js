@@ -2061,7 +2061,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.15", APP_DATE="17/10/2026";
+const APP_VER="3.16", APP_DATE="17/10/2026";
 $("#verChip").textContent="v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2464,7 +2464,7 @@ function colorSelect(el, hue){                            // a chosen value gets
   el.style.borderColor = hue ? "var(--c-"+hue+")" : ""; el.style.fontWeight = hue ? "800" : "";
 }
 function paintFormColors(){ colorSelect($("#tkPrio"), PRIO_HUE[$("#tkPrio").value]); colorSelect($("#tkType"), $("#tkType").value ? hueOf($("#tkType").value) : ""); }
-// (tkInDept: a task belongs to a department if it was assigned to it, or to someone in it — defined with the calendar)
+// (tkInDept: a task belongs to the department it was assigned to; a task with no department, to its people's — defined with the calendar)
 // managers: a row of departments above the list; it opens on the manager's own department
 let tkDeptInit=false;
 // a department's icon by the kind of work in its name (generic words only): electricity ⚡, maintenance 🔧, operations 💧; others 🏢
@@ -3260,7 +3260,7 @@ const HEB_MONTHS=["ינואר","פברואר","מרץ","אפריל","מאי","י
 /* by department: a task belongs to the departments it is assigned to and to those of its people;
    an event — to the departments of the people involved. */
 let calDept=""; try{ calDept=localStorage.getItem("ogg-cal-dept")||""; }catch(e){}
-const tkInDept=(t,d)=>(t.depts||[]).includes(d) || (t.ppl||[]).some(n=>deptOf(n)===d);
+const tkInDept=(t,d)=>(t.depts||[]).length ? t.depts.includes(d) : (t.ppl||[]).some(n=>deptOf(n)===d);   // its own department; none set → its people's
 const evInDept=(e,d)=>(e.ppl||[]).some(n=>deptOf(n)===d);
 function paintCalDept(){
   const box=$("#calDept"), ds=allDepts(); box.hidden=!ds.length; box.textContent=""; if(!ds.length) return;
