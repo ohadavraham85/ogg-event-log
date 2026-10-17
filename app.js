@@ -2061,7 +2061,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.14", APP_DATE="16/10/2026";
+const APP_VER="3.15", APP_DATE="17/10/2026";
 $("#verChip").textContent="v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -4575,7 +4575,9 @@ paintBriefCard();
 let relLive=null;
 async function relPaint(){
   const c=$("#relCard"); if(!c) return;
-  const show=BETA && CLOUD_ON && isManager() && !isViewer(); c.dataset.off=show?"":"1"; if(!show){ c.hidden=true; return; }
+  const show=BETA && CLOUD_ON && isManager() && !isViewer(); c.dataset.off=show?"":"1";
+  const vc=$("#verChip"); if(vc && BETA){ vc.textContent=(show?"🚀 ":"")+"v"+APP_VER+" · בטא"; vc.classList.toggle("rel",show); vc.title=show?"פרסם את הבטא לכולם":"גרסה"; }
+  if(!show){ c.hidden=true; return; }
   let live="?"; try{ const r=await fetch("../version.txt?t="+Date.now(),{cache:"no-store"}); if(r.ok) live=(await r.text()).trim(); }catch(e){}
   const st=$("#relSt"), b=$("#relGo"), same=live===APP_VER;
   if(relLive && relLive.state==="requested"){ st.textContent="⏳ מפרסם את "+(relLive.ver||APP_VER)+"…"; b.disabled=true; return; }
@@ -4591,6 +4593,16 @@ $("#relGo").onclick=async()=>{
   $("#relGo").disabled=true;
   if(!window.cloudRelease || !await window.cloudRelease(APP_VER)){ toast("הבקשה נכשלה"); relPaint(); return; }
   relLive={state:"requested",ver:APP_VER}; relPaint();
+};
+// the orange beta chip in the header = the same button: one tap → confirm → everyone gets this version
+$("#verChip").onclick=async()=>{
+  if(!(BETA && CLOUD_ON && isManager() && !isViewer())) return;
+  if(relLive && relLive.state==="requested"){ toast("⏳ כבר מפרסם…"); return; }
+  let live="?"; try{ const r=await fetch("../version.txt?t="+Date.now(),{cache:"no-store"}); if(r.ok) live=(await r.text()).trim(); }catch(e){}
+  if(live===APP_VER){ toast("✓ "+APP_VER+" כבר אצל כולם"); return; }
+  if(!confirm("🚀 לפרסם לכולם?\nבטא: "+APP_VER+" · אצל כולם: "+live)) return;
+  if(!window.cloudRelease || !await window.cloudRelease(APP_VER)){ toast("הבקשה נכשלה"); return; }
+  relLive={state:"requested",ver:APP_VER}; relPaint(); toast("⏳ מפרסם את "+APP_VER+" לכולם…");
 };
 setTimeout(relPaint,1500);
 

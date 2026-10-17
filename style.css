@@ -2152,6 +2152,8 @@ html.lite #viewDash .dsh-title{display:none}
 .zoom-seg{width:max-content;max-width:100%;margin-top:6px}
 .zoom-seg button{padding:6px 12px}
 .ver.beta{background:#F59E0B;border-color:#F59E0B;color:#fff}
+.ver.beta.rel{cursor:pointer}
+.ver.beta.rel:hover{background:#D97706;border-color:#D97706}
 
 /* "שלח בוואטסאפ" with the WhatsApp mark */
 .tk-more .btn.wa{display:inline-flex;align-items:center;gap:6px;color:#128C4A;border-color:#25D366}
