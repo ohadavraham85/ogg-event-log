@@ -1650,7 +1650,7 @@ $("#expJson").onclick=()=>{ download("יומן-אירועים-אוג.json",JSON.
    Team mode: only admins, and only after the first full sync from the server (so the backup is complete).
    The PDF is drawn from an off-screen A4 layout with html2canvas (vendor/, loaded on demand) and packed
    into a PDF by pdfFromJpegs() — no other library. */
-const K_WEEK="ogg-weekly-done", K_WEEK_TO="ogg-weekly-to";
+const K_WEEK="ogg-weekly-done", K_WEEK_TO="ogg-weekly-to", K_WEEK_SNZ="ogg-weekly-snooze";
 let wkState=null;
 function weekStart(d){ const x=new Date(d); x.setHours(0,0,0,0); x.setDate(x.getDate()-x.getDay()); return x.getTime(); }
 function weekDone(){ try{ return +localStorage.getItem(K_WEEK)||0; }catch(e){ return 0; } }
@@ -1800,7 +1800,7 @@ function openWeekly(manual){
   $("#wkFrom").value=ymd(f); $("#wkTo").value=ymd(t);
   $("#wkBkShare").hidden=!canShareFile(new File(["{}"],"x.json",{type:"application/json"}));
   try{ $("#wkMailTo").value=localStorage.getItem(K_WEEK_TO)||""; }catch(e){}
-  $("#wkIntro").hidden=!!manual; $("#wkClose").hidden=!manual;
+  $("#wkIntro").hidden=!!manual; $("#wkClose").hidden=!manual; $("#wkSnz").hidden=!!manual;
   wkPaint(); d.showModal(); wkPaintSum();
 }
 function wkPaint(){
@@ -1852,6 +1852,14 @@ $("#wkDone").onclick=()=>{
   wkState.closing=true; $("#dlgWeek").close(); wkLast(); toast("הסיכום והגיבוי השבועיים בוצעו");
 };
 $("#wkClose").onclick=()=>{ wkState.closing=true; $("#dlgWeek").close(); };
+// ⏰ snooze: close the due window now, it comes back at the time picked (on this device)
+document.querySelectorAll("#wkSnz [data-snz]").forEach(b=>b.onclick=()=>{
+  const v=b.dataset.snz, m=new Date(Date.now()+864e5); m.setHours(8,0,0,0);
+  const at = v==="m" ? m.getTime() : Date.now()+(+v)*3600e3;
+  try{ localStorage.setItem(K_WEEK_SNZ,String(at)); }catch(e){}
+  wkState.closing=true; $("#dlgWeek").close();
+  toast("⏰ אזכיר "+(v==="m" ? "מחר ב-08:00" : v==="1" ? "בעוד שעה" : "בעוד 3 שעות"));
+});
 $("#dlgWeek").addEventListener("cancel",e=>{ if(!wkState.manual) e.preventDefault(); });
 $("#dlgWeek").addEventListener("close",()=>{            // Escape pressed twice etc.: a due window comes straight back
   if(wkState && !wkState.closing && !wkState.manual) setTimeout(()=>$("#dlgWeek").showModal(),0);
@@ -1871,6 +1879,7 @@ function weeklyCheck(){ if(TV) return;
     if(!window.CLOUD_READY || role!=="admin") return;
   }
   if(weekDone()>=weekStart(new Date())) return;
+  try{ if(+localStorage.getItem(K_WEEK_SNZ)>Date.now()) return; }catch(e){}
   openWeekly(false);
 }
 window.weeklyCheck=weeklyCheck;
@@ -2061,7 +2070,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.17", APP_DATE="17/10/2026";
+const APP_VER="3.18", APP_DATE="18/10/2026";
 $("#verChip").textContent="v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){

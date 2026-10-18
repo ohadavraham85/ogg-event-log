@@ -2174,3 +2174,8 @@ html.lite #viewDash .dsh-title{display:none}
 .rem-at{display:flex;gap:8px;align-items:center;margin-bottom:12px}
 .rem-at input{flex:1;min-width:0;height:38px;box-sizing:border-box;font:inherit;border:1px solid var(--edge);border-radius:9px;padding:0 8px;background:var(--panel-2);color:var(--ink)}
 #remOff[hidden]{display:none}
+
+/* weekly window: ⏰ snooze row */
+.wk-snz{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:10px;font-size:13px;color:var(--ink-2)}
+.wk-snz[hidden]{display:none}
+.wk-snz .btn{padding:6px 10px;font-size:13px;min-height:0}
