@@ -2,7 +2,7 @@
 const $ = s => document.querySelector(s);
 /* office screen ("מסך משרד"): ?tv=1 in the address, or signed in as a "צופה" — the app shows only the big rotating screen */
 var TV = /[?&]tv=1\b/.test(location.search);
-var BETA = /\/beta\//.test(location.pathname);   // the test copy (…/beta/): marked in the header, no push, its own cache
+var BETA = /\/beta\//.test(location.pathname);   // the test copy (…/beta/): marked in the header, its own cache
 
 /* ================= seed lists ================= */
 const SEED = {
@@ -24,6 +24,16 @@ const HUE = {"תקלה":"fault","גלישות חרום":"flood","הפסקות ח
   "אחזקה":"maint","אחזקה חודשית":"maint","אחזקה שנתית":"maint","אחזקה מונעת":"maint",
   "אחזקת שבר":"fault","אחזקה מתוכננת":"maint","אחזקה יומית":"maint","אחזקה שבועית":"maint",
   "ביקור":"visit","סיור בטיחות חודשי":"visit","תהליך":"visit"};
+/* task categories: three anchors that are always there (they can't be taken out of the list) and each has its own colour;
+   other categories can be added and taken out (✕). Events keep calling the same list "סוג". */
+const TK_CATS=["אחזקות שבר","אחזקות יזומות","אחזקות מתוכננות"];
+Object.assign(HUE,{"אחזקות שבר":"fault","אחזקות יזומות":"power","אחזקות מתוכננות":"visit"});
+function tkCats(){ return TK_CATS.concat(byUse("type").filter(v=>!TK_CATS.includes(v))); }
+// equipment tags: every piece of equipment gets its own colour, always the same one (a hue from its name)
+// fixed vivid colours by the kind of equipment in the name (generic words): high voltage red, generators yellow, low voltage green, switchboards orange
+function eqKind(q){ q=String(q); return /מתח\s*גבוה/.test(q) ? "hv" : /גנרטור/.test(q) ? "gen" : /מתח\s*נמוך/.test(q) ? "lv" : /לוח(ות)?\s*חשמל/.test(q) ? "pnl" : ""; }
+function eqPaint(el,q){ const k=eqKind(q); if(k) el.classList.add("eqv","eqv-"+k); else el.style.setProperty("--eqh",eqHue(q)); }
+function eqHue(q){ let h=0; for(const ch of String(q)) h=(h*31+ch.codePointAt(0))>>>0; return Math.round((h%997)*137.508)%360; }
 function hueOf(t){ return HUE[t] || (/^אחזק/.test(t||"") ? "maint" : "gen"); }
 /* event types in one family stay together in every list ("אחזקה", "אחזקה חודשית", "אחזקת שבר"…):
    families by their first word (אחזקה/אחזקת = the same), each where its most used member is,
@@ -1463,7 +1473,7 @@ if(navigator.serviceWorker) navigator.serviceWorker.addEventListener("message",e
 function showTaskSoon(tid){
   if(!tid) return;
   const sp=$("#splash"); if(sp && !sp.hidden && window.splashEnter && !$("#spEnter").hidden) window.splashEnter();
-  let n=0; const go=()=>{ if(tasks.some(x=>x.id===tid) || ++n>30) goTask(tid); else setTimeout(go,500); };
+  let n=0; const go=()=>{ if(tid.startsWith("p:") || tasks.some(x=>x.id===tid) || ++n>30) goTask(tid); else setTimeout(go,500); };
   setTimeout(go,0);
 }
 
@@ -1650,7 +1660,7 @@ $("#expJson").onclick=()=>{ download("יומן-אירועים-אוג.json",JSON.
    Team mode: only admins, and only after the first full sync from the server (so the backup is complete).
    The PDF is drawn from an off-screen A4 layout with html2canvas (vendor/, loaded on demand) and packed
    into a PDF by pdfFromJpegs() — no other library. */
-const K_WEEK="ogg-weekly-done", K_WEEK_TO="ogg-weekly-to";
+const K_WEEK="ogg-weekly-done", K_WEEK_TO="ogg-weekly-to", K_WEEK_SNZ="ogg-weekly-snooze";
 let wkState=null;
 function weekStart(d){ const x=new Date(d); x.setHours(0,0,0,0); x.setDate(x.getDate()-x.getDay()); return x.getTime(); }
 function weekDone(){ try{ return +localStorage.getItem(K_WEEK)||0; }catch(e){ return 0; } }
@@ -1800,7 +1810,7 @@ function openWeekly(manual){
   $("#wkFrom").value=ymd(f); $("#wkTo").value=ymd(t);
   $("#wkBkShare").hidden=!canShareFile(new File(["{}"],"x.json",{type:"application/json"}));
   try{ $("#wkMailTo").value=localStorage.getItem(K_WEEK_TO)||""; }catch(e){}
-  $("#wkIntro").hidden=!!manual; $("#wkClose").hidden=!manual;
+  $("#wkIntro").hidden=!!manual; $("#wkClose").hidden=!manual; $("#wkSnz").hidden=!!manual;
   wkPaint(); d.showModal(); wkPaintSum();
 }
 function wkPaint(){
@@ -1852,6 +1862,14 @@ $("#wkDone").onclick=()=>{
   wkState.closing=true; $("#dlgWeek").close(); wkLast(); toast("הסיכום והגיבוי השבועיים בוצעו");
 };
 $("#wkClose").onclick=()=>{ wkState.closing=true; $("#dlgWeek").close(); };
+// ⏰ snooze: close the due window now, it comes back at the time picked (on this device)
+document.querySelectorAll("#wkSnz [data-snz]").forEach(b=>b.onclick=()=>{
+  const v=b.dataset.snz, m=new Date(Date.now()+864e5); m.setHours(8,0,0,0);
+  const at = v==="m" ? m.getTime() : Date.now()+(+v)*3600e3;
+  try{ localStorage.setItem(K_WEEK_SNZ,String(at)); }catch(e){}
+  wkState.closing=true; $("#dlgWeek").close();
+  toast("⏰ אזכיר "+(v==="m" ? "מחר ב-08:00" : v==="1" ? "בעוד שעה" : "בעוד 3 שעות"));
+});
 $("#dlgWeek").addEventListener("cancel",e=>{ if(!wkState.manual) e.preventDefault(); });
 $("#dlgWeek").addEventListener("close",()=>{            // Escape pressed twice etc.: a due window comes straight back
   if(wkState && !wkState.closing && !wkState.manual) setTimeout(()=>$("#dlgWeek").showModal(),0);
@@ -1871,6 +1889,7 @@ function weeklyCheck(){ if(TV) return;
     if(!window.CLOUD_READY || role!=="admin") return;
   }
   if(weekDone()>=weekStart(new Date())) return;
+  try{ if(+localStorage.getItem(K_WEEK_SNZ)>Date.now()) return; }catch(e){}
   openWeekly(false);
 }
 window.weeklyCheck=weeklyCheck;
@@ -2061,7 +2080,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.11", APP_DATE="15/10/2026";
+const APP_VER="3.27", APP_DATE="20/10/2026";
 $("#verChip").textContent="v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2230,12 +2249,55 @@ const tkOpen=t=>t.status!=="הושלמה";
 const tkStat=t=>t.status==="בטיפול" ? "בטיפול" : t.status==="בהמתנה" || t.status==="HOLD" ? "בהמתנה" : "פתוחה";   // an open task: פתוחה / בטיפול / בהמתנה (v2.53 wrote "HOLD")
 /* order of the open tasks: newest first (default), by due date, or by priority — picked above the list, kept on the device */
 let tkSort="new"; try{ tkSort=localStorage.getItem("ogg-tk-sort")||"new"; }catch(e){}
+/* "רשימה" on a wide screen: sort by a column (its heading) */
+const TK_COLS=[["title","משימה"],["eq","ציוד"],["who","שיוך"],["dept","מחלקה"],["prio","עדיפות"],["type","קטגוריה"],["stat","סטטוס"],["extra","נוספים"],["due","תאריכים"],["ppl","אחראי · מיקום"]];
+let tkCol=null; try{ tkCol=JSON.parse(localStorage.getItem("ogg-tk-col")||"null"); }catch(e){}
+/* column widths in "רשימה": drag the edge of a heading; kept on this device. A narrower column leaves more room to the title. */
+const TK_COLW_DEF={title:"minmax(130px,2fr)",eq:"128px",who:"68px",dept:"96px",prio:"68px",type:"108px",stat:"64px",extra:"minmax(96px,1fr)",due:"118px",ppl:"minmax(60px,1fr)"};
+let tkResizeAt=0, tkColW={}; try{ tkColW=JSON.parse(localStorage.getItem("ogg-tk-colw")||"{}")||{}; }catch(e){}
+function tkColWApply(){ const v=TK_COLS.map(([k])=>tkColW[k] ? (k==="title" ? "minmax("+tkColW[k]+"px,1fr)" : tkColW[k]+"px") : TK_COLW_DEF[k]).join(" ");
+  const el=$("#viewTasks"); if(Object.keys(tkColW).length) el.style.setProperty("--tkcols",v); else el.style.removeProperty("--tkcols"); }
+function tkColWSave(){ try{ localStorage.setItem("ogg-tk-colw",JSON.stringify(tkColW)); }catch(e){} tkColWApply(); }
+function tkColDrag(ev,k,cell){
+  ev.preventDefault(); ev.stopPropagation();
+  const x0=ev.clientX, w0=cell.getBoundingClientRect().width, rtl=getComputedStyle(cell).direction==="rtl";
+  document.body.classList.add("tk-resizing");
+  const mv=e=>{ const d=(rtl ? x0-e.clientX : e.clientX-x0); tkColW[k]=Math.round(Math.max(36,Math.min(600,w0+d))); tkColWApply(); };
+  const up=()=>{ removeEventListener("pointermove",mv); removeEventListener("pointerup",up); removeEventListener("pointercancel",up);
+    document.body.classList.remove("tk-resizing"); tkColWSave(); tkResizeAt=Date.now(); };   // the release isn't a tap on the heading
+  addEventListener("pointermove",mv); addEventListener("pointerup",up); addEventListener("pointercancel",up);
+}
+const tkColOn=()=>!!tkCol && tkLV==="rows" && matchMedia("(min-width:900px)").matches;
+function tkColVal(t,k){   // a number or a text; "" = nothing there (always last)
+  if(k==="title") return t.title||"";
+  if(k==="eq") return (t.eq||[])[0]||"";
+  if(k==="who") return t.priv ? 3 : isMine(t) ? 0 : openedByMe(t) ? 1 : 2;
+  if(k==="dept") return (t.depts||[])[0]||"";
+  if(k==="prio") return PRIOS.indexOf(prioOf(t));
+  if(k==="type"){ const i=TK_CATS.indexOf(t.type||""); return !t.type ? "" : i>=0 ? " "+i : t.type; }   // the anchors first, in their order
+  if(k==="stat") return !tkOpen(t) ? 9 : ["פתוחה","בטיפול","בהמתנה"].indexOf(tkStat(t));
+  if(k==="extra"){ const ci=(t.check||[]).filter(x=>x && !x.del); return ci.length ? ci.filter(x=>x.done).length/ci.length : ""; }
+  if(k==="due") return t.due||"";
+  if(k==="ppl") return (t.ppl||[])[0]||"";
+  return "";
+}
+function tkColCmp(){ const {k,d}=tkCol;
+  return (a,b)=>{ const x=tkColVal(a,k), y=tkColVal(b,k);
+    if(x==="" || y==="") return x===y ? 0 : x==="" ? 1 : -1;
+    const c = typeof x==="number" && typeof y==="number" ? x-y : String(x).localeCompare(String(y),"he");
+    return d*c || tkSortKey(a).localeCompare(tkSortKey(b)); }; }
 function tkCmp(){
   const due=t=>t.due||"9999-99-99", cr=t=>String(t.created||"");
   if(tkSort==="due") return (a,b)=>due(a).localeCompare(due(b)) || PRIOS.indexOf(prioOf(a))-PRIOS.indexOf(prioOf(b));
   if(tkSort==="prio") return (a,b)=>tkSortKey(a).localeCompare(tkSortKey(b));
+  if(tkSort==="chg") return (a,b)=>tkLastChg(b)-tkLastChg(a);
+  if(tkSort==="cat"){ const ci=t=>{ const i=TK_CATS.indexOf(t.type||""); return i>=0 ? i : t.type ? 50 : 99; };   // the anchors in order, then the rest A–Z, then none
+    return (a,b)=>ci(a)-ci(b) || String(a.type||"").localeCompare(String(b.type||""),"he") || tkSortKey(a).localeCompare(tkSortKey(b)); }
   return (a,b)=>cr(b).localeCompare(cr(a));
 }
+// the last time anyone changed the task: its last save, its last log line, or when it was opened
+function tkLastChg(t){ const ms=v=>{ const x=Date.parse(String(v||"")); return isNaN(x)?0:x; }, L=t.log||[];
+  return Math.max(ms(t.upd), ms(t.created), L.length ? ms(L[L.length-1] && L[L.length-1].at) : 0); }
 function tkSortKey(t){ return PRIOS.indexOf(prioOf(t))+(t.due||"9999-99-99")+(t.created||""); }
 /* "המשימות שלי": tasks assigned to me by name, or to my department (from "תפקיד ומחלקה").
    Team log: me = the signed-in member's team name. This device only: the person picked in "אני:" (saved here). */
@@ -2423,10 +2485,10 @@ $("#inbAll").onclick=()=>{
   else { all.forEach(x=>{ if(!x.arch){ x.arch=true; x.read=true; } }); inboxPut(all); openInbox(); }
 };
 function goTask(tid){
-  const t=tasks.find(x=>x.id===tid); if(!t){ toast("המשימה כבר לא קיימת"); return; }
-  if(!window.tkVisible(t)){ toast("המשימה כבר לא משויכת אליך או למחלקה שלך"); return; }
+  const pv=tid.startsWith("p:"), t=pv ? privTasks().find(x=>x.id===tid) : tasks.find(x=>x.id===tid); if(!t){ toast("המשימה כבר לא קיימת"); return; }
+  if(!pv && !window.tkVisible(t)){ toast("המשימה כבר לא משויכת אליך או למחלקה שלך"); return; }
   Object.keys(tkF).forEach(k=>tkF[k]= k==="late" ? false : "");
-  tkView = !tkOpen(t) ? "done" : isMine(t) ? "mine" : "open"; tkOpenLogs.add(t.id); tkRowOpen.add(t.id);   // "רשימה": the line opens in full
+  tkView = pv ? "priv" : !tkOpen(t) ? "done" : isMine(t) ? "mine" : "open"; tkOpenLogs.add(t.id); tkRowOpen.add(t.id);   // "רשימה": the line opens in full
   closeTaskForm(); $("#tfPanel").hidden=true; $("#tfToggle").setAttribute("aria-expanded","false");
   paintTkSeg(); renderTasks(); show("Tasks");
   const c=document.querySelector('#tkList .tk[data-id="'+tid+'"]');
@@ -2463,8 +2525,9 @@ function colorSelect(el, hue){                            // a chosen value gets
   el.style.background = hue ? "var(--c-"+hue+"-bg)" : ""; el.style.color = hue ? "var(--c-"+hue+")" : "";
   el.style.borderColor = hue ? "var(--c-"+hue+")" : ""; el.style.fontWeight = hue ? "800" : "";
 }
-function paintFormColors(){ colorSelect($("#tkPrio"), PRIO_HUE[$("#tkPrio").value]); colorSelect($("#tkType"), $("#tkType").value ? hueOf($("#tkType").value) : ""); }
-// (tkInDept: a task belongs to a department if it was assigned to it, or to someone in it — defined with the calendar)
+function paintFormColors(){ colorSelect($("#tkPrio"), PRIO_HUE[$("#tkPrio").value]); const ty=$("#tkType"), tb=ty.nextElementSibling;
+  colorSelect(ty, ty.value ? hueOf(ty.value) : ""); if(tb && tb.classList.contains("ss-btn")) colorSelect(tb, ty.value ? hueOf(ty.value) : ""); }
+// (tkInDept: a task belongs to the department it was assigned to; a task with no department, to its people's — defined with the calendar)
 // managers: a row of departments above the list; it opens on the manager's own department
 let tkDeptInit=false;
 // a department's icon by the kind of work in its name (generic words only): electricity ⚡, maintenance 🔧, operations 💧; others 🏢
@@ -2485,9 +2548,13 @@ function renderTkFilters(){
   fillSelect($("#tfDept"), allDepts(), tkF.dept, "כל המחלקות"); $("#tfDept").hidden=!allDepts().length;
   $("#tfDept").classList.toggle("on",!!tkF.dept);
   fillSelect($("#tfLoc"), byUse("loc"), tkF.loc, "כל המיקומים");
-  fillSelect($("#tfType"), byUse("type"), tkF.type, "כל הסוגים");
+  { const cs=tkCatPicked();   // several categories can be picked (kept as one text, one per line)
+    fillSelect($("#tfType"), tkCats(), cs.length===1 ? cs[0] : "", "כל הקטגוריות");
+    if(cs.length>1){ const o=mk("option",null,cs.length+" קטגוריות"); o.value="__multi"; $("#tfType").appendChild(o); $("#tfType").value="__multi"; }
+    const b=$("#tkCatSel"); b.textContent = !cs.length ? "הכל" : cs.length<=2 ? cs.join(", ") : cs.length+" קטגוריות"; b.title=cs.join(", ");
+    b.classList.toggle("on",!!cs.length); colorSelect(b, cs.length===1 ? hueOf(cs[0]) : ""); }
   fillSelect($("#tfPrio"), PRIOS, tkF.prio, "כל העדיפויות");
-  colorSelect($("#tfPrio"), PRIO_HUE[tkF.prio]); colorSelect($("#tfType"), tkF.type ? hueOf(tkF.type) : "");
+  colorSelect($("#tfPrio"), PRIO_HUE[tkF.prio]); colorSelect($("#tfType"), tkCatPicked().length===1 ? hueOf(tkF.type) : "");
   ["#tfPpl","#tfLoc","#tfType"].forEach(id=>$(id).classList.toggle("on",!!$(id).value));
   // like the events list: search + "סינון" (a panel), the badge counts the filters that are on
   paintDeptSeg(); $("#tfDept").hidden = $("#tfDept").hidden || !$("#tkDeptSeg").hidden;   // managers pick the department in the row above
@@ -2499,13 +2566,27 @@ function renderTkFilters(){
   const dl=$("#dlPpl"); dl.textContent=""; (lists.ppl||[]).forEach(v=>{ const x=document.createElement("option"); x.value=v; dl.appendChild(x); });
 }
 $("#tkSort").value=tkSort;
-$("#tkSort").onchange=()=>{ tkSort=$("#tkSort").value; try{ localStorage.setItem("ogg-tk-sort",tkSort); }catch(e){} renderTasks(); };
+const tkCatPicked=()=>tkF.type ? String(tkF.type).split("\n").filter(Boolean) : [];
+$("#tkCatSel").onclick=ev=>{ ev.stopPropagation(); const old=$(".cat-pop"); if(old){ old.remove(); $("#tkCatSel").setAttribute("aria-expanded","false"); return; }
+  const btn=$("#tkCatSel"), p=mk("div","cat-pop"); p.setAttribute("role","group"); p.setAttribute("aria-label","קטגוריות");
+  const paint=()=>{ p.textContent=""; const cs=tkCatPicked();
+    const all=mk("button","cat-all"+(cs.length?"":" on"),"הכל"); all.type="button"; all.onclick=()=>{ tkF.type=""; renderTasks(); paint(); }; p.appendChild(all);
+    tkCats().forEach(v=>{ const l=mk("label","cat-it"), i=mk("input"); i.type="checkbox"; i.checked=cs.includes(v);
+      const sw=mk("span","cat-sw"); sw.style.background="var(--c-"+hueOf(v)+")";
+      i.onchange=()=>{ const n=i.checked ? cs.concat(v) : cs.filter(x=>x!==v); tkF.type=n.join("\n"); renderTasks(); paint(); };
+      l.append(i,sw,mk("span",null,v)); p.appendChild(l); }); };
+  paint(); document.body.appendChild(p); btn.setAttribute("aria-expanded","true");
+  const r=btn.getBoundingClientRect(), w=Math.min(260, innerWidth-16);
+  p.style.width=w+"px"; p.style.top=(r.bottom+4)+"px"; p.style.left=Math.max(8,Math.min(r.right-w,innerWidth-w-8))+"px";
+  const out=e=>{ if(!p.contains(e.target) && e.target!==btn){ p.remove(); btn.setAttribute("aria-expanded","false"); removeEventListener("pointerdown",out,true); removeEventListener("scroll",out,true); } };
+  addEventListener("pointerdown",out,true); addEventListener("scroll",out,true); };
+$("#tkSort").onchange=()=>{ tkSort=$("#tkSort").value; tkCol=null; try{ localStorage.removeItem("ogg-tk-col"); }catch(e){} try{ localStorage.setItem("ogg-tk-sort",tkSort); }catch(e){} renderTasks(); };
 $("#tfClear").onclick=()=>{ Object.keys(tkF).forEach(k=>tkF[k]= k==="late" ? false : ""); renderTasks(); };
 $("#tfToggle").onclick=()=>{ const p=$("#tfPanel"), open=p.hidden; p.hidden=!open; $("#tfToggle").setAttribute("aria-expanded",String(open)); };
 $("#tfLate").onclick=()=>{ tkF.late=!tkF.late; renderTasks(); };
 $("#tfRep").onclick=()=>{ tkF.rep=!tkF.rep; renderTasks(); };      // only the recurring (scheduled) tasks
 $("#tq").oninput=()=>{ tkF.q=$("#tq").value; renderTasks(); };
-["ppl","loc","type","prio","dept"].forEach(k=>{ const el=$("#tf"+k[0].toUpperCase()+k.slice(1)); el.onchange=()=>{ tkF[k]=el.value; renderTasks(); }; });
+["ppl","loc","type","prio","dept"].forEach(k=>{ const el=$("#tf"+k[0].toUpperCase()+k.slice(1)); el.onchange=()=>{ if(el.value==="__multi") return; tkF[k]=el.value; renderTasks(); }; });
 /* update log: every task keeps a running log — time, who reported, what happened.
    Status changes are logged automatically; when the task is finished the log goes into the event ("המשך טיפול"). */
 const K_REPORTER="ogg-reporter";
@@ -2526,6 +2607,20 @@ const tkDraft={}; let tkFocus=null;          // unsent text in a task's boxes, a
 /* checklist inside a task: tick items off, add items in place (Enter). Ticking writes a line in the
    update log (so the team gets it as a message). Removing an item is for a manager, with confirmation;
    it stays as a hidden tombstone so a device that still has it can't bring it back. */
+/* a checklist item that turns out to be a job of its own becomes a task: same type, priority, people, departments,
+   place, equipment and due date as the task it came from; the item stays, marked "→ משימה #", and both logs say so */
+function ckToTask(t, it){
+  if(!confirm("להפוך את הפריט למשימה בפני עצמה?\n"+it.text+"\n\nהמשימה החדשה תקבל את הקטגוריה, העדיפות, האחראים, המיקום, הציוד והיעד של המשימה הזו.")) return;
+  const now=new Date().toISOString();
+  const n={id:newId(), status:"פתוחה", created:now, upd:now, log:[], openedBy:reporter()||"", openedMail:(window.cloudMe && window.cloudMe())||"",
+    title:it.text, desc:"", type:t.type||"", prio:prioOf(t), urgent:prioOf(t)==="דחופה", ppl:(t.ppl||[]).slice(), depts:(t.depts||[]).slice(),
+    loc:(t.loc||[]).slice(), eq:(t.eq||[]).slice(), start:"", due:t.due||"", parent:t.id};
+  tkLog(n, "נפתחה מפריט ברשימת הבדיקה של משימה"+(t.no?" #"+t.no:"")+": "+(t.title||""), "", true);
+  tasks.push(n); ensureNos();
+  it.moved=n.id; it.done=true; it.by=reporter()||""; it.at=nowLocal();
+  tkLog(t, "פריט הפך למשימה"+(n.no?" #"+n.no:"")+": "+it.text, "", true); t.upd=now;
+  saveTasks(); toast("נפתחה משימה"+(n.no?" #"+n.no:""),{label:"הצג",fn:()=>goTask(n.id)});
+}
 function renderCheck(t, c){
   const items=(t.check||[]).filter(x=>x && !x.del), open=tkOpen(t);
   if(!items.length && !open) return;
@@ -2541,10 +2636,21 @@ function renderCheck(t, c){
     b.onclick=()=>{ it.done=!it.done; it.by=reporter()||""; it.at=nowLocal();
       tkLog(t, (it.done?"✓ בוצע: ":"סימון בוטל: ")+it.text, "", true); save(); };
     const x=mk("span","ck-t",it.text); x.onclick=()=>{ if(open) b.click(); };
-    r.append(b,x);
-    if(it.done && it.by) r.appendChild(mk("span","ck-by",it.by));
+    const ctl=mk("span","ck-ctl"); r.append(b,x,ctl);   // the item's controls — on a narrow phone they wrap under the text
+    if(it.moved){ const tt=tasks.find(z=>z.id===it.moved), g=mk("button","ck-moved","→ משימה"+(tt && tt.no?" #"+tt.no:"")); g.type="button";
+      g.title="הפריט הפך למשימה בפני עצמה"; g.onclick=()=>goTask(it.moved); ctl.appendChild(g); }
+    else if(it.done && it.by) ctl.appendChild(mk("span","ck-by",it.by));
+    if(open && !isViewer()){   // move up / down, and "make it a task of its own"
+      const i=items.indexOf(it), mv=(dir)=>{ const o=items[i+dir]; if(!o) return; const a=t.check, ia=a.indexOf(it), ib=a.indexOf(o); a[ia]=o; a[ib]=it; save(); };
+      const up=mk("button","ck-mv","▲"), dn=mk("button","ck-mv","▼"); up.type=dn.type="button";
+      up.setAttribute("aria-label","הזז למעלה"); dn.setAttribute("aria-label","הזז למטה"); up.title="למעלה"; dn.title="למטה";
+      up.disabled=i===0; dn.disabled=i===items.length-1; up.onclick=()=>mv(-1); dn.onclick=()=>mv(1);
+      ctl.append(up,dn);
+      if(!it.moved && !it.done){ const pr=mk("button","ck-pro","⤴"); pr.type="button"; pr.title="הפוך למשימה בפני עצמה"; pr.setAttribute("aria-label","הפוך למשימה בפני עצמה");
+        pr.onclick=()=>ckToTask(t, it); ctl.appendChild(pr); }
+    }
     if(open && isManager()){ const d=mk("button","ck-del","✕"); d.type="button"; d.setAttribute("aria-label","הסר פריט");
-      d.onclick=async()=>{ if(!await confirmDel("להסיר פריט מרשימת הבדיקה?", it.text)) return; it.del=true; save(); }; r.appendChild(d); }
+      d.onclick=async()=>{ if(!await confirmDel("להסיר פריט מרשימת הבדיקה?", it.text)) return; it.del=true; save(); }; ctl.appendChild(d); }
     box.appendChild(r);
   });
   if(open){
@@ -2733,7 +2839,7 @@ document.querySelectorAll("#tkListView button").forEach(b=>b.onclick=()=>{ tkLV=
 paintTkLV();
 function exportTasksCsv(rows){
   rows = rows && rows.length ? rows : tasks;
-  const head=["מס'","קבצים","כותרת","סטטוס","עדיפות","סוג","אחראי","משויכים","מחלקות","מיקום","ציוד","תאריך התחלה","תאריך יעד","מחזוריות","רשימת בדיקה","תיאור","עדכונים","נפתחה","הושלמה","נסגרה על ידי","מה בוצע"];
+  const head=["מס'","קבצים","כותרת","סטטוס","עדיפות","קטגוריה","אחראי","משויכים","מחלקות","מיקום","ציוד","תאריך התחלה","תאריך יעד","מחזוריות","רשימת בדיקה","תיאור","עדכונים","נפתחה","הושלמה","נסגרה על ידי","מה בוצע"];
   const esc=csvEsc;
   const body=rows.map(t=>{ const ck=(t.check||[]).filter(x=>x&&!x.del);
     return [t.no||"", (t.files||[]).filter(x=>x&&!x.del).map(x=>x.name).join("; "), t.title||"", t.status||"", prioOf(t), t.type||"", (t.ppl||[])[0]||"", (t.ppl||[]).slice(1).join("; "), (t.depts||[]).join("; "),
@@ -2756,7 +2862,7 @@ function renderTasks(){
   const box=$("#tkList"); if(!box) return; box.textContent="";
   const today=ymd(new Date());
   const pass=t=>(!tkF.ppl || (t.ppl||[]).includes(tkF.ppl)) && (!tkF.loc || (t.loc||[]).includes(tkF.loc))
-             && (!tkF.type || t.type===tkF.type) && (!tkF.prio || prioOf(t)===tkF.prio)
+             && (!tkF.type || tkCatPicked().includes(t.type)) && (!tkF.prio || prioOf(t)===tkF.prio)
              && (!tkF.late || (t.due && t.due<today)) && (!tkF.dept || tkInDept(t,tkF.dept)) && (!tkF.rep || !!t.rep)
              && (!tkF.q || tkText(t).includes(tkF.q.trim().toLowerCase()));
   const rows = tkView==="priv" ? [] : (tkView!=="done"
@@ -2773,12 +2879,19 @@ function renderTasks(){
       rows.push(...pv); shown.push(...pv.filter(pPass)); shown.sort(cmp);
       $("#tkResCount").textContent = shown.length===rows.length ? nf(rows.length)+" משימות" : nf(shown.length)+" מתוך "+nf(rows.length); }
   }
+  if(tkColOn()) shown.sort(tkColCmp());   // "רשימה": a column heading was tapped — that order wins
   rows.length=0; rows.push(...shown); tkLastRows=shown.filter(t=>!t.priv);
   if(!rows.length){ box.appendChild(mk("div","tk-empty", tkView!=="priv" && Object.values(tkF).some(Boolean) ? "אין משימות שמתאימות לסינון." :
     tkView==="mine" ? (myName() ? "אין משימות פתוחות שלך או של המחלקה שלך." : (window.cloudMe ? "המנהל עדיין לא הגדיר לך שם בצוות." : "בחר למעלה \"אני:\" כדי לראות את המשימות שלך.")) : tkView==="opened" ? "אין משימות פתוחות שפתחת." : tkView==="priv" ? "אין לך משימות אישיות — \"משימה חדשה\" → אישית 🔒." : tkView==="open" ? "אין משימות פתוחות." : "עדיין לא הושלמו משימות.")); return; }
   // "רשימה" on a wide screen: a header row naming the columns (hidden on cards / phones by CSS)
-  { const h=mk("div","tk-head"); h.setAttribute("aria-hidden","true");
-    ["משימה","ציוד","שיוך","מחלקה","עדיפות","סוג","סטטוס","נוספים","תאריכים","אחראי · מיקום"].forEach(x=>h.appendChild(mk("span",null,x))); box.appendChild(h); }
+  { const h=mk("div","tk-head");   // a tap on a heading sorts by that column: once up, again down, a third time back to the usual order
+    TK_COLS.forEach(([k,x])=>{ const on=tkCol && tkCol.k===k, b=mk("button","tk-th"+(on?" on":""),x+(on?(tkCol.d>0?" ▲":" ▼"):"")); b.type="button";
+      b.title="מיון לפי "+x; b.setAttribute("aria-sort", on ? (tkCol.d>0?"ascending":"descending") : "none");
+      b.onclick=()=>{ if(Date.now()-tkResizeAt<400) return; tkCol = !on ? {k,d:1} : tkCol.d>0 ? {k,d:-1} : null; try{ localStorage.setItem("ogg-tk-col", JSON.stringify(tkCol)); }catch(e){} renderTasks(); };
+      if(k!=="ppl"){ const rs=mk("span","tk-rs"); rs.title="גרירה — רוחב העמודה · לחיצה כפולה — חזרה לרוחב הרגיל"; rs.setAttribute("aria-hidden","true");
+        rs.onclick=ev=>ev.stopPropagation(); rs.ondblclick=ev=>{ ev.stopPropagation(); delete tkColW[k]; tkColWSave(); };
+        rs.onpointerdown=ev=>tkColDrag(ev,k,b); b.appendChild(rs); }
+      h.appendChild(b); }); box.appendChild(h); }
   rows.forEach(t=>{
     if(t.priv){ box.appendChild(privCard(t, today)); return; }
     const pr=prioOf(t), ph=PRIO_HUE[pr];
@@ -2787,16 +2900,16 @@ function renderTasks(){
     c.addEventListener("click",ev=>{ if(tkLV!=="rows" || ev.target.closest("button,input,textarea,select,a,label,.tk-log,.tk-check,.tk-files,.qk")) return;
       tkRowOpen.has(t.id) ? tkRowOpen.delete(t.id) : tkRowOpen.add(t.id); c.classList.toggle("x"); }); c.style.borderInlineStartColor = tkOpen(t) && !t.due ? "var(--c-"+ph+")" : "";
     if(tkOpen(t) && t.due) c.classList.add(t.due<today?"tl-late":t.due===today?"tl-today":"tl-future");   // the whole frame in the traffic-light colour of the due date
-    if(tkOpen(t) && pr==="דחופה") c.style.background="color-mix(in srgb,var(--c-fault-bg) 55%,var(--panel))";
+    if(tkOpen(t) && (pr==="גבוהה" || pr==="דחופה")) c.classList.add("tk-blink", pr==="דחופה" ? "hot" : "high");   // high and urgent: the whole task pulses red
     const tx=mk("span","tk-tt",t.title||"(ללא כותרת)");
     { const tt=mk("div","tk-t"); tt.appendChild(tkCircle(t, ()=>tkOpen(t) ? openTaskDone(t.id) : reopenTask(t))); if(t.no) tt.appendChild(mk("span","sn","#"+t.no));
-      (t.eq||[]).forEach(q=>{ const g=mk("span","tk-eqtag","⚙ "+q); g.title="ציוד"; tx.appendChild(g); });   // the equipment, right by the title
-      tt.appendChild(tx); c.appendChild(tt); }   // number and text side by side: a wrapped line starts under the text, not under the number
+      (t.eq||[]).forEach(q=>{ const g=mk("span","tk-eqtag eqc","⚙ "+q); g.title="ציוד"; eqPaint(g,q); tx.appendChild(g); });   // the equipment, right by the title
+      tt.appendChild(tx); if(tkOpen(t) && !isViewer()) tt.appendChild(remBell(t)); c.appendChild(tt); }   // number and text side by side: a wrapped line starts under the text, not under the number
     // tags sit in fixed slots, so in "רשימה" every kind lines up in its own column (in "אריחים" the slots just flow)
     const tags=mk("div","tk-tags"), SL={}; ["eq","who","dept","prio","type","stat","extra","due"].forEach(k=>{ SL[k]=mk("span","sl sl-"+k); tags.appendChild(SL[k]); });
     const tag=(txt,cls,hue,slot)=>{ const x=mk("span","tk-tag"+(cls?" "+cls:""),txt);
       if(hue){ x.style.background="var(--c-"+hue+"-bg)"; x.style.color="var(--c-"+hue+")"; x.style.borderColor="transparent"; } SL[slot||"extra"].appendChild(x); };
-    (t.eq||[]).forEach(q=>tag("⚙ "+q,"eqt",null,"eq"));          // equipment: its own column in "רשימה" (by the title on cards)
+    (t.eq||[]).forEach(q=>{ tag("⚙ "+q,"eqt eqc",null,"eq"); eqPaint(SL.eq.lastChild,q); });   // each piece of equipment its own colour          // equipment: its own column in "רשימה" (by the title on cards)
     if(tkOpen(t)){
       if(tkIsNew(t)){ tag("✨ חדשה","new",null,"who"); if(!$("#viewTasks").hidden) tkShownNew.add(t.id); }
       if(isMine(t)) tag((t.ppl||[]).includes(myName()) ? "שלי" : "המחלקה שלי","me",null,"who");
@@ -2931,15 +3044,16 @@ function openTaskForm(id, copy){
   const pt = id && String(id).startsWith("p:") ? privTasks().find(x=>x.id===id) : null;
   tkEditPriv = pt ? pt.pid : null;
   const t=!pt && id ? tasks.find(x=>x.id===id) : null; tkEdit=t && !copy ? t.id : null;
-  const types=lists.type||[], defType=types.includes("אחזקה") ? "אחזקה" : (types[0]||"");
-  fillSelect($("#tkType"), byUse("type"), t ? (t.type||"") : defType, "— בחר סוג —");
+  const defType="";   // the category is picked each time (required)
+  fillSelect($("#tkType"), tkCats(), t ? (t.type||"") : defType, "— בחר קטגוריה —");
   fillSelect($("#tkPrio"), PRIOS, t ? prioOf(t) : "רגילה");
   fillSelect($("#tkPpl"), pplValues(), "", "— הוסף משתמש —", true);
   paintPplChips(t ? (t.ppl||[]) : (tkView==="mine" && myName() ? [myName()] : []));
   fillSelect($("#tkLoc"), byUse("loc"), t ? (t.loc||[])[0]||"" : "", "— בחר מיקום —", true);
   fillSelect($("#tkEq"), byUse("eq"), t ? (t.eq||[])[0]||"" : "", "— בחר ציוד —", true);
   paintDeptChips(t ? (t.depts||[]) : (tkView==="mine" && myDept() && !myName() ? [myDept()] : []));
-  $("#tkCkWrap").hidden=!!t && !copy; paintFormCk(copy && t ? (t.check||[]).filter(c=>c && !c.del).map(c=>c.text) : []);          // new task: its checklist (an existing one is edited on the task itself)
+  $("#tkCkWrap").hidden=false;   // the checklist: new items on a new task; editing a task shows its items and adds more (a manager can also take one out)
+  paintFormCk(copy && t ? (t.check||[]).filter(c=>c && !c.del).map(c=>c.text) : [], t && !copy ? (t.check||[]).filter(c=>c && !c.del) : []);
   document.querySelectorAll("#tkForm .tk-f.bad").forEach(x=>x.classList.remove("bad"));
   paintFormColors();
   $("#tkFormTitle").textContent = pt ? "עריכת משימה אישית 🔒" : copy && t ? "משימה חדשה — עותק של "+(snOf(t)||"משימה") : t ? "עריכת משימה" : "משימה חדשה";
@@ -2997,10 +3111,17 @@ $("#tkPpl").addEventListener("change",()=>{
   el.value=""; paintPplChips(); el.closest(".tk-f").classList.remove("bad"); $("#tkDepts").closest(".tk-f").classList.remove("bad");
 });
 /* checklist in the new-task form: type an item + Enter; ✕ takes it out (nothing is saved until "שמור משימה") */
-let tkCkSel=[];
-function paintFormCk(sel){
+let tkCkSel=[], tkCkOld=[], tkCkGone=new Set();   // new item texts · the task's items (editing) · items a manager took out in the form
+function paintFormCk(sel, old){
   if(sel) tkCkSel=sel.slice();
+  if(old){ tkCkOld=old.slice(); tkCkGone=new Set(); }
   const box=$("#tkCk"); box.textContent="";
+  tkCkOld.forEach(c=>{ const gone=tkCkGone.has(c.id), r=mk("div","ck"+(c.done?" done":"")+(gone?" gone":""));
+    const o=mk("span","ck-box"+(c.done?" on":"")); if(c.done) o.textContent="✓";
+    r.append(o, mk("span","ck-t",c.text));
+    if(isManager()){ const d=mk("button","ck-del",gone?"↩":"✕"); d.type="button"; d.style.opacity="1"; d.setAttribute("aria-label",gone?"החזר פריט":"הוצא פריט");
+      d.onclick=()=>{ gone ? tkCkGone.delete(c.id) : tkCkGone.add(c.id); paintFormCk(); }; r.appendChild(d); }
+    box.appendChild(r); });
   tkCkSel.forEach((v,i)=>{
     const r=mk("div","ck"), o=mk("span","ck-box"), x=mk("span","ck-t",v), d=mk("button","ck-del","✕");
     d.type="button"; d.setAttribute("aria-label","הוצא פריט"); d.style.opacity="1";
@@ -3058,7 +3179,7 @@ $("#tkSave").onclick=()=>{
   // required: type, priority, assignee (person or department), location, equipment and the title
   // assignment: a person, one or more departments, or both — at least one of them
   // start and due dates are optional (a recurring task without a due date counts its next round from the day it is done)
-  const need=[["#tkType","סוג"],["#tkPrio","עדיפות"],["#tkPpl","אחראי או מחלקה"],["#tkLoc","מיקום"],["#tkEq","ציוד"],["#tkTitle","כותרת המשימה"]];
+  const need=[["#tkType","קטגוריה"],["#tkPrio","עדיפות"],["#tkPpl","אחראי או מחלקה"],["#tkLoc","מיקום"],["#tkEq","ציוד"],["#tkTitle","כותרת המשימה"]];
   const miss=need.filter(([id])=>{ const v=($(id).value||"").trim(); let bad=!v || v==="__other";
     if(id==="#tkPpl") bad=!tkPplSel.length && !tkDeptSel.length;
     $(id).closest(".tk-f").classList.toggle("bad",bad); if(id==="#tkPpl") $("#tkDepts").closest(".tk-f").classList.toggle("bad",bad); return bad; });
@@ -3070,7 +3191,11 @@ $("#tkSave").onclick=()=>{
   const data={title, desc:$("#tkDesc").value.trim(), type:$("#tkType").value||"", prio, urgent:prio==="דחופה",
     ppl:tkPplSel.slice(), loc:one($("#tkLoc").value), eq:one($("#tkEq").value), due:$("#tkDue").value||"", start:$("#tkStart").value||"", depts:tkDeptSel.slice(), rep:readRep(), upd:now};
   const was=tkEdit;
-  if(was){ const t=tasks.find(x=>x.id===was); if(t) Object.assign(t,data); }
+  if(was){ const t=tasks.find(x=>x.id===was); if(t){ Object.assign(t,data);
+      const pend=($("#tkCk input")||{}).value; if(pend && pend.trim() && !tkCkSel.includes(pend.trim())) tkCkSel.push(pend.trim());
+      if(tkCkGone.size) (t.check||[]).forEach(c=>{ if(c && tkCkGone.has(c.id)) c.del=true; });
+      if(tkCkSel.length){ t.check=(Array.isArray(t.check)?t.check:[]).concat(tkCkSel.map(text=>({id:newId(), text, done:false})));
+        tkLog(t, "נוספו לרשימת הבדיקה: "+tkCkSel.join(", "), "", true); } } }
   else { const pend=($("#tkCk input")||{}).value; if(pend && pend.trim() && !tkCkSel.includes(pend.trim())) tkCkSel.push(pend.trim());
     const t=Object.assign({id:newId(), status:"פתוחה", created:now, log:[], openedBy:reporter()||"", openedMail:(window.cloudMe && window.cloudMe())||""}, data);
     if(tkCkSel.length) t.check=tkCkSel.map(text=>({id:newId(), text, done:false}));
@@ -3084,7 +3209,7 @@ $("#tkSave").onclick=()=>{
 };
 /* quick edit: a tag on a task opens a small window that changes only that detail (no need for the full form).
    The change is saved like an edit in the form: the task's "upd" moves on and the team gets the usual message. */
-const QK_LABEL={status:"סטטוס", prio:"עדיפות", type:"סוג", ppl:"אחראי ומשויכים", depts:"מחלקות", loc:"מיקום", eq:"ציוד", start:"תאריך התחלה", due:"תאריך יעד"};
+const QK_LABEL={status:"סטטוס", prio:"עדיפות", type:"קטגוריה", ppl:"אחראי ומשויכים", depts:"מחלקות", loc:"מיקום", eq:"ציוד", start:"תאריך התחלה", due:"תאריך יעד"};
 let qkT=null, qkV={};
 function qkOpen(t, keys){
   qkT=t; qkV={}; const box=$("#qkBody"); box.textContent="";
@@ -3101,7 +3226,7 @@ function qkOpen(t, keys){
     }
     const multi = k==="ppl" || k==="depts";
     const cur = k==="status" ? [tkStat(t)] : k==="prio" ? [prioOf(t)] : k==="type" ? (t.type?[t.type]:[]) : (t[k]||[]).slice();
-    const opts = k==="status" ? ["פתוחה","בטיפול","בהמתנה"] : k==="prio" ? PRIOS : k==="type" ? byUse("type") : k==="ppl" ? pplValues() : k==="depts" ? allDepts() : byUse(k);
+    const opts = k==="status" ? ["פתוחה","בטיפול","בהמתנה"] : k==="prio" ? PRIOS : k==="type" ? tkCats() : k==="ppl" ? pplValues() : k==="depts" ? allDepts() : byUse(k);
     qkV[k]=cur.slice();
     const chips=mk("div","qk-chips"), all=[...new Set(cur.concat(opts))];
     let q=null; if(all.length>8){ q=mk("input","qk-q"); q.type="search"; q.placeholder="חיפוש"+(k==="ppl"||k==="depts"?"":" או ערך חדש"); sec.appendChild(q); }
@@ -3139,7 +3264,7 @@ function qkSave(){
     if("ppl" in v) d.ppl=ppl.slice(); if("depts" in v) d.depts=dp.slice(); }
   if("loc" in v){ if(!v.loc.length){ toast("צריך לבחור מיקום"); return; } d.loc=v.loc.slice(0,1); }
   if("eq" in v){ if(!v.eq.length){ toast("צריך לבחור ציוד"); return; } d.eq=v.eq.slice(0,1); }
-  if("type" in v){ if(!v.type.length){ toast("צריך לבחור סוג"); return; } d.type=v.type[0]; }
+  if("type" in v){ if(!v.type.length){ toast("צריך לבחור קטגוריה"); return; } d.type=v.type[0]; }
   if("prio" in v){ d.prio=v.prio[0]||"רגילה"; d.urgent=d.prio==="דחופה"; }
   if("start" in v) d.start=v.start; if("due" in v) d.due=v.due;
   { const st="start" in d ? d.start : t.start, du="due" in d ? d.due : t.due; if(st && du && st>du){ toast("תאריך היעד לפני תאריך ההתחלה"); return; } }
@@ -3260,7 +3385,7 @@ const HEB_MONTHS=["ינואר","פברואר","מרץ","אפריל","מאי","י
 /* by department: a task belongs to the departments it is assigned to and to those of its people;
    an event — to the departments of the people involved. */
 let calDept=""; try{ calDept=localStorage.getItem("ogg-cal-dept")||""; }catch(e){}
-const tkInDept=(t,d)=>(t.depts||[]).includes(d) || (t.ppl||[]).some(n=>deptOf(n)===d);
+const tkInDept=(t,d)=>(t.depts||[]).length ? t.depts.includes(d) : (t.ppl||[]).some(n=>deptOf(n)===d);   // its own department; none set → its people's
 const evInDept=(e,d)=>(e.ppl||[]).some(n=>deptOf(n)===d);
 function paintCalDept(){
   const box=$("#calDept"), ds=allDepts(); box.hidden=!ds.length; box.textContent=""; if(!ds.length) return;
@@ -3428,9 +3553,22 @@ function openSS(sel,btn){
       const picked = multi && !special && sel._picked().includes(o.v);
       const b=mk("button","ss-opt"+(o.v===sel.value||picked?" on":"")+(special?" sp":"")+(o.core?" core":"")+(picked?" picked":""),(picked?"✓ ":"")+o.t); b.type="button"; b.onclick=()=>pick(o.v);
       if(picked) b.title="נבחר — לחיצה מסירה";
-      if(!special) b.appendChild(personTags(o.v));
+      if(!special && !sel._listKey) b.appendChild(personTags(o.v));
+      if(!special && sel._listKey && !(sel._keep||[]).includes(o.v)){ const x=mk("span","ss-x","✕"); x.setAttribute("role","button"); x.title="הוצא מהרשימה"; x.setAttribute("aria-label","הוצא מהרשימה: "+o.t);
+        x.onclick=ev=>{ ev.stopPropagation(); retireValue(sel._listKey,o.v);
+          const so=[...sel.options].find(z=>z.value===o.v); if(so && sel.value!==o.v) so.remove();
+          const i=opts.indexOf(o); if(i>=0) opts.splice(i,1); paint(); };
+        b.appendChild(x); }
       if(!first && !special) first=o.v; list.appendChild(b);
     });
+    if(sel._listKey && f && !opts.some(o=>o.t.trim().toLowerCase()===f)){   // a new value: added to the list and picked
+      const raw=q.value.trim(), b=mk("button","ss-opt ss-add","+ הוסף: "+raw); b.type="button";
+      b.onclick=()=>{ const k=sel._listKey;
+        if(!lists[k].includes(raw)){ lists[k].push(raw); if(!lists["_custom_"+k].includes(raw)) lists["_custom_"+k].push(raw); }
+        const h=(lists["_hide_"+k]||[]).indexOf(raw); if(h>=0) lists["_hide_"+k].splice(h,1);
+        persist(); if(![...sel.options].some(z=>z.value===raw)){ const no=mk("option",null,raw); no.value=raw; sel.appendChild(no); }
+        pick(raw); toast(raw+" נוסף לרשימה"); };
+      list.insertBefore(b, list.firstChild); }
     if(!list.querySelector(".ss-opt:not(.sp)")) list.insertBefore(mk("div","ss-none","אין התאמה"), list.firstChild);
   };
   q.oninput=paint;
@@ -3444,9 +3582,9 @@ function openSS(sel,btn){
       list.style.maxHeight=Math.max(120, vh-16-(multi?112:64))+"px"; return;
     }
     const r=btn.getBoundingClientRect(), w=Math.max(r.width,Math.min(300,innerWidth-16));
-    const below=innerHeight-r.bottom, h=Math.min(380, Math.max(below, r.top)-12);
+    const below=innerHeight-r.bottom, down=below>=240 || below>=r.top, h=Math.min(380, (down ? below : r.top)-12);   // fits on the side it opens to
     p.style.width=w+"px"; p.style.left=Math.max(8,Math.min(r.right-w,innerWidth-w-8))+"px";
-    if(below>=240 || below>=r.top){ p.style.top=(r.bottom+4)+"px"; p.style.bottom=""; } else { p.style.bottom=(innerHeight-r.top+4)+"px"; p.style.top=""; }
+    if(down){ p.style.top=(r.bottom+4)+"px"; p.style.bottom=""; } else { p.style.bottom=(innerHeight-r.top+4)+"px"; p.style.top=""; }
     list.style.maxHeight=Math.max(120,h-(multi?104:56))+"px";
   };
   place(); p._place=place;
@@ -3464,7 +3602,8 @@ function ssPhone(){ return innerWidth<=600 || matchMedia("(pointer:coarse)").mat
 let ssW=innerWidth;
 addEventListener("resize",()=>{ if(!ssPanel){ ssW=innerWidth; return; } if(Math.abs(innerWidth-ssW)>40){ ssW=innerWidth; closeSS(); } else ssPanel._place(); });
 if(window.visualViewport){ const vvp=()=>{ if(ssPanel && ssPhone()) ssPanel._place(); }; visualViewport.addEventListener("resize",vvp); visualViewport.addEventListener("scroll",vvp); }
-["#tkPpl","#tkLoc","#tkEq","#tfPpl","#tfLoc"].forEach(id=>enhanceSelect($(id)));
+["#tkPpl","#tkLoc","#tkEq","#tfPpl","#tfLoc","#tkType"].forEach(id=>enhanceSelect($(id)));
+$("#tkType")._listKey="type"; $("#tkType")._keep=TK_CATS;   // the task type list: ✕ takes a type out of the list, and a typed new one is added for next time
 // people on a task: several are picked one after another — the list stays open
 $("#tkPpl")._picked=()=>tkPplSel; $("#tkPpl")._unpick=v=>{ tkPplSel=tkPplSel.filter(x=>x!==v); paintPplChips(); };
 
@@ -3526,7 +3665,7 @@ function tourSteps(){
     {sel:"#listBox .ev", title:"אירוע ברשימה", text:"\"פרטים\" מציג הכל. \"סגור אירוע\" כשהטיפול הסתיים — נרשם מי סגר ומתי. אפשר גם לפתוח מחדש."},
     {sel:"#tkSeg", pre:tab("#tabTasks"), title:"משימות", text:"המשימות שלי — מה שהוקצה לך ולמחלקה שלך. שפתחתי — מה שאתה פתחת. פתוחות / הושלמו — הכל."},
     mgr && {sel:"#tkDeptSeg", title:"לפי מחלקה", text:"כמנהל — בוחרים מחלקה כדי לראות רק את המשימות שלה. הרשימה נפתחת על המחלקה שלך."},
-    {sel:"#tkNewBtn", title:"משימה חדשה", text:"כותרת, הקצאה למחלקה או לעובדים (הראשון — האחראי), סוג, עדיפות ותאריכים. מי שהוקצה מקבל הודעה. בחירה ב\"🔒 אישית\" — משימה לעצמך שרק אתה רואה, בלי הקצאה ובלי רישום ביומן."},
+    {sel:"#tkNewBtn", title:"משימה חדשה", text:"כותרת, הקצאה למחלקה או לעובדים (הראשון — האחראי), קטגוריה, עדיפות ותאריכים. מי שהוקצה מקבל הודעה. בחירה ב\"🔒 אישית\" — משימה לעצמך שרק אתה רואה, בלי הקצאה ובלי רישום ביומן."},
     {sel:"#tkList .tk", title:"משימה", text:"הפס בצד מראה את היעד: אדום — באיחור, ירוק — היום, כתום — בהמשך. \"+ עדכון\" מוסיף התקדמות, ו\"השלם משימה\" מעביר אותה ל\"הושלמו\" — ואם רוצים, גם רושם אירוע סגור ביומן."},
     {sel:"#inboxBtn", title:"הודעות", text:"🔔 כאן מגיעות הקצאות ועדכונים במשימות שלך. החלקה ימינה מעבירה הודעה לארכיון."},
     {sel:"#fbBtn", title:"משוב", text:"משהו לא עובד או חסר? 💬 מצלם את המסך, מסמנים עליו ושולחים למנהל."},
@@ -3682,7 +3821,7 @@ function privCard(t, today){
     tkRowOpen.has(t.id) ? tkRowOpen.delete(t.id) : tkRowOpen.add(t.id); c.classList.toggle("x"); });
   if(tkOpen(t) && t.due) c.classList.add(t.due<today?"tl-late":t.due===today?"tl-today":"tl-future");
   const tt=mk("div","tk-t"), lk=mk("span","sn priv-sn","🔒"); lk.title="משימה אישית — רק אתה רואה אותה";
-  tt.append(tkCircle(t, ()=>{ meSet(t.pid,{done:tkOpen(t), doneAt:tkOpen(t)?nowLocal():""}); toast(tkOpen(t)?"סומנה כבוצעה — לא נרשם ביומן":"הוחזרה לפתוחות"); }, true), lk, mk("span","tk-tt",t.title||"(ללא כותרת)")); c.appendChild(tt);
+  tt.append(tkCircle(t, ()=>{ meSet(t.pid,{done:tkOpen(t), doneAt:tkOpen(t)?nowLocal():""}); toast(tkOpen(t)?"סומנה כבוצעה — לא נרשם ביומן":"הוחזרה לפתוחות"); }, true), lk, mk("span","tk-tt",t.title||"(ללא כותרת)")); if(tkOpen(t)) tt.appendChild(remBell(t)); c.appendChild(tt);
   const tags=mk("div","tk-tags"), SL={}; ["eq","who","dept","prio","type","stat","extra","due"].forEach(k=>{ SL[k]=mk("span","sl sl-"+k); tags.appendChild(SL[k]); });
   const tag=(txt,cls,hue,slot)=>{ const x=mk("span","tk-tag"+(cls?" "+cls:""),txt); if(hue){ x.style.background="var(--c-"+hue+"-bg)"; x.style.color="var(--c-"+hue+")"; } SL[slot||"extra"].appendChild(x); };
   tag("אישית","privt",null,"who");
@@ -4575,7 +4714,9 @@ paintBriefCard();
 let relLive=null;
 async function relPaint(){
   const c=$("#relCard"); if(!c) return;
-  const show=BETA && CLOUD_ON && isManager() && !isViewer(); c.dataset.off=show?"":"1"; if(!show){ c.hidden=true; return; }
+  const show=BETA && CLOUD_ON && isManager() && !isViewer(); c.dataset.off=show?"":"1";
+  const vc=$("#verChip"); if(vc && BETA){ vc.textContent=(show?"🚀 ":"")+"v"+APP_VER+" · בטא"; vc.classList.toggle("rel",show); vc.title=show?"פרסם את הבטא לכולם":"גרסה"; }
+  if(!show){ c.hidden=true; return; }
   let live="?"; try{ const r=await fetch("../version.txt?t="+Date.now(),{cache:"no-store"}); if(r.ok) live=(await r.text()).trim(); }catch(e){}
   const st=$("#relSt"), b=$("#relGo"), same=live===APP_VER;
   if(relLive && relLive.state==="requested"){ st.textContent="⏳ מפרסם את "+(relLive.ver||APP_VER)+"…"; b.disabled=true; return; }
@@ -4592,7 +4733,74 @@ $("#relGo").onclick=async()=>{
   if(!window.cloudRelease || !await window.cloudRelease(APP_VER)){ toast("הבקשה נכשלה"); relPaint(); return; }
   relLive={state:"requested",ver:APP_VER}; relPaint();
 };
+// the orange beta chip in the header = the same button: one tap → confirm → everyone gets this version
+$("#verChip").onclick=async()=>{
+  if(!(BETA && CLOUD_ON && isManager() && !isViewer())) return;
+  if(relLive && relLive.state==="requested"){ toast("⏳ כבר מפרסם…"); return; }
+  let live="?"; try{ const r=await fetch("../version.txt?t="+Date.now(),{cache:"no-store"}); if(r.ok) live=(await r.text()).trim(); }catch(e){}
+  if(live===APP_VER){ toast("✓ "+APP_VER+" כבר אצל כולם"); return; }
+  if(!confirm("🚀 לפרסם לכולם?\nבטא: "+APP_VER+" · אצל כולם: "+live)) return;
+  if(!window.cloudRelease || !await window.cloudRelease(APP_VER)){ toast("הבקשה נכשלה"); return; }
+  relLive={state:"requested",ver:APP_VER}; relPaint(); toast("⏳ מפרסם את "+APP_VER+" לכולם…");
+};
 setTimeout(relPaint,1500);
+
+/* ===== reminders (🔔 on a task): "remind me" at a time I pick. Team log: kept on meta/me-<me> (reminders, remNext) — the cloud
+   function "remindTick" sends the push when the time comes (app closed too); with the app on screen a message says it here. */
+var REMS=null;                                    // (var + functions: the task list can draw before this part of the file has run)
+function remList(){ if(!REMS){ try{ const a=JSON.parse(localStorage.getItem("ogg-rems")||"[]"); REMS=Array.isArray(a)?a:[]; }catch(e){ REMS=[]; } } return REMS; }
+function remSave(){ try{ localStorage.setItem("ogg-rems",JSON.stringify(REMS)); }catch(e){} if(window.cloudSetRems) window.cloudSetRems(REMS); }
+window.remApply=list=>{ REMS=Array.isArray(list)?list.filter(r=>r && r.tid && r.at):[]; try{ localStorage.setItem("ogg-rems",JSON.stringify(REMS)); }catch(e){}
+  if(typeof renderTasks==="function") renderTasks(); };
+function remOf(tid){ return remList().find(r=>r.tid===tid); }
+function remWhen(ms){ const d=new Date(ms), p=n=>String(n).padStart(2,"0"), dd=ymd(d);
+  const day = dd===ymd(new Date()) ? "היום" : dd===ymd(new Date(Date.now()+864e5)) ? "מחר" : p(d.getDate())+"/"+p(d.getMonth()+1);
+  return day+" "+p(d.getHours())+":"+p(d.getMinutes()); }
+function remBell(t){
+  const r=remOf(t.id), b=mk("button","tk-bell"+(r?" on":"")); b.type="button";
+  b.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm7-6V11a7 7 0 0 0-5.5-6.84V3.5a1.5 1.5 0 0 0-3 0v.66A7 7 0 0 0 5 11v5l-2 2v1h18v-1z"/></svg>';
+  if(r) b.appendChild(mk("span","tk-bell-t",remWhen(r.at)));
+  b.title = r ? "תזכורת: "+remWhen(r.at)+" — לחץ לשינוי" : "תזכורת למשימה"; b.setAttribute("aria-label",b.title);
+  b.onclick=ev=>{ ev.stopPropagation(); remOpen(t); }; return b;
+}
+let remFor=null;
+function remOpen(t){
+  remFor=t; const r=remOf(t.id), d=$("#dlgRem"), at8=v=>new Date(v+"T08:00").getTime();
+  $("#remTitle").textContent="🔔 תזכורת · "+(t.priv?"🔒 ":t.no?"#"+t.no+" ":"")+(t.title||"");
+  $("#remNow").textContent = r ? "יש תזכורת ל"+remWhen(r.at) : "";
+  const box=$("#remOpts"); box.textContent="";
+  const opt=(label,ms)=>{ const b=mk("button","btn",label); b.type="button"; b.onclick=()=>remSet(ms()); box.appendChild(b); };
+  opt("בעוד שעה",()=>Date.now()+3600e3); opt("בעוד 3 שעות",()=>Date.now()+3*3600e3);
+  opt("מחר ב-08:00",()=>at8(ymd(new Date(Date.now()+864e5))));
+  if(t.due && at8(t.due)>Date.now()) opt("ביום היעד ב-08:00 ("+dmy(t.due).slice(0,5)+")",()=>at8(t.due));
+  const p=n=>String(n).padStart(2,"0"), dflt=new Date(Date.now()+864e5);
+  $("#remAt").value = r ? (()=>{ const x=new Date(r.at); return ymd(x)+"T"+p(x.getHours())+":"+p(x.getMinutes()); })() : ymd(dflt)+"T08:00";
+  $("#remAt").min = ymd(new Date())+"T00:00";
+  $("#remOff").hidden=!r;
+  if(!d.open) d.showModal();
+}
+function remSet(ms){
+  if(!remFor || !(ms>Date.now())){ toast("בחר זמן עתידי"); return; }
+  const t=remFor;
+  REMS=remList().filter(x=>x.tid!==t.id).concat({id:newId(), tid:t.id, at:Math.round(ms), title:(t.priv?"🔒 ":t.no?"#"+t.no+" ":"")+(t.title||"משימה")});
+  remSave(); $("#dlgRem").close(); renderTasks(); toast("🔔 תזכורת נקבעה ל"+remWhen(ms));
+}
+$("#remSetAt").onclick=()=>{ const v=$("#remAt").value; if(!v){ $("#remAt").focus(); return; } remSet(new Date(v).getTime()); };
+$("#remOff").onclick=()=>{ if(!remFor) return; REMS=remList().filter(x=>x.tid!==remFor.id); remSave(); $("#dlgRem").close(); renderTasks(); toast("התזכורת בוטלה"); };
+$("#remClose").onclick=()=>$("#dlgRem").close();
+// the time came: on screen — a message here; app in the background without push — a device notification; otherwise the push brings it
+function remTick(){
+  const now=Date.now(), due=remList().filter(r=>r.at<=now); if(!due.length) return;
+  let push=false; try{ push=!!localStorage.getItem("ogg-push-token") && "Notification" in window && Notification.permission==="granted"; }catch(e){}
+  if(document.hidden && CLOUD_ON && push) return;                 // the cloud sends it (and clears it)
+  due.forEach(r=>{
+    if(!document.hidden) toast("🔔 תזכורת: "+r.title,{label:"פתח",fn:()=>goTask(r.tid)});
+    else if("Notification" in window && Notification.permission==="granted" && navigator.serviceWorker)
+      navigator.serviceWorker.ready.then(g=>g.showNotification("🔔 תזכורת",{body:r.title, tag:"ogg-task-"+r.tid, icon:"icons/icon-notebook-192.png", badge:"icons/badge-96.png", lang:"he", dir:"rtl", data:{tid:r.tid}})).catch(()=>{});
+  });
+  REMS=REMS.filter(r=>r.at>now); remSave(); renderTasks();
+}
+setInterval(remTick,30e3); document.addEventListener("visibilitychange",()=>{ if(!document.hidden) setTimeout(remTick,800); }); setTimeout(remTick,3000);
 
 /* ===== recycle bin (🗑): deleted events and tasks, 30 days. This device keeps what it deleted; the team log also keeps every
    deleted document in the cloud (deleting only marks it _del), so the bin also shows what was deleted elsewhere. Restoring = a manager. */
@@ -4704,3 +4912,4 @@ document.querySelectorAll("#fdKind button").forEach(b=>b.onclick=()=>{ fdKind=b.
   new MutationObserver(later).observe(document.body,{subtree:true,childList:true,characterData:true});
   run();
 })();
+tkColWApply();

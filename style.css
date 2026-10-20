@@ -1328,7 +1328,10 @@ small.dept{font-size:12px;font-weight:700;color:var(--c-maint);background:var(--
 @media (min-width:900px){
   #viewTasks.rows .tk-head{display:grid;grid-template-columns:var(--tkcols);gap:6px 8px;align-items:end;padding:0 17px 6px 13px;margin-bottom:6px;
     border-bottom:2px solid var(--edge);font-size:12.5px;font-weight:900;color:var(--ink-2)}
-  #viewTasks.rows .tk-head span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #viewTasks.rows .tk-head > *{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #viewTasks.rows .tk-th{border:none;background:none;font:inherit;color:inherit;text-align:start;padding:3px 4px;margin:0 -4px;border-radius:6px;cursor:pointer}
+  #viewTasks.rows .tk-th:hover{background:var(--panel-2);color:var(--water)}
+  #viewTasks.rows .tk-th.on{color:var(--water)}
 }
 /* equipment: by the title on cards / phones; its own column in "רשימה" on a wide screen */
 .tk-tags .sl-eq{display:none}
@@ -2152,8 +2155,90 @@ html.lite #viewDash .dsh-title{display:none}
 .zoom-seg{width:max-content;max-width:100%;margin-top:6px}
 .zoom-seg button{padding:6px 12px}
 .ver.beta{background:#F59E0B;border-color:#F59E0B;color:#fff}
+.ver.beta.rel{cursor:pointer}
+.ver.beta.rel:hover{background:#D97706;border-color:#D97706}
 
 /* "שלח בוואטסאפ" with the WhatsApp mark */
 .tk-more .btn.wa{display:inline-flex;align-items:center;gap:6px;color:#128C4A;border-color:#25D366}
 .tk-more .btn.wa::before{content:"";width:16px;height:16px;flex:none;background:no-repeat center/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%2325D366' d='M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2z'/%3E%3Cpath fill='%23fff' d='M17.3 14.4c-.3-.1-1.7-.8-2-.9-.3-.1-.5-.1-.7.1-.2.3-.8.9-.9 1.1-.2.2-.3.2-.6.1-.3-.1-1.2-.5-2.3-1.4-.9-.8-1.4-1.7-1.6-2-.2-.3 0-.4.1-.6l.4-.5c.2-.2.2-.3.3-.5.1-.2 0-.4 0-.5l-.9-2.1c-.2-.5-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.4s1 2.8 1.2 3c.1.2 2 3.1 4.9 4.3 2.4 1 2.9.8 3.4.7.5-.1 1.7-.7 1.9-1.4.2-.7.2-1.3.2-1.4-.1-.1-.3-.2-.6-.3z'/%3E%3C/svg%3E")}
 .rel-st{font-size:14px;color:var(--ink-2)}
+
+/* 🔔 reminder on a task */
+.tk-bell{display:inline-flex;align-items:center;gap:4px;margin-inline-start:auto;flex:none;border:1px solid transparent;background:none;color:var(--ink-3);
+  border-radius:99px;padding:3px 6px;cursor:pointer;font:inherit;font-size:12px;font-weight:700}
+.tk-bell svg{width:17px;height:17px}
+.tk-bell:hover{color:var(--water);border-color:var(--edge)}
+.tk-bell.on{color:#B45309;background:#FEF3C7;border-color:#F59E0B}
+#dlgRem{width:min(440px,calc(100vw - 24px))}
+.rem-now{font-weight:700;color:#B45309}
+.rem-now:empty{display:none}
+.rem-opts{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.rem-opts .btn{padding:8px 12px;font-size:14px}
+.rem-at{display:flex;gap:8px;align-items:center;margin-bottom:12px}
+.rem-at input{flex:1;min-width:0;height:38px;box-sizing:border-box;font:inherit;border:1px solid var(--edge);border-radius:9px;padding:0 8px;background:var(--panel-2);color:var(--ink)}
+#remOff[hidden]{display:none}
+
+/* weekly window: ⏰ snooze row */
+.wk-snz{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:10px;font-size:13px;color:var(--ink-2)}
+.wk-snz[hidden]{display:none}
+.wk-snz .btn{padding:6px 10px;font-size:13px;min-height:0}
+/* v3.19: checklist — order (▲▼) and "make it a task" (⤴); the task-type list — ✕ takes a type out, "+ הוסף" adds a typed one */
+.ck-mv,.ck-pro{flex:none;border:none;background:none;color:var(--ink-3);cursor:pointer;font-size:12px;padding:4px 5px;border-radius:6px;line-height:1}
+.ck-pro{font-size:15px;color:var(--water)}
+.ck-mv:disabled{opacity:.25;cursor:default}
+@media (hover:hover){ .ck-mv:not(:disabled):hover,.ck-pro:hover{background:var(--panel-2);color:var(--water)} }
+.ck-moved{flex:none;border:1px solid var(--water);background:var(--water-soft);color:var(--water);border-radius:99px;font:inherit;font-size:12px;font-weight:800;padding:2px 9px;cursor:pointer}
+.ss-opt{position:relative}
+.ss-x{float:inline-end;margin-inline-start:8px;padding:0 6px;border-radius:6px;color:var(--ink-3);font-size:13px;cursor:pointer}
+.ss-x:hover{color:var(--c-fault);background:var(--panel-2)}
+.ss-add{color:var(--water);font-weight:800;border:1px dashed var(--water)}
+.ck{flex-wrap:wrap}
+.ck-t{flex:1 1 130px}
+.ck-ctl{display:flex;align-items:center;gap:2px;flex:none;margin-inline-start:auto}
+.ck-ctl:empty{display:none}
+/* v3.20: the category filter sits right by the sort */
+.sortwrap:has(#tkCatSel) + .sortwrap{margin-inline-start:0}
+#tkCatSel{max-width:180px}
+/* v3.22: the task form shows the task's checklist when editing */
+.tk-ck-form .ck.gone .ck-t{text-decoration:line-through;color:var(--ink-3)}
+.tk-ck-form .ck-box.on{display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:900}
+/* v3.23: each piece of equipment in its own colour (light and dark) */
+.tk .eqc,#viewTasks.rows .tk:not(.x) .tk-tag.eqt.eqc{background:hsl(var(--eqh) 75% 93%);color:hsl(var(--eqh) 60% 30%);border:1px solid hsl(var(--eqh) 45% 78%)}
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]) .tk .eqc,:root:not([data-theme="light"]) #viewTasks.rows .tk:not(.x) .tk-tag.eqt.eqc{background:hsl(var(--eqh) 35% 20%);color:hsl(var(--eqh) 75% 78%);border-color:hsl(var(--eqh) 30% 32%)} }
+:root[data-theme="dark"] .tk .eqc,:root[data-theme="dark"] #viewTasks.rows .tk:not(.x) .tk-tag.eqt.eqc{background:hsl(var(--eqh) 35% 20%);color:hsl(var(--eqh) 75% 78%);border-color:hsl(var(--eqh) 30% 32%)}
+/* v3.24: an open task of high / urgent priority pulses red (urgent — stronger); stays still for "reduce motion" */
+@keyframes tkBlink{0%,100%{background:var(--panel);box-shadow:0 0 0 0 transparent}50%{background:color-mix(in srgb,var(--c-fault-bg) 85%,var(--panel));box-shadow:0 0 0 2px color-mix(in srgb,var(--c-fault) 55%,transparent)}}
+@keyframes tkBlinkHot{0%,100%{background:color-mix(in srgb,var(--c-fault-bg) 45%,var(--panel));box-shadow:0 0 0 1px color-mix(in srgb,var(--c-fault) 40%,transparent)}50%{background:var(--c-fault-bg);box-shadow:0 0 0 3px var(--c-fault)}}
+.tk.tk-blink.high{animation:tkBlink 1.8s ease-in-out infinite}
+.tk.tk-blink.hot{animation:tkBlinkHot 1.1s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){
+  .tk.tk-blink{animation:none}
+  .tk.tk-blink.high{background:color-mix(in srgb,var(--c-fault-bg) 50%,var(--panel))}
+  .tk.tk-blink.hot{background:var(--c-fault-bg);box-shadow:0 0 0 2px var(--c-fault)}
+}
+/* v3.25: vivid fixed colours for the main kinds of equipment */
+.tk .eqv,#viewTasks.rows .tk:not(.x) .tk-tag.eqt.eqv{border:1px solid transparent !important}
+.tk .eqv-hv,#viewTasks.rows .tk:not(.x) .tk-tag.eqt.eqv-hv{background:#DC2626 !important;color:#fff !important}
+.tk .eqv-gen,#viewTasks.rows .tk:not(.x) .tk-tag.eqt.eqv-gen{background:#FACC15 !important;color:#3B2F00 !important}
+.tk .eqv-lv,#viewTasks.rows .tk:not(.x) .tk-tag.eqt.eqv-lv{background:#16A34A !important;color:#fff !important}
+.tk .eqv-pnl,#viewTasks.rows .tk:not(.x) .tk-tag.eqt.eqv-pnl{background:#F97316 !important;color:#fff !important}
+/* v3.26: column widths in "רשימה" — a handle on the edge of each heading */
+@media (min-width:900px){
+  #viewTasks.rows .tk-th{position:relative;padding-inline-end:12px}
+  #viewTasks.rows .tk-rs{position:absolute;top:0;bottom:0;inset-inline-end:0;width:10px;cursor:col-resize;z-index:2;touch-action:none}
+  #viewTasks.rows .tk-rs::after{content:"";position:absolute;top:3px;bottom:3px;inset-inline-start:4px;width:2px;border-radius:2px;background:var(--edge);opacity:.7}
+  #viewTasks.rows .tk-th:hover .tk-rs::after,#viewTasks.rows .tk-rs:hover::after{background:var(--water);opacity:1}
+}
+body.tk-resizing,body.tk-resizing *{cursor:col-resize !important;user-select:none !important}
+/* v3.27: category filter — several can be picked */
+.cat-btn{font:inherit;font-size:14px;font-weight:800;color:var(--ink);background:var(--panel);border:1.5px solid var(--edge);border-radius:10px;padding:7px 12px;cursor:pointer;
+  max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cat-btn::after{content:" ▾";color:var(--ink-3)}
+.cat-btn.on{border-color:var(--water)}
+.cat-pop{position:fixed;z-index:200;background:var(--panel);border:1px solid var(--edge);border-radius:12px;box-shadow:0 12px 32px rgba(0,0,0,.22);padding:6px;display:flex;flex-direction:column;gap:2px;max-height:60vh;overflow:auto}
+.cat-it{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:15px;color:var(--ink)}
+.cat-it:hover{background:var(--panel-2)}
+.cat-it input{width:18px;height:18px;accent-color:var(--water);margin:0;flex:none}
+.cat-sw{width:10px;height:10px;border-radius:50%;flex:none}
+.cat-all{border:none;background:none;font:inherit;font-size:14px;font-weight:800;color:var(--ink-2);text-align:start;padding:8px 10px;border-radius:8px;cursor:pointer}
+.cat-all.on{color:var(--water);background:var(--water-soft)}
