@@ -2199,3 +2199,6 @@ html.lite #viewDash .dsh-title{display:none}
 /* v3.20: the category filter sits right by the sort */
 .sortwrap:has(#tkCatSel) + .sortwrap{margin-inline-start:0}
 #tkCatSel{max-width:180px}
+/* v3.22: the task form shows the task's checklist when editing */
+.tk-ck-form .ck.gone .ck-t{text-decoration:line-through;color:var(--ink-3)}
+.tk-ck-form .ck-box.on{display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:900}
