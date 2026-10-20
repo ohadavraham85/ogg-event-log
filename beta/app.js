@@ -30,6 +30,9 @@ const TK_CATS=["אחזקות שבר","אחזקות יזומות","אחזקות �
 Object.assign(HUE,{"אחזקות שבר":"fault","אחזקות יזומות":"power","אחזקות מתוכננות":"visit"});
 function tkCats(){ return TK_CATS.concat(byUse("type").filter(v=>!TK_CATS.includes(v))); }
 // equipment tags: every piece of equipment gets its own colour, always the same one (a hue from its name)
+// fixed vivid colours by the kind of equipment in the name (generic words): high voltage red, generators yellow, low voltage green, switchboards orange
+function eqKind(q){ q=String(q); return /מתח\s*גבוה/.test(q) ? "hv" : /גנרטור/.test(q) ? "gen" : /מתח\s*נמוך/.test(q) ? "lv" : /לוח(ות)?\s*חשמל/.test(q) ? "pnl" : ""; }
+function eqPaint(el,q){ const k=eqKind(q); if(k) el.classList.add("eqv","eqv-"+k); else el.style.setProperty("--eqh",eqHue(q)); }
 function eqHue(q){ let h=0; for(const ch of String(q)) h=(h*31+ch.codePointAt(0))>>>0; return Math.round((h%997)*137.508)%360; }
 function hueOf(t){ return HUE[t] || (/^אחזק/.test(t||"") ? "maint" : "gen"); }
 /* event types in one family stay together in every list ("אחזקה", "אחזקה חודשית", "אחזקת שבר"…):
@@ -2077,7 +2080,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.24", APP_DATE="20/10/2026";
+const APP_VER="3.25", APP_DATE="20/10/2026";
 $("#verChip").textContent="v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2866,13 +2869,13 @@ function renderTasks(){
     if(tkOpen(t) && (pr==="גבוהה" || pr==="דחופה")) c.classList.add("tk-blink", pr==="דחופה" ? "hot" : "high");   // high and urgent: the whole task pulses red
     const tx=mk("span","tk-tt",t.title||"(ללא כותרת)");
     { const tt=mk("div","tk-t"); tt.appendChild(tkCircle(t, ()=>tkOpen(t) ? openTaskDone(t.id) : reopenTask(t))); if(t.no) tt.appendChild(mk("span","sn","#"+t.no));
-      (t.eq||[]).forEach(q=>{ const g=mk("span","tk-eqtag eqc","⚙ "+q); g.title="ציוד"; g.style.setProperty("--eqh",eqHue(q)); tx.appendChild(g); });   // the equipment, right by the title
+      (t.eq||[]).forEach(q=>{ const g=mk("span","tk-eqtag eqc","⚙ "+q); g.title="ציוד"; eqPaint(g,q); tx.appendChild(g); });   // the equipment, right by the title
       tt.appendChild(tx); if(tkOpen(t) && !isViewer()) tt.appendChild(remBell(t)); c.appendChild(tt); }   // number and text side by side: a wrapped line starts under the text, not under the number
     // tags sit in fixed slots, so in "רשימה" every kind lines up in its own column (in "אריחים" the slots just flow)
     const tags=mk("div","tk-tags"), SL={}; ["eq","who","dept","prio","type","stat","extra","due"].forEach(k=>{ SL[k]=mk("span","sl sl-"+k); tags.appendChild(SL[k]); });
     const tag=(txt,cls,hue,slot)=>{ const x=mk("span","tk-tag"+(cls?" "+cls:""),txt);
       if(hue){ x.style.background="var(--c-"+hue+"-bg)"; x.style.color="var(--c-"+hue+")"; x.style.borderColor="transparent"; } SL[slot||"extra"].appendChild(x); };
-    (t.eq||[]).forEach(q=>{ tag("⚙ "+q,"eqt eqc",null,"eq"); SL.eq.lastChild.style.setProperty("--eqh",eqHue(q)); });   // each piece of equipment its own colour          // equipment: its own column in "רשימה" (by the title on cards)
+    (t.eq||[]).forEach(q=>{ tag("⚙ "+q,"eqt eqc",null,"eq"); eqPaint(SL.eq.lastChild,q); });   // each piece of equipment its own colour          // equipment: its own column in "רשימה" (by the title on cards)
     if(tkOpen(t)){
       if(tkIsNew(t)){ tag("✨ חדשה","new",null,"who"); if(!$("#viewTasks").hidden) tkShownNew.add(t.id); }
       if(isMine(t)) tag((t.ppl||[]).includes(myName()) ? "שלי" : "המחלקה שלי","me",null,"who");
