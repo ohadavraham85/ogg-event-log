@@ -2222,3 +2222,11 @@ html.lite #viewDash .dsh-title{display:none}
 .tk .eqv-gen,#viewTasks.rows .tk:not(.x) .tk-tag.eqt.eqv-gen{background:#FACC15 !important;color:#3B2F00 !important}
 .tk .eqv-lv,#viewTasks.rows .tk:not(.x) .tk-tag.eqt.eqv-lv{background:#16A34A !important;color:#fff !important}
 .tk .eqv-pnl,#viewTasks.rows .tk:not(.x) .tk-tag.eqt.eqv-pnl{background:#F97316 !important;color:#fff !important}
+/* v3.26: column widths in "רשימה" — a handle on the edge of each heading */
+@media (min-width:900px){
+  #viewTasks.rows .tk-th{position:relative;padding-inline-end:12px}
+  #viewTasks.rows .tk-rs{position:absolute;top:0;bottom:0;inset-inline-end:0;width:10px;cursor:col-resize;z-index:2;touch-action:none}
+  #viewTasks.rows .tk-rs::after{content:"";position:absolute;top:3px;bottom:3px;inset-inline-start:4px;width:2px;border-radius:2px;background:var(--edge);opacity:.7}
+  #viewTasks.rows .tk-th:hover .tk-rs::after,#viewTasks.rows .tk-rs:hover::after{background:var(--water);opacity:1}
+}
+body.tk-resizing,body.tk-resizing *{cursor:col-resize !important;user-select:none !important}

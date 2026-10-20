@@ -2080,7 +2080,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.25", APP_DATE="20/10/2026";
+const APP_VER="3.26", APP_DATE="20/10/2026";
 $("#verChip").textContent="v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2252,6 +2252,21 @@ let tkSort="new"; try{ tkSort=localStorage.getItem("ogg-tk-sort")||"new"; }catch
 /* "רשימה" on a wide screen: sort by a column (its heading) */
 const TK_COLS=[["title","משימה"],["eq","ציוד"],["who","שיוך"],["dept","מחלקה"],["prio","עדיפות"],["type","קטגוריה"],["stat","סטטוס"],["extra","נוספים"],["due","תאריכים"],["ppl","אחראי · מיקום"]];
 let tkCol=null; try{ tkCol=JSON.parse(localStorage.getItem("ogg-tk-col")||"null"); }catch(e){}
+/* column widths in "רשימה": drag the edge of a heading; kept on this device. A narrower column leaves more room to the title. */
+const TK_COLW_DEF={title:"minmax(130px,2fr)",eq:"128px",who:"68px",dept:"96px",prio:"68px",type:"108px",stat:"64px",extra:"minmax(96px,1fr)",due:"118px",ppl:"minmax(60px,1fr)"};
+let tkResizeAt=0, tkColW={}; try{ tkColW=JSON.parse(localStorage.getItem("ogg-tk-colw")||"{}")||{}; }catch(e){}
+function tkColWApply(){ const v=TK_COLS.map(([k])=>tkColW[k] ? (k==="title" ? "minmax("+tkColW[k]+"px,1fr)" : tkColW[k]+"px") : TK_COLW_DEF[k]).join(" ");
+  const el=$("#viewTasks"); if(Object.keys(tkColW).length) el.style.setProperty("--tkcols",v); else el.style.removeProperty("--tkcols"); }
+function tkColWSave(){ try{ localStorage.setItem("ogg-tk-colw",JSON.stringify(tkColW)); }catch(e){} tkColWApply(); }
+function tkColDrag(ev,k,cell){
+  ev.preventDefault(); ev.stopPropagation();
+  const x0=ev.clientX, w0=cell.getBoundingClientRect().width, rtl=getComputedStyle(cell).direction==="rtl";
+  document.body.classList.add("tk-resizing");
+  const mv=e=>{ const d=(rtl ? x0-e.clientX : e.clientX-x0); tkColW[k]=Math.round(Math.max(36,Math.min(600,w0+d))); tkColWApply(); };
+  const up=()=>{ removeEventListener("pointermove",mv); removeEventListener("pointerup",up); removeEventListener("pointercancel",up);
+    document.body.classList.remove("tk-resizing"); tkColWSave(); tkResizeAt=Date.now(); };   // the release isn't a tap on the heading
+  addEventListener("pointermove",mv); addEventListener("pointerup",up); addEventListener("pointercancel",up);
+}
 const tkColOn=()=>!!tkCol && tkLV==="rows" && matchMedia("(min-width:900px)").matches;
 function tkColVal(t,k){   // a number or a text; "" = nothing there (always last)
   if(k==="title") return t.title||"";
@@ -2856,7 +2871,10 @@ function renderTasks(){
   { const h=mk("div","tk-head");   // a tap on a heading sorts by that column: once up, again down, a third time back to the usual order
     TK_COLS.forEach(([k,x])=>{ const on=tkCol && tkCol.k===k, b=mk("button","tk-th"+(on?" on":""),x+(on?(tkCol.d>0?" ▲":" ▼"):"")); b.type="button";
       b.title="מיון לפי "+x; b.setAttribute("aria-sort", on ? (tkCol.d>0?"ascending":"descending") : "none");
-      b.onclick=()=>{ tkCol = !on ? {k,d:1} : tkCol.d>0 ? {k,d:-1} : null; try{ localStorage.setItem("ogg-tk-col", JSON.stringify(tkCol)); }catch(e){} renderTasks(); };
+      b.onclick=()=>{ if(Date.now()-tkResizeAt<400) return; tkCol = !on ? {k,d:1} : tkCol.d>0 ? {k,d:-1} : null; try{ localStorage.setItem("ogg-tk-col", JSON.stringify(tkCol)); }catch(e){} renderTasks(); };
+      if(k!=="ppl"){ const rs=mk("span","tk-rs"); rs.title="גרירה — רוחב העמודה · לחיצה כפולה — חזרה לרוחב הרגיל"; rs.setAttribute("aria-hidden","true");
+        rs.onclick=ev=>ev.stopPropagation(); rs.ondblclick=ev=>{ ev.stopPropagation(); delete tkColW[k]; tkColWSave(); };
+        rs.onpointerdown=ev=>tkColDrag(ev,k,b); b.appendChild(rs); }
       h.appendChild(b); }); box.appendChild(h); }
   rows.forEach(t=>{
     if(t.priv){ box.appendChild(privCard(t, today)); return; }
@@ -4878,3 +4896,4 @@ document.querySelectorAll("#fdKind button").forEach(b=>b.onclick=()=>{ fdKind=b.
   new MutationObserver(later).observe(document.body,{subtree:true,childList:true,characterData:true});
   run();
 })();
+tkColWApply();
