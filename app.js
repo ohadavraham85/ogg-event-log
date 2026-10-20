@@ -2080,7 +2080,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.26", APP_DATE="20/10/2026";
+const APP_VER="3.27", APP_DATE="20/10/2026";
 $("#verChip").textContent="v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2548,10 +2548,13 @@ function renderTkFilters(){
   fillSelect($("#tfDept"), allDepts(), tkF.dept, "כל המחלקות"); $("#tfDept").hidden=!allDepts().length;
   $("#tfDept").classList.toggle("on",!!tkF.dept);
   fillSelect($("#tfLoc"), byUse("loc"), tkF.loc, "כל המיקומים");
-  fillSelect($("#tfType"), tkCats(), tkF.type, "כל הקטגוריות");
-  fillSelect($("#tkCatSel"), tkCats(), tkF.type, "הכל"); $("#tkCatSel").classList.toggle("on",!!tkF.type); colorSelect($("#tkCatSel"), tkF.type ? hueOf(tkF.type) : "");
+  { const cs=tkCatPicked();   // several categories can be picked (kept as one text, one per line)
+    fillSelect($("#tfType"), tkCats(), cs.length===1 ? cs[0] : "", "כל הקטגוריות");
+    if(cs.length>1){ const o=mk("option",null,cs.length+" קטגוריות"); o.value="__multi"; $("#tfType").appendChild(o); $("#tfType").value="__multi"; }
+    const b=$("#tkCatSel"); b.textContent = !cs.length ? "הכל" : cs.length<=2 ? cs.join(", ") : cs.length+" קטגוריות"; b.title=cs.join(", ");
+    b.classList.toggle("on",!!cs.length); colorSelect(b, cs.length===1 ? hueOf(cs[0]) : ""); }
   fillSelect($("#tfPrio"), PRIOS, tkF.prio, "כל העדיפויות");
-  colorSelect($("#tfPrio"), PRIO_HUE[tkF.prio]); colorSelect($("#tfType"), tkF.type ? hueOf(tkF.type) : "");
+  colorSelect($("#tfPrio"), PRIO_HUE[tkF.prio]); colorSelect($("#tfType"), tkCatPicked().length===1 ? hueOf(tkF.type) : "");
   ["#tfPpl","#tfLoc","#tfType"].forEach(id=>$(id).classList.toggle("on",!!$(id).value));
   // like the events list: search + "סינון" (a panel), the badge counts the filters that are on
   paintDeptSeg(); $("#tfDept").hidden = $("#tfDept").hidden || !$("#tkDeptSeg").hidden;   // managers pick the department in the row above
@@ -2563,14 +2566,27 @@ function renderTkFilters(){
   const dl=$("#dlPpl"); dl.textContent=""; (lists.ppl||[]).forEach(v=>{ const x=document.createElement("option"); x.value=v; dl.appendChild(x); });
 }
 $("#tkSort").value=tkSort;
-$("#tkCatSel").onchange=e=>{ tkF.type=e.target.value; renderTasks(); };
+const tkCatPicked=()=>tkF.type ? String(tkF.type).split("\n").filter(Boolean) : [];
+$("#tkCatSel").onclick=ev=>{ ev.stopPropagation(); const old=$(".cat-pop"); if(old){ old.remove(); $("#tkCatSel").setAttribute("aria-expanded","false"); return; }
+  const btn=$("#tkCatSel"), p=mk("div","cat-pop"); p.setAttribute("role","group"); p.setAttribute("aria-label","קטגוריות");
+  const paint=()=>{ p.textContent=""; const cs=tkCatPicked();
+    const all=mk("button","cat-all"+(cs.length?"":" on"),"הכל"); all.type="button"; all.onclick=()=>{ tkF.type=""; renderTasks(); paint(); }; p.appendChild(all);
+    tkCats().forEach(v=>{ const l=mk("label","cat-it"), i=mk("input"); i.type="checkbox"; i.checked=cs.includes(v);
+      const sw=mk("span","cat-sw"); sw.style.background="var(--c-"+hueOf(v)+")";
+      i.onchange=()=>{ const n=i.checked ? cs.concat(v) : cs.filter(x=>x!==v); tkF.type=n.join("\n"); renderTasks(); paint(); };
+      l.append(i,sw,mk("span",null,v)); p.appendChild(l); }); };
+  paint(); document.body.appendChild(p); btn.setAttribute("aria-expanded","true");
+  const r=btn.getBoundingClientRect(), w=Math.min(260, innerWidth-16);
+  p.style.width=w+"px"; p.style.top=(r.bottom+4)+"px"; p.style.left=Math.max(8,Math.min(r.right-w,innerWidth-w-8))+"px";
+  const out=e=>{ if(!p.contains(e.target) && e.target!==btn){ p.remove(); btn.setAttribute("aria-expanded","false"); removeEventListener("pointerdown",out,true); removeEventListener("scroll",out,true); } };
+  addEventListener("pointerdown",out,true); addEventListener("scroll",out,true); };
 $("#tkSort").onchange=()=>{ tkSort=$("#tkSort").value; tkCol=null; try{ localStorage.removeItem("ogg-tk-col"); }catch(e){} try{ localStorage.setItem("ogg-tk-sort",tkSort); }catch(e){} renderTasks(); };
 $("#tfClear").onclick=()=>{ Object.keys(tkF).forEach(k=>tkF[k]= k==="late" ? false : ""); renderTasks(); };
 $("#tfToggle").onclick=()=>{ const p=$("#tfPanel"), open=p.hidden; p.hidden=!open; $("#tfToggle").setAttribute("aria-expanded",String(open)); };
 $("#tfLate").onclick=()=>{ tkF.late=!tkF.late; renderTasks(); };
 $("#tfRep").onclick=()=>{ tkF.rep=!tkF.rep; renderTasks(); };      // only the recurring (scheduled) tasks
 $("#tq").oninput=()=>{ tkF.q=$("#tq").value; renderTasks(); };
-["ppl","loc","type","prio","dept"].forEach(k=>{ const el=$("#tf"+k[0].toUpperCase()+k.slice(1)); el.onchange=()=>{ tkF[k]=el.value; renderTasks(); }; });
+["ppl","loc","type","prio","dept"].forEach(k=>{ const el=$("#tf"+k[0].toUpperCase()+k.slice(1)); el.onchange=()=>{ if(el.value==="__multi") return; tkF[k]=el.value; renderTasks(); }; });
 /* update log: every task keeps a running log — time, who reported, what happened.
    Status changes are logged automatically; when the task is finished the log goes into the event ("המשך טיפול"). */
 const K_REPORTER="ogg-reporter";
@@ -2846,7 +2862,7 @@ function renderTasks(){
   const box=$("#tkList"); if(!box) return; box.textContent="";
   const today=ymd(new Date());
   const pass=t=>(!tkF.ppl || (t.ppl||[]).includes(tkF.ppl)) && (!tkF.loc || (t.loc||[]).includes(tkF.loc))
-             && (!tkF.type || t.type===tkF.type) && (!tkF.prio || prioOf(t)===tkF.prio)
+             && (!tkF.type || tkCatPicked().includes(t.type)) && (!tkF.prio || prioOf(t)===tkF.prio)
              && (!tkF.late || (t.due && t.due<today)) && (!tkF.dept || tkInDept(t,tkF.dept)) && (!tkF.rep || !!t.rep)
              && (!tkF.q || tkText(t).includes(tkF.q.trim().toLowerCase()));
   const rows = tkView==="priv" ? [] : (tkView!=="done"
