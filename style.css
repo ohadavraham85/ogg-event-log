@@ -2216,3 +2216,9 @@ html.lite #viewDash .dsh-title{display:none}
   .tk.tk-blink.high{background:color-mix(in srgb,var(--c-fault-bg) 50%,var(--panel))}
   .tk.tk-blink.hot{background:var(--c-fault-bg);box-shadow:0 0 0 2px var(--c-fault)}
 }
+/* v3.25: vivid fixed colours for the main kinds of equipment */
+.tk .eqv,#viewTasks.rows .tk:not(.x) .tk-tag.eqt.eqv{border:1px solid transparent !important}
+.tk .eqv-hv,#viewTasks.rows .tk:not(.x) .tk-tag.eqt.eqv-hv{background:#DC2626 !important;color:#fff !important}
+.tk .eqv-gen,#viewTasks.rows .tk:not(.x) .tk-tag.eqt.eqv-gen{background:#FACC15 !important;color:#3B2F00 !important}
+.tk .eqv-lv,#viewTasks.rows .tk:not(.x) .tk-tag.eqt.eqv-lv{background:#16A34A !important;color:#fff !important}
+.tk .eqv-pnl,#viewTasks.rows .tk:not(.x) .tk-tag.eqt.eqv-pnl{background:#F97316 !important;color:#fff !important}
