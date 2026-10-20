@@ -2230,3 +2230,15 @@ html.lite #viewDash .dsh-title{display:none}
   #viewTasks.rows .tk-th:hover .tk-rs::after,#viewTasks.rows .tk-rs:hover::after{background:var(--water);opacity:1}
 }
 body.tk-resizing,body.tk-resizing *{cursor:col-resize !important;user-select:none !important}
+/* v3.27: category filter — several can be picked */
+.cat-btn{font:inherit;font-size:14px;font-weight:800;color:var(--ink);background:var(--panel);border:1.5px solid var(--edge);border-radius:10px;padding:7px 12px;cursor:pointer;
+  max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cat-btn::after{content:" ▾";color:var(--ink-3)}
+.cat-btn.on{border-color:var(--water)}
+.cat-pop{position:fixed;z-index:200;background:var(--panel);border:1px solid var(--edge);border-radius:12px;box-shadow:0 12px 32px rgba(0,0,0,.22);padding:6px;display:flex;flex-direction:column;gap:2px;max-height:60vh;overflow:auto}
+.cat-it{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:15px;color:var(--ink)}
+.cat-it:hover{background:var(--panel-2)}
+.cat-it input{width:18px;height:18px;accent-color:var(--water);margin:0;flex:none}
+.cat-sw{width:10px;height:10px;border-radius:50%;flex:none}
+.cat-all{border:none;background:none;font:inherit;font-size:14px;font-weight:800;color:var(--ink-2);text-align:start;padding:8px 10px;border-radius:8px;cursor:pointer}
+.cat-all.on{color:var(--water);background:var(--water-soft)}
