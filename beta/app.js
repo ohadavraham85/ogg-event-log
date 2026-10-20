@@ -2075,7 +2075,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.21", APP_DATE="20/10/2026";
+const APP_VER="3.22", APP_DATE="20/10/2026";
 $("#verChip").textContent="v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -3013,7 +3013,8 @@ function openTaskForm(id, copy){
   fillSelect($("#tkLoc"), byUse("loc"), t ? (t.loc||[])[0]||"" : "", "— בחר מיקום —", true);
   fillSelect($("#tkEq"), byUse("eq"), t ? (t.eq||[])[0]||"" : "", "— בחר ציוד —", true);
   paintDeptChips(t ? (t.depts||[]) : (tkView==="mine" && myDept() && !myName() ? [myDept()] : []));
-  $("#tkCkWrap").hidden=!!t && !copy; paintFormCk(copy && t ? (t.check||[]).filter(c=>c && !c.del).map(c=>c.text) : []);          // new task: its checklist (an existing one is edited on the task itself)
+  $("#tkCkWrap").hidden=false;   // the checklist: new items on a new task; editing a task shows its items and adds more (a manager can also take one out)
+  paintFormCk(copy && t ? (t.check||[]).filter(c=>c && !c.del).map(c=>c.text) : [], t && !copy ? (t.check||[]).filter(c=>c && !c.del) : []);
   document.querySelectorAll("#tkForm .tk-f.bad").forEach(x=>x.classList.remove("bad"));
   paintFormColors();
   $("#tkFormTitle").textContent = pt ? "עריכת משימה אישית 🔒" : copy && t ? "משימה חדשה — עותק של "+(snOf(t)||"משימה") : t ? "עריכת משימה" : "משימה חדשה";
@@ -3071,10 +3072,17 @@ $("#tkPpl").addEventListener("change",()=>{
   el.value=""; paintPplChips(); el.closest(".tk-f").classList.remove("bad"); $("#tkDepts").closest(".tk-f").classList.remove("bad");
 });
 /* checklist in the new-task form: type an item + Enter; ✕ takes it out (nothing is saved until "שמור משימה") */
-let tkCkSel=[];
-function paintFormCk(sel){
+let tkCkSel=[], tkCkOld=[], tkCkGone=new Set();   // new item texts · the task's items (editing) · items a manager took out in the form
+function paintFormCk(sel, old){
   if(sel) tkCkSel=sel.slice();
+  if(old){ tkCkOld=old.slice(); tkCkGone=new Set(); }
   const box=$("#tkCk"); box.textContent="";
+  tkCkOld.forEach(c=>{ const gone=tkCkGone.has(c.id), r=mk("div","ck"+(c.done?" done":"")+(gone?" gone":""));
+    const o=mk("span","ck-box"+(c.done?" on":"")); if(c.done) o.textContent="✓";
+    r.append(o, mk("span","ck-t",c.text));
+    if(isManager()){ const d=mk("button","ck-del",gone?"↩":"✕"); d.type="button"; d.style.opacity="1"; d.setAttribute("aria-label",gone?"החזר פריט":"הוצא פריט");
+      d.onclick=()=>{ gone ? tkCkGone.delete(c.id) : tkCkGone.add(c.id); paintFormCk(); }; r.appendChild(d); }
+    box.appendChild(r); });
   tkCkSel.forEach((v,i)=>{
     const r=mk("div","ck"), o=mk("span","ck-box"), x=mk("span","ck-t",v), d=mk("button","ck-del","✕");
     d.type="button"; d.setAttribute("aria-label","הוצא פריט"); d.style.opacity="1";
@@ -3144,7 +3152,11 @@ $("#tkSave").onclick=()=>{
   const data={title, desc:$("#tkDesc").value.trim(), type:$("#tkType").value||"", prio, urgent:prio==="דחופה",
     ppl:tkPplSel.slice(), loc:one($("#tkLoc").value), eq:one($("#tkEq").value), due:$("#tkDue").value||"", start:$("#tkStart").value||"", depts:tkDeptSel.slice(), rep:readRep(), upd:now};
   const was=tkEdit;
-  if(was){ const t=tasks.find(x=>x.id===was); if(t) Object.assign(t,data); }
+  if(was){ const t=tasks.find(x=>x.id===was); if(t){ Object.assign(t,data);
+      const pend=($("#tkCk input")||{}).value; if(pend && pend.trim() && !tkCkSel.includes(pend.trim())) tkCkSel.push(pend.trim());
+      if(tkCkGone.size) (t.check||[]).forEach(c=>{ if(c && tkCkGone.has(c.id)) c.del=true; });
+      if(tkCkSel.length){ t.check=(Array.isArray(t.check)?t.check:[]).concat(tkCkSel.map(text=>({id:newId(), text, done:false})));
+        tkLog(t, "נוספו לרשימת הבדיקה: "+tkCkSel.join(", "), "", true); } } }
   else { const pend=($("#tkCk input")||{}).value; if(pend && pend.trim() && !tkCkSel.includes(pend.trim())) tkCkSel.push(pend.trim());
     const t=Object.assign({id:newId(), status:"פתוחה", created:now, log:[], openedBy:reporter()||"", openedMail:(window.cloudMe && window.cloudMe())||""}, data);
     if(tkCkSel.length) t.check=tkCkSel.map(text=>({id:newId(), text, done:false}));
