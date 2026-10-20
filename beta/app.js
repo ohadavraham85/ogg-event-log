@@ -2077,7 +2077,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.23", APP_DATE="20/10/2026";
+const APP_VER="3.24", APP_DATE="20/10/2026";
 $("#verChip").textContent="v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2863,7 +2863,7 @@ function renderTasks(){
     c.addEventListener("click",ev=>{ if(tkLV!=="rows" || ev.target.closest("button,input,textarea,select,a,label,.tk-log,.tk-check,.tk-files,.qk")) return;
       tkRowOpen.has(t.id) ? tkRowOpen.delete(t.id) : tkRowOpen.add(t.id); c.classList.toggle("x"); }); c.style.borderInlineStartColor = tkOpen(t) && !t.due ? "var(--c-"+ph+")" : "";
     if(tkOpen(t) && t.due) c.classList.add(t.due<today?"tl-late":t.due===today?"tl-today":"tl-future");   // the whole frame in the traffic-light colour of the due date
-    if(tkOpen(t) && pr==="דחופה") c.style.background="color-mix(in srgb,var(--c-fault-bg) 55%,var(--panel))";
+    if(tkOpen(t) && (pr==="גבוהה" || pr==="דחופה")) c.classList.add("tk-blink", pr==="דחופה" ? "hot" : "high");   // high and urgent: the whole task pulses red
     const tx=mk("span","tk-tt",t.title||"(ללא כותרת)");
     { const tt=mk("div","tk-t"); tt.appendChild(tkCircle(t, ()=>tkOpen(t) ? openTaskDone(t.id) : reopenTask(t))); if(t.no) tt.appendChild(mk("span","sn","#"+t.no));
       (t.eq||[]).forEach(q=>{ const g=mk("span","tk-eqtag eqc","⚙ "+q); g.title="ציוד"; g.style.setProperty("--eqh",eqHue(q)); tx.appendChild(g); });   // the equipment, right by the title
