@@ -2075,7 +2075,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.20", APP_DATE="20/10/2026";
+const APP_VER="3.21", APP_DATE="20/10/2026";
 $("#verChip").textContent="v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2244,6 +2244,28 @@ const tkOpen=t=>t.status!=="הושלמה";
 const tkStat=t=>t.status==="בטיפול" ? "בטיפול" : t.status==="בהמתנה" || t.status==="HOLD" ? "בהמתנה" : "פתוחה";   // an open task: פתוחה / בטיפול / בהמתנה (v2.53 wrote "HOLD")
 /* order of the open tasks: newest first (default), by due date, or by priority — picked above the list, kept on the device */
 let tkSort="new"; try{ tkSort=localStorage.getItem("ogg-tk-sort")||"new"; }catch(e){}
+/* "רשימה" on a wide screen: sort by a column (its heading) */
+const TK_COLS=[["title","משימה"],["eq","ציוד"],["who","שיוך"],["dept","מחלקה"],["prio","עדיפות"],["type","קטגוריה"],["stat","סטטוס"],["extra","נוספים"],["due","תאריכים"],["ppl","אחראי · מיקום"]];
+let tkCol=null; try{ tkCol=JSON.parse(localStorage.getItem("ogg-tk-col")||"null"); }catch(e){}
+const tkColOn=()=>!!tkCol && tkLV==="rows" && matchMedia("(min-width:900px)").matches;
+function tkColVal(t,k){   // a number or a text; "" = nothing there (always last)
+  if(k==="title") return t.title||"";
+  if(k==="eq") return (t.eq||[])[0]||"";
+  if(k==="who") return t.priv ? 3 : isMine(t) ? 0 : openedByMe(t) ? 1 : 2;
+  if(k==="dept") return (t.depts||[])[0]||"";
+  if(k==="prio") return PRIOS.indexOf(prioOf(t));
+  if(k==="type"){ const i=TK_CATS.indexOf(t.type||""); return !t.type ? "" : i>=0 ? " "+i : t.type; }   // the anchors first, in their order
+  if(k==="stat") return !tkOpen(t) ? 9 : ["פתוחה","בטיפול","בהמתנה"].indexOf(tkStat(t));
+  if(k==="extra"){ const ci=(t.check||[]).filter(x=>x && !x.del); return ci.length ? ci.filter(x=>x.done).length/ci.length : ""; }
+  if(k==="due") return t.due||"";
+  if(k==="ppl") return (t.ppl||[])[0]||"";
+  return "";
+}
+function tkColCmp(){ const {k,d}=tkCol;
+  return (a,b)=>{ const x=tkColVal(a,k), y=tkColVal(b,k);
+    if(x==="" || y==="") return x===y ? 0 : x==="" ? 1 : -1;
+    const c = typeof x==="number" && typeof y==="number" ? x-y : String(x).localeCompare(String(y),"he");
+    return d*c || tkSortKey(a).localeCompare(tkSortKey(b)); }; }
 function tkCmp(){
   const due=t=>t.due||"9999-99-99", cr=t=>String(t.created||"");
   if(tkSort==="due") return (a,b)=>due(a).localeCompare(due(b)) || PRIOS.indexOf(prioOf(a))-PRIOS.indexOf(prioOf(b));
@@ -2522,7 +2544,7 @@ function renderTkFilters(){
 }
 $("#tkSort").value=tkSort;
 $("#tkCatSel").onchange=e=>{ tkF.type=e.target.value; renderTasks(); };
-$("#tkSort").onchange=()=>{ tkSort=$("#tkSort").value; try{ localStorage.setItem("ogg-tk-sort",tkSort); }catch(e){} renderTasks(); };
+$("#tkSort").onchange=()=>{ tkSort=$("#tkSort").value; tkCol=null; try{ localStorage.removeItem("ogg-tk-col"); }catch(e){} try{ localStorage.setItem("ogg-tk-sort",tkSort); }catch(e){} renderTasks(); };
 $("#tfClear").onclick=()=>{ Object.keys(tkF).forEach(k=>tkF[k]= k==="late" ? false : ""); renderTasks(); };
 $("#tfToggle").onclick=()=>{ const p=$("#tfPanel"), open=p.hidden; p.hidden=!open; $("#tfToggle").setAttribute("aria-expanded",String(open)); };
 $("#tfLate").onclick=()=>{ tkF.late=!tkF.late; renderTasks(); };
@@ -2821,12 +2843,16 @@ function renderTasks(){
       rows.push(...pv); shown.push(...pv.filter(pPass)); shown.sort(cmp);
       $("#tkResCount").textContent = shown.length===rows.length ? nf(rows.length)+" משימות" : nf(shown.length)+" מתוך "+nf(rows.length); }
   }
+  if(tkColOn()) shown.sort(tkColCmp());   // "רשימה": a column heading was tapped — that order wins
   rows.length=0; rows.push(...shown); tkLastRows=shown.filter(t=>!t.priv);
   if(!rows.length){ box.appendChild(mk("div","tk-empty", tkView!=="priv" && Object.values(tkF).some(Boolean) ? "אין משימות שמתאימות לסינון." :
     tkView==="mine" ? (myName() ? "אין משימות פתוחות שלך או של המחלקה שלך." : (window.cloudMe ? "המנהל עדיין לא הגדיר לך שם בצוות." : "בחר למעלה \"אני:\" כדי לראות את המשימות שלך.")) : tkView==="opened" ? "אין משימות פתוחות שפתחת." : tkView==="priv" ? "אין לך משימות אישיות — \"משימה חדשה\" → אישית 🔒." : tkView==="open" ? "אין משימות פתוחות." : "עדיין לא הושלמו משימות.")); return; }
   // "רשימה" on a wide screen: a header row naming the columns (hidden on cards / phones by CSS)
-  { const h=mk("div","tk-head"); h.setAttribute("aria-hidden","true");
-    ["משימה","ציוד","שיוך","מחלקה","עדיפות","קטגוריה","סטטוס","נוספים","תאריכים","אחראי · מיקום"].forEach(x=>h.appendChild(mk("span",null,x))); box.appendChild(h); }
+  { const h=mk("div","tk-head");   // a tap on a heading sorts by that column: once up, again down, a third time back to the usual order
+    TK_COLS.forEach(([k,x])=>{ const on=tkCol && tkCol.k===k, b=mk("button","tk-th"+(on?" on":""),x+(on?(tkCol.d>0?" ▲":" ▼"):"")); b.type="button";
+      b.title="מיון לפי "+x; b.setAttribute("aria-sort", on ? (tkCol.d>0?"ascending":"descending") : "none");
+      b.onclick=()=>{ tkCol = !on ? {k,d:1} : tkCol.d>0 ? {k,d:-1} : null; try{ localStorage.setItem("ogg-tk-col", JSON.stringify(tkCol)); }catch(e){} renderTasks(); };
+      h.appendChild(b); }); box.appendChild(h); }
   rows.forEach(t=>{
     if(t.priv){ box.appendChild(privCard(t, today)); return; }
     const pr=prioOf(t), ph=PRIO_HUE[pr];

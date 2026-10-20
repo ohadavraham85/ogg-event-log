@@ -1328,7 +1328,10 @@ small.dept{font-size:12px;font-weight:700;color:var(--c-maint);background:var(--
 @media (min-width:900px){
   #viewTasks.rows .tk-head{display:grid;grid-template-columns:var(--tkcols);gap:6px 8px;align-items:end;padding:0 17px 6px 13px;margin-bottom:6px;
     border-bottom:2px solid var(--edge);font-size:12.5px;font-weight:900;color:var(--ink-2)}
-  #viewTasks.rows .tk-head span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #viewTasks.rows .tk-head > *{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #viewTasks.rows .tk-th{border:none;background:none;font:inherit;color:inherit;text-align:start;padding:3px 4px;margin:0 -4px;border-radius:6px;cursor:pointer}
+  #viewTasks.rows .tk-th:hover{background:var(--panel-2);color:var(--water)}
+  #viewTasks.rows .tk-th.on{color:var(--water)}
 }
 /* equipment: by the title on cards / phones; its own column in "רשימה" on a wide screen */
 .tk-tags .sl-eq{display:none}
