@@ -2070,7 +2070,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.18", APP_DATE="18/10/2026";
+const APP_VER="3.19", APP_DATE="20/10/2026";
 $("#verChip").textContent="v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2476,7 +2476,8 @@ function colorSelect(el, hue){                            // a chosen value gets
   el.style.background = hue ? "var(--c-"+hue+"-bg)" : ""; el.style.color = hue ? "var(--c-"+hue+")" : "";
   el.style.borderColor = hue ? "var(--c-"+hue+")" : ""; el.style.fontWeight = hue ? "800" : "";
 }
-function paintFormColors(){ colorSelect($("#tkPrio"), PRIO_HUE[$("#tkPrio").value]); colorSelect($("#tkType"), $("#tkType").value ? hueOf($("#tkType").value) : ""); }
+function paintFormColors(){ colorSelect($("#tkPrio"), PRIO_HUE[$("#tkPrio").value]); const ty=$("#tkType"), tb=ty.nextElementSibling;
+  colorSelect(ty, ty.value ? hueOf(ty.value) : ""); if(tb && tb.classList.contains("ss-btn")) colorSelect(tb, ty.value ? hueOf(ty.value) : ""); }
 // (tkInDept: a task belongs to the department it was assigned to; a task with no department, to its people's — defined with the calendar)
 // managers: a row of departments above the list; it opens on the manager's own department
 let tkDeptInit=false;
@@ -2539,6 +2540,20 @@ const tkDraft={}; let tkFocus=null;          // unsent text in a task's boxes, a
 /* checklist inside a task: tick items off, add items in place (Enter). Ticking writes a line in the
    update log (so the team gets it as a message). Removing an item is for a manager, with confirmation;
    it stays as a hidden tombstone so a device that still has it can't bring it back. */
+/* a checklist item that turns out to be a job of its own becomes a task: same type, priority, people, departments,
+   place, equipment and due date as the task it came from; the item stays, marked "→ משימה #", and both logs say so */
+function ckToTask(t, it){
+  if(!confirm("להפוך את הפריט למשימה בפני עצמה?\n"+it.text+"\n\nהמשימה החדשה תקבל את הסוג, העדיפות, האחראים, המיקום, הציוד והיעד של המשימה הזו.")) return;
+  const now=new Date().toISOString();
+  const n={id:newId(), status:"פתוחה", created:now, upd:now, log:[], openedBy:reporter()||"", openedMail:(window.cloudMe && window.cloudMe())||"",
+    title:it.text, desc:"", type:t.type||"", prio:prioOf(t), urgent:prioOf(t)==="דחופה", ppl:(t.ppl||[]).slice(), depts:(t.depts||[]).slice(),
+    loc:(t.loc||[]).slice(), eq:(t.eq||[]).slice(), start:"", due:t.due||"", parent:t.id};
+  tkLog(n, "נפתחה מפריט ברשימת הבדיקה של משימה"+(t.no?" #"+t.no:"")+": "+(t.title||""), "", true);
+  tasks.push(n); ensureNos();
+  it.moved=n.id; it.done=true; it.by=reporter()||""; it.at=nowLocal();
+  tkLog(t, "פריט הפך למשימה"+(n.no?" #"+n.no:"")+": "+it.text, "", true); t.upd=now;
+  saveTasks(); toast("נפתחה משימה"+(n.no?" #"+n.no:""),{label:"הצג",fn:()=>goTask(n.id)});
+}
 function renderCheck(t, c){
   const items=(t.check||[]).filter(x=>x && !x.del), open=tkOpen(t);
   if(!items.length && !open) return;
@@ -2554,10 +2569,21 @@ function renderCheck(t, c){
     b.onclick=()=>{ it.done=!it.done; it.by=reporter()||""; it.at=nowLocal();
       tkLog(t, (it.done?"✓ בוצע: ":"סימון בוטל: ")+it.text, "", true); save(); };
     const x=mk("span","ck-t",it.text); x.onclick=()=>{ if(open) b.click(); };
-    r.append(b,x);
-    if(it.done && it.by) r.appendChild(mk("span","ck-by",it.by));
+    const ctl=mk("span","ck-ctl"); r.append(b,x,ctl);   // the item's controls — on a narrow phone they wrap under the text
+    if(it.moved){ const tt=tasks.find(z=>z.id===it.moved), g=mk("button","ck-moved","→ משימה"+(tt && tt.no?" #"+tt.no:"")); g.type="button";
+      g.title="הפריט הפך למשימה בפני עצמה"; g.onclick=()=>goTask(it.moved); ctl.appendChild(g); }
+    else if(it.done && it.by) ctl.appendChild(mk("span","ck-by",it.by));
+    if(open && !isViewer()){   // move up / down, and "make it a task of its own"
+      const i=items.indexOf(it), mv=(dir)=>{ const o=items[i+dir]; if(!o) return; const a=t.check, ia=a.indexOf(it), ib=a.indexOf(o); a[ia]=o; a[ib]=it; save(); };
+      const up=mk("button","ck-mv","▲"), dn=mk("button","ck-mv","▼"); up.type=dn.type="button";
+      up.setAttribute("aria-label","הזז למעלה"); dn.setAttribute("aria-label","הזז למטה"); up.title="למעלה"; dn.title="למטה";
+      up.disabled=i===0; dn.disabled=i===items.length-1; up.onclick=()=>mv(-1); dn.onclick=()=>mv(1);
+      ctl.append(up,dn);
+      if(!it.moved && !it.done){ const pr=mk("button","ck-pro","⤴"); pr.type="button"; pr.title="הפוך למשימה בפני עצמה"; pr.setAttribute("aria-label","הפוך למשימה בפני עצמה");
+        pr.onclick=()=>ckToTask(t, it); ctl.appendChild(pr); }
+    }
     if(open && isManager()){ const d=mk("button","ck-del","✕"); d.type="button"; d.setAttribute("aria-label","הסר פריט");
-      d.onclick=async()=>{ if(!await confirmDel("להסיר פריט מרשימת הבדיקה?", it.text)) return; it.del=true; save(); }; r.appendChild(d); }
+      d.onclick=async()=>{ if(!await confirmDel("להסיר פריט מרשימת הבדיקה?", it.text)) return; it.del=true; save(); }; ctl.appendChild(d); }
     box.appendChild(r);
   });
   if(open){
@@ -3441,9 +3467,22 @@ function openSS(sel,btn){
       const picked = multi && !special && sel._picked().includes(o.v);
       const b=mk("button","ss-opt"+(o.v===sel.value||picked?" on":"")+(special?" sp":"")+(o.core?" core":"")+(picked?" picked":""),(picked?"✓ ":"")+o.t); b.type="button"; b.onclick=()=>pick(o.v);
       if(picked) b.title="נבחר — לחיצה מסירה";
-      if(!special) b.appendChild(personTags(o.v));
+      if(!special && !sel._listKey) b.appendChild(personTags(o.v));
+      if(!special && sel._listKey){ const x=mk("span","ss-x","✕"); x.setAttribute("role","button"); x.title="הוצא מהרשימה"; x.setAttribute("aria-label","הוצא מהרשימה: "+o.t);
+        x.onclick=ev=>{ ev.stopPropagation(); retireValue(sel._listKey,o.v);
+          const so=[...sel.options].find(z=>z.value===o.v); if(so && sel.value!==o.v) so.remove();
+          const i=opts.indexOf(o); if(i>=0) opts.splice(i,1); paint(); };
+        b.appendChild(x); }
       if(!first && !special) first=o.v; list.appendChild(b);
     });
+    if(sel._listKey && f && !opts.some(o=>o.t.trim().toLowerCase()===f)){   // a new value: added to the list and picked
+      const raw=q.value.trim(), b=mk("button","ss-opt ss-add","+ הוסף: "+raw); b.type="button";
+      b.onclick=()=>{ const k=sel._listKey;
+        if(!lists[k].includes(raw)){ lists[k].push(raw); if(!lists["_custom_"+k].includes(raw)) lists["_custom_"+k].push(raw); }
+        const h=(lists["_hide_"+k]||[]).indexOf(raw); if(h>=0) lists["_hide_"+k].splice(h,1);
+        persist(); if(![...sel.options].some(z=>z.value===raw)){ const no=mk("option",null,raw); no.value=raw; sel.appendChild(no); }
+        pick(raw); toast(raw+" נוסף לרשימה"); };
+      list.insertBefore(b, list.firstChild); }
     if(!list.querySelector(".ss-opt:not(.sp)")) list.insertBefore(mk("div","ss-none","אין התאמה"), list.firstChild);
   };
   q.oninput=paint;
@@ -3457,9 +3496,9 @@ function openSS(sel,btn){
       list.style.maxHeight=Math.max(120, vh-16-(multi?112:64))+"px"; return;
     }
     const r=btn.getBoundingClientRect(), w=Math.max(r.width,Math.min(300,innerWidth-16));
-    const below=innerHeight-r.bottom, h=Math.min(380, Math.max(below, r.top)-12);
+    const below=innerHeight-r.bottom, down=below>=240 || below>=r.top, h=Math.min(380, (down ? below : r.top)-12);   // fits on the side it opens to
     p.style.width=w+"px"; p.style.left=Math.max(8,Math.min(r.right-w,innerWidth-w-8))+"px";
-    if(below>=240 || below>=r.top){ p.style.top=(r.bottom+4)+"px"; p.style.bottom=""; } else { p.style.bottom=(innerHeight-r.top+4)+"px"; p.style.top=""; }
+    if(down){ p.style.top=(r.bottom+4)+"px"; p.style.bottom=""; } else { p.style.bottom=(innerHeight-r.top+4)+"px"; p.style.top=""; }
     list.style.maxHeight=Math.max(120,h-(multi?104:56))+"px";
   };
   place(); p._place=place;
@@ -3477,7 +3516,8 @@ function ssPhone(){ return innerWidth<=600 || matchMedia("(pointer:coarse)").mat
 let ssW=innerWidth;
 addEventListener("resize",()=>{ if(!ssPanel){ ssW=innerWidth; return; } if(Math.abs(innerWidth-ssW)>40){ ssW=innerWidth; closeSS(); } else ssPanel._place(); });
 if(window.visualViewport){ const vvp=()=>{ if(ssPanel && ssPhone()) ssPanel._place(); }; visualViewport.addEventListener("resize",vvp); visualViewport.addEventListener("scroll",vvp); }
-["#tkPpl","#tkLoc","#tkEq","#tfPpl","#tfLoc"].forEach(id=>enhanceSelect($(id)));
+["#tkPpl","#tkLoc","#tkEq","#tfPpl","#tfLoc","#tkType"].forEach(id=>enhanceSelect($(id)));
+$("#tkType")._listKey="type";   // the task type list: ✕ takes a type out of the list, and a typed new one is added for next time
 // people on a task: several are picked one after another — the list stays open
 $("#tkPpl")._picked=()=>tkPplSel; $("#tkPpl")._unpick=v=>{ tkPplSel=tkPplSel.filter(x=>x!==v); paintPplChips(); };
 

@@ -2179,3 +2179,17 @@ html.lite #viewDash .dsh-title{display:none}
 .wk-snz{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:10px;font-size:13px;color:var(--ink-2)}
 .wk-snz[hidden]{display:none}
 .wk-snz .btn{padding:6px 10px;font-size:13px;min-height:0}
+/* v3.19: checklist — order (▲▼) and "make it a task" (⤴); the task-type list — ✕ takes a type out, "+ הוסף" adds a typed one */
+.ck-mv,.ck-pro{flex:none;border:none;background:none;color:var(--ink-3);cursor:pointer;font-size:12px;padding:4px 5px;border-radius:6px;line-height:1}
+.ck-pro{font-size:15px;color:var(--water)}
+.ck-mv:disabled{opacity:.25;cursor:default}
+@media (hover:hover){ .ck-mv:not(:disabled):hover,.ck-pro:hover{background:var(--panel-2);color:var(--water)} }
+.ck-moved{flex:none;border:1px solid var(--water);background:var(--water-soft);color:var(--water);border-radius:99px;font:inherit;font-size:12px;font-weight:800;padding:2px 9px;cursor:pointer}
+.ss-opt{position:relative}
+.ss-x{float:inline-end;margin-inline-start:8px;padding:0 6px;border-radius:6px;color:var(--ink-3);font-size:13px;cursor:pointer}
+.ss-x:hover{color:var(--c-fault);background:var(--panel-2)}
+.ss-add{color:var(--water);font-weight:800;border:1px dashed var(--water)}
+.ck{flex-wrap:wrap}
+.ck-t{flex:1 1 130px}
+.ck-ctl{display:flex;align-items:center;gap:2px;flex:none;margin-inline-start:auto}
+.ck-ctl:empty{display:none}
