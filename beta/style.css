@@ -2242,3 +2242,11 @@ body.tk-resizing,body.tk-resizing *{cursor:col-resize !important;user-select:non
 .cat-sw{width:10px;height:10px;border-radius:50%;flex:none}
 .cat-all{border:none;background:none;font:inherit;font-size:14px;font-weight:800;color:var(--ink-2);text-align:start;padding:8px 10px;border-radius:8px;cursor:pointer}
 .cat-all.on{color:var(--water);background:var(--water-soft)}
+
+/* reminders: repeat */
+.rem-rep{display:flex;align-items:center;gap:8px;margin:0 0 10px;font-weight:700}
+.rem-rep select{height:36px;font:inherit;border:1px solid var(--edge);border-radius:9px;padding:0 8px;background:var(--panel-2);color:var(--ink)}
+/* settings → 🔔 התראות */
+.notif-list{display:flex;flex-direction:column;gap:8px;margin:6px 0 4px}
+.notif-dev:empty{display:none}
+.notif-dev{margin-top:12px;padding-top:10px;border-top:1px solid var(--edge-2)}
