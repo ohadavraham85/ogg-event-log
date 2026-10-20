@@ -363,12 +363,13 @@
     snap.docChanges().forEach(c=>{
       const id=c.doc.id;
       if(c.type!=="removed" && id==="me-"+me && !c.doc.metadata.hasPendingWrites && window.remApply){   // my reminders (another device, or the cloud sent one)
-        const RM=c.doc.data().reminders; if(Array.isArray(RM)) window.remApply(RM); }
+        const RM=c.doc.data().reminders; if(Array.isArray(RM)) window.remApply(RM);
+        const NO=c.doc.data().notifOff; if(Array.isArray(NO) && window.notifApply) window.notifApply(NO); }
       if(c.type!=="removed" && id==="me-"+me && !firstEver){                 // a manager answered my feedback
         const R=c.doc.data().fbReplies;
         if(Array.isArray(R) && R.length && typeof inboxAdd==="function"){
           inboxAdd(R.map(x=>({id:"fbr:"+x.id, kind:"fb", reply:true, title:"תשובה למשוב שלך"+(x.fbText?": "+x.fbText.slice(0,40):""), text:x.text||"", by:x.by||"", at:x.at})), false);
-          notifyDevice("תשובה למשוב שלך", R[R.length-1].text||"", "ogg-fbr", ()=>{ if(typeof openInbox==="function") openInbox(); }); }
+          if(window.notifOn("fb")) notifyDevice("תשובה למשוב שלך", R[R.length-1].text||"", "ogg-fbr", ()=>{ if(typeof openInbox==="function") openInbox(); }); }
       }
       if(c.type==="removed" || id.indexOf("task-")!==0) return;
       const d=c.doc.data({serverTimestamps:"estimate"}), tid=id.slice(5);
@@ -422,7 +423,7 @@
       const title = assigned.length===1 ? "הוקצתה לך משימה" : "הוקצו לך "+assigned.length+" משימות";
       const body = assigned.map(t=>(t.prio&&t.prio!=="רגילה"&&t.prio!=="נמוכה" ? t.prio+" · " : t.urgent?"דחופה · ":"")+(t.title||"")+(t.due?" · יעד "+t.due.slice(8,10)+"/"+t.due.slice(5,7):"")).join("\n");
       toast(title+": "+(assigned[0].title||""), {label:"הצג", fn:openMine});
-      if(!pushOn()) notifyDevice(title, body, "ogg-task", openMine);   // with push on, the phone gets it from the server
+      if(!pushOn() && window.notifOn("assign")) notifyDevice(title, body, "ogg-task", openMine);   // with push on, the phone gets it from the server
       if(typeof addMineUnseen==="function") addMineUnseen(assigned.map(t=>t.id));
     } else if(fresh.length) toast(fresh.length===1 ? "משימה חדשה: "+(fresh[0].title||"") : fresh.length+" משימות חדשות",
       {label:"הצג", fn:()=>{ $("#tabTasks").click(); }});
@@ -505,7 +506,7 @@
     const body  = fresh.length===1 ? [what, (one.title||one.desc||"").slice(0,90), "נרשם ע\"י "+who(fresh[0].by)].filter(Boolean).join("\n")
                                    : "נרשמו ע\"י "+[...new Set(fresh.map(f=>who(f.by)))].join(", ");
     toast(fresh.length===1 ? "אירוע חדש"+(what?" · "+what:"")+" · "+who(fresh[0].by) : title, {label:"הצג", fn:showNew});
-    if(document.hidden && "Notification" in window && Notification.permission==="granted"){
+    if(document.hidden && window.notifOn("ev") && "Notification" in window && Notification.permission==="granted"){
       const opt={body, tag:"ogg-new", renotify:true, icon:"icons/icon-notebook-192.png", badge:"icons/badge-96.png", lang:"he", dir:"rtl"};
       (navigator.serviceWorker ? navigator.serviceWorker.ready.then(r=>r.showNotification(title,opt)) : Promise.reject())
         .catch(()=>{ try{ const n=new Notification(title,opt); n.onclick=()=>{ window.focus(); showNew(); n.close(); }; }catch(e){} });
@@ -593,9 +594,11 @@
       nb.onclick=async()=>{ try{ await Notification.requestPermission(); }catch(e){} renderAccount(); };
       nt.appendChild(nb);
     }
-    card.appendChild(nt);
+    // these two live in settings → 🔔 התראות (in the account card when that is missing)
+    const host=$("#notifDev")||card; if(host!==card) host.textContent="";
+    host.appendChild(nt);
     // push to the phone (task messages also when the app is closed)
-    const pb=mk("div","cloud-push"); card.appendChild(pb);
+    const pb=mk("div","cloud-push"); host.appendChild(pb);
     pushSupported().then(ok=>{ if(ok && role!=="viewer") paintPush(pb); });
 
     // local-only log on this device (from before the team log) -> admin can upload it once
@@ -699,8 +702,11 @@
     const L=(list||[]).slice(0,50), nx=L.length ? Math.min(...L.map(r=>r.at)) : null;
     F.setDoc(F.doc(db,"meta","me-"+me),{reminders:L, remNext:nx, _upd:F.serverTimestamp(), _by:me},{merge:true}).catch(()=>toast("שמירת התזכורת בענן נכשלה"));
   },400); };
+  window.cloudSetNotif=list=>{ if(!started || !me) return;
+    F.setDoc(F.doc(db,"meta","me-"+me),{notifOff:(list||[]).slice(0,20), _upd:F.serverTimestamp(), _by:me},{merge:true}).then(()=>toast("נשמר")).catch(()=>toast("השמירה בענן נכשלה")); };
   async function loadSelfName(){
-    try{ const s0=await F.getDoc(F.doc(db,"meta","me-"+me)); if(s0.exists() && Array.isArray(s0.data().reminders) && window.remApply) window.remApply(s0.data().reminders); }catch(e){}
+    try{ const s0=await F.getDoc(F.doc(db,"meta","me-"+me)); if(s0.exists() && Array.isArray(s0.data().reminders) && window.remApply) window.remApply(s0.data().reminders);
+      if(s0.exists() && Array.isArray(s0.data().notifOff) && window.notifApply) window.notifApply(s0.data().notifOff); }catch(e){}
     try{ const s=await F.getDoc(F.doc(db,"meta","me-"+me)); if(s.exists() && s.data().name){ selfName=s.data().name; try{ localStorage.setItem(K_SELF(),selfName); }catch(e){} if(typeof renderTasks==="function") renderTasks(); } }catch(e){}
   }
   function paintMyName(){

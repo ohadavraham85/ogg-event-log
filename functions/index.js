@@ -80,13 +80,15 @@ exports.taskPush = onDocumentWritten({ document: "meta/{doc}", region: REGION, d
   const who = whoOf(writer), t = (after && !after._del ? after : before) || {};
   const tid = String(t.id || ev.params.doc.slice(5));
 
+  // what each person turned off in settings → 🔔 התראות (meta/me-<mail>.notifOff)
+  const off = await notifOffOf([...new Set(tokens.docs.map(d => String(d.data().mail || "").toLowerCase()).filter(Boolean))]);
   // one message per device (each device keeps its own "every task of the team" setting for managers)
   const sends = [];
   tokens.docs.forEach(d => {
     const p = d.data(), mail = String(p.mail || "").toLowerCase(), m = members.get(mail);
     if (!m || mail === writer || m.role === "viewer" || !p.token) return;
     const R = { mail, name: m.name, dept: (m.name && dept[m.name]) || "", admin: m.role === "admin", all: p.all !== false };
-    const news = newsFor(before, after, who, R);
+    const no = off.get(mail) || [], news = newsFor(before, after, who, R).filter(n => !no.includes(n.kind));
     if (!news.length) return;
     const body = news.slice(0, 4).map(n => (n.by && n.by !== who ? n.by + ": " : "") + n.text).join("\n") + (news.length > 4 ? "\n…" : "");
     const head = news.some(n => n.kind === "assign" && /הוקצתה/.test(n.text)) ? "הוקצתה לך משימה" : "משימה · " + who;
@@ -95,11 +97,20 @@ exports.taskPush = onDocumentWritten({ document: "meta/{doc}", region: REGION, d
   await sendAll(sends);
 });
 
+// settings → 🔔 התראות: the kinds each person turned off (assign / update / status / edit / off / fb / rem / ev)
+async function notifOffOf(mails) {
+  const m = new Map(); if (!mails.length) return m;
+  const snaps = await db.getAll(...mails.map(x => db.doc("meta/me-" + x)));
+  snaps.forEach((s, i) => { const a = s.exists && s.data().notifOff; if (Array.isArray(a)) m.set(mails[i], a); });
+  return m;
+}
+
 // a manager answered a feedback (meta/me-<mail>.fbReplies grew): tell that person's devices
 async function replyPush(mail, before, after) {
   const was = new Set(((before && before.fbReplies) || []).map(r => r && r.id));
   const fresh = ((after && after.fbReplies) || []).filter(r => r && !was.has(r.id));
   if (!fresh.length) return;
+  if (Array.isArray(after.notifOff) && after.notifOff.includes("fb")) return;
   const tokens = await db.collection("push").where("mail", "==", mail).get();
   const r = fresh[fresh.length - 1];
   await sendAll(tokens.docs.filter(d => d.data().token).map(d => ({ ref: d.ref, mail, msg: { token: d.data().token,
@@ -160,15 +171,28 @@ exports.release = onDocumentWritten({ document: "board/_release", region: REGION
   } catch (e) { logger.error("release failed", e.message); await done("error", e.message); }
 });
 
-/* 🔔 reminders: every 5 minutes, the people whose earliest reminder (meta/me-<mail>.remNext) is due get a push; sent ones are removed */
+/* 🔔 reminders: every 5 minutes, the people whose earliest reminder (meta/me-<mail>.remNext) is due get a push; sent ones are removed,
+   a repeating one (rep: d / w / m) moves on to its next time — the same hour in Israel (summer / winter time included) */
+const ilOff = ms => { const s = new Date(ms).toLocaleString("en-US", { timeZone: "Asia/Jerusalem", hourCycle: "h23" });
+  return Date.parse(s + " UTC") - Math.floor(ms / 1000) * 1000; };
+function nextAt(at, rep, now) {
+  const d = new Date(at + ilOff(at)); let n = 0;                       // Israel wall-clock time, kept as UTC fields
+  while (d.getTime() - ilOff(at) <= now && n++ < 2000) {
+    if (rep === "d") d.setUTCDate(d.getUTCDate() + 1); else if (rep === "w") d.setUTCDate(d.getUTCDate() + 7);
+    else if (rep === "m") d.setUTCMonth(d.getUTCMonth() + 1); else return 0;
+  }
+  const guess = d.getTime() - ilOff(at); return d.getTime() - ilOff(guess);
+}
 exports.remindTick = onSchedule({ schedule: "every 5 minutes", region: REGION, timeZone: "Asia/Jerusalem" }, async () => {
   const now = Date.now();
   const q = await db.collection("meta").where("remNext", "<=", now).get();
   for (const d of q.docs) {
     if (!d.id.startsWith("me-")) continue;
     const mail = d.id.slice(3), R = (Array.isArray(d.data().reminders) ? d.data().reminders : []).filter(r => r && r.at);
-    const due = R.filter(r => r.at <= now), rest = R.filter(r => r.at > now);
-    if (due.length) {
+    const due = R.filter(r => r.at <= now), rest = R.filter(r => r.at > now)
+      .concat(due.filter(r => r.rep).map(r => ({ ...r, at: nextAt(r.at, r.rep, now) })).filter(r => r.at > now));
+    const no = d.data().notifOff;
+    if (due.length && !(Array.isArray(no) && no.includes("rem"))) {
       const tokens = await db.collection("push").where("mail", "==", mail).get(), sends = [];
       tokens.docs.forEach(t => { if (!t.data().token) return;
         due.forEach(r => sends.push({ ref: t.ref, mail, msg: { token: t.data().token,

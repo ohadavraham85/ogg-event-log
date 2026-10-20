@@ -1522,7 +1522,8 @@ let sgCur="lists"; try{ sgCur=localStorage.getItem("ogg-settings-topic")||"lists
 function isManager(){ if(!CLOUD_ON) return true; try{ return localStorage.getItem("ogg-cloud-role")==="admin"; }catch(e){ return false; } }
 function paintSettings(){
   const team=!!$("#cloudCard"), mgr=isManager();
-  $("#sgNav [data-sg=team]").hidden=!team;
+  $("#sgNav [data-sg=team]").hidden=!team; $("#sgNav [data-sg=notif]").hidden=!team || isViewer();
+  if(sgCur==="notif" && (!team || isViewer())) sgCur="general";
   $("#sgNav [data-sg=lists]").hidden=!mgr; $("#sgNav [data-sg=files]").hidden=!mgr; $("#sgNav [data-sg=sec]").hidden=!mgr || TV;
   if((!mgr || isLite()) && (sgCur==="lists"||sgCur==="files")) sgCur = team ? "team" : "general";   // phone view: no lists / files topics
   if(sgCur==="sec" && (!mgr || TV)) sgCur = team ? "team" : "general";
@@ -2080,7 +2081,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.27", APP_DATE="20/10/2026";
+const APP_VER="3.28", APP_DATE="20/10/2026";
 $("#verChip").textContent="v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -4753,21 +4754,27 @@ function remSave(){ try{ localStorage.setItem("ogg-rems",JSON.stringify(REMS)); 
 window.remApply=list=>{ REMS=Array.isArray(list)?list.filter(r=>r && r.tid && r.at):[]; try{ localStorage.setItem("ogg-rems",JSON.stringify(REMS)); }catch(e){}
   if(typeof renderTasks==="function") renderTasks(); };
 function remOf(tid){ return remList().find(r=>r.tid===tid); }
+// a repeating reminder: the next time after "now" (same hour; day / week / month)
+function remNextAt(at,rep,now){ const d=new Date(at); let n=0;
+  while(d.getTime()<=now && n++<2000){ if(rep==="d") d.setDate(d.getDate()+1); else if(rep==="w") d.setDate(d.getDate()+7); else if(rep==="m") d.setMonth(d.getMonth()+1); else return 0; }
+  return d.getTime(); }
+var REP_TXT={d:"כל יום",w:"כל שבוע",m:"כל חודש"};
 function remWhen(ms){ const d=new Date(ms), p=n=>String(n).padStart(2,"0"), dd=ymd(d);
   const day = dd===ymd(new Date()) ? "היום" : dd===ymd(new Date(Date.now()+864e5)) ? "מחר" : p(d.getDate())+"/"+p(d.getMonth()+1);
   return day+" "+p(d.getHours())+":"+p(d.getMinutes()); }
 function remBell(t){
   const r=remOf(t.id), b=mk("button","tk-bell"+(r?" on":"")); b.type="button";
   b.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm7-6V11a7 7 0 0 0-5.5-6.84V3.5a1.5 1.5 0 0 0-3 0v.66A7 7 0 0 0 5 11v5l-2 2v1h18v-1z"/></svg>';
-  if(r) b.appendChild(mk("span","tk-bell-t",remWhen(r.at)));
-  b.title = r ? "תזכורת: "+remWhen(r.at)+" — לחץ לשינוי" : "תזכורת למשימה"; b.setAttribute("aria-label",b.title);
+  if(r) b.appendChild(mk("span","tk-bell-t",(r.rep?"🔁 ":"")+remWhen(r.at)));
+  b.title = r ? "תזכורת: "+remWhen(r.at)+(r.rep?" · "+REP_TXT[r.rep]:"")+" — לחץ לשינוי" : "תזכורת למשימה"; b.setAttribute("aria-label",b.title);
   b.onclick=ev=>{ ev.stopPropagation(); remOpen(t); }; return b;
 }
 let remFor=null;
 function remOpen(t){
   remFor=t; const r=remOf(t.id), d=$("#dlgRem"), at8=v=>new Date(v+"T08:00").getTime();
   $("#remTitle").textContent="🔔 תזכורת · "+(t.priv?"🔒 ":t.no?"#"+t.no+" ":"")+(t.title||"");
-  $("#remNow").textContent = r ? "יש תזכורת ל"+remWhen(r.at) : "";
+  $("#remNow").textContent = r ? "יש תזכורת ל"+remWhen(r.at)+(r.rep?" · חוזרת "+REP_TXT[r.rep]:"") : "";
+  $("#remRep").value = r && r.rep || "";
   const box=$("#remOpts"); box.textContent="";
   const opt=(label,ms)=>{ const b=mk("button","btn",label); b.type="button"; b.onclick=()=>remSet(ms()); box.appendChild(b); };
   opt("בעוד שעה",()=>Date.now()+3600e3); opt("בעוד 3 שעות",()=>Date.now()+3*3600e3);
@@ -4782,8 +4789,9 @@ function remOpen(t){
 function remSet(ms){
   if(!remFor || !(ms>Date.now())){ toast("בחר זמן עתידי"); return; }
   const t=remFor;
-  REMS=remList().filter(x=>x.tid!==t.id).concat({id:newId(), tid:t.id, at:Math.round(ms), title:(t.priv?"🔒 ":t.no?"#"+t.no+" ":"")+(t.title||"משימה")});
-  remSave(); $("#dlgRem").close(); renderTasks(); toast("🔔 תזכורת נקבעה ל"+remWhen(ms));
+  const rp=$("#remRep").value;
+  REMS=remList().filter(x=>x.tid!==t.id).concat(Object.assign({id:newId(), tid:t.id, at:Math.round(ms), title:(t.priv?"🔒 ":t.no?"#"+t.no+" ":"")+(t.title||"משימה")}, rp?{rep:rp}:{}));
+  remSave(); $("#dlgRem").close(); renderTasks(); toast("🔔 תזכורת נקבעה ל"+remWhen(ms)+(rp?" · "+REP_TXT[rp]:""));
 }
 $("#remSetAt").onclick=()=>{ const v=$("#remAt").value; if(!v){ $("#remAt").focus(); return; } remSet(new Date(v).getTime()); };
 $("#remOff").onclick=()=>{ if(!remFor) return; REMS=remList().filter(x=>x.tid!==remFor.id); remSave(); $("#dlgRem").close(); renderTasks(); toast("התזכורת בוטלה"); };
@@ -4795,12 +4803,28 @@ function remTick(){
   if(document.hidden && CLOUD_ON && push) return;                 // the cloud sends it (and clears it)
   due.forEach(r=>{
     if(!document.hidden) toast("🔔 תזכורת: "+r.title,{label:"פתח",fn:()=>goTask(r.tid)});
-    else if("Notification" in window && Notification.permission==="granted" && navigator.serviceWorker)
+    else if(window.notifOn("rem") && "Notification" in window && Notification.permission==="granted" && navigator.serviceWorker)
       navigator.serviceWorker.ready.then(g=>g.showNotification("🔔 תזכורת",{body:r.title, tag:"ogg-task-"+r.tid, icon:"icons/icon-notebook-192.png", badge:"icons/badge-96.png", lang:"he", dir:"rtl", data:{tid:r.tid}})).catch(()=>{});
   });
-  REMS=REMS.filter(r=>r.at>now); remSave(); renderTasks();
+  REMS=REMS.filter(r=>r.at>now || r.rep).map(r=>r.at>now ? r : Object.assign({},r,{at:remNextAt(r.at,r.rep,now)})).filter(r=>r.at>now);   // a repeating one moves on
+  remSave(); renderTasks();
 }
-setInterval(remTick,30e3); document.addEventListener("visibilitychange",()=>{ if(!document.hidden) setTimeout(remTick,800); }); setTimeout(remTick,3000);
+setInterval(remTick,30e3);
+/* ===== settings → 🔔 התראות: what to be notified about — push to the phone and notifications on the device (the 📨 list keeps everything).
+   Saved here and on meta/me-<me>.notifOff (the cloud functions read it), so it holds on every device of the account. */
+var NOTIF_KINDS=[["assign","משימה חדשה או שהוקצתה לי"],["update","עדכון שנכתב במשימה"],["status","שינוי סטטוס וסיום משימה"],
+  ["edit","שינוי פרטים, קבצים ורשימת בדיקה"],["off","משימה שהוסרה ממני או נמחקה"],["fb","תשובה למשוב שלי"],["rem","תזכורות 🔔 שקבעתי"],["ev","אירוע חדש ביומן"]];
+function notifOff(){ try{ const a=JSON.parse(localStorage.getItem("ogg-notif-off")||"[]"); return Array.isArray(a)?a:[]; }catch(e){ return []; } }
+window.notifOn=k=>!notifOff().includes(k);
+window.notifApply=a=>{ if(!Array.isArray(a)) return; try{ localStorage.setItem("ogg-notif-off",JSON.stringify(a)); }catch(e){} paintNotif(); };
+function paintNotif(){
+  const box=$("#notifList"); if(!box) return; box.textContent=""; const off=notifOff();
+  NOTIF_KINDS.forEach(([k,label])=>{ const l=mk("label","tk-chk"), i=document.createElement("input"); i.type="checkbox"; i.checked=!off.includes(k);
+    i.onchange=()=>{ const o=notifOff().filter(x=>x!==k); if(!i.checked) o.push(k);
+      try{ localStorage.setItem("ogg-notif-off",JSON.stringify(o)); }catch(e){} if(window.cloudSetNotif) window.cloudSetNotif(o); };
+    l.append(i, document.createTextNode(" "+label)); box.appendChild(l); });
+}
+paintNotif(); document.addEventListener("visibilitychange",()=>{ if(!document.hidden) setTimeout(remTick,800); }); setTimeout(remTick,3000);
 
 /* ===== recycle bin (🗑): deleted events and tasks, 30 days. This device keeps what it deleted; the team log also keeps every
    deleted document in the cloud (deleting only marks it _del), so the bin also shows what was deleted elsewhere. Restoring = a manager. */
