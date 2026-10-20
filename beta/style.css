@@ -2202,3 +2202,7 @@ html.lite #viewDash .dsh-title{display:none}
 /* v3.22: the task form shows the task's checklist when editing */
 .tk-ck-form .ck.gone .ck-t{text-decoration:line-through;color:var(--ink-3)}
 .tk-ck-form .ck-box.on{display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:900}
+/* v3.23: each piece of equipment in its own colour (light and dark) */
+.tk .eqc,#viewTasks.rows .tk:not(.x) .tk-tag.eqt.eqc{background:hsl(var(--eqh) 75% 93%);color:hsl(var(--eqh) 60% 30%);border:1px solid hsl(var(--eqh) 45% 78%)}
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]) .tk .eqc,:root:not([data-theme="light"]) #viewTasks.rows .tk:not(.x) .tk-tag.eqt.eqc{background:hsl(var(--eqh) 35% 20%);color:hsl(var(--eqh) 75% 78%);border-color:hsl(var(--eqh) 30% 32%)} }
+:root[data-theme="dark"] .tk .eqc,:root[data-theme="dark"] #viewTasks.rows .tk:not(.x) .tk-tag.eqt.eqc{background:hsl(var(--eqh) 35% 20%);color:hsl(var(--eqh) 75% 78%);border-color:hsl(var(--eqh) 30% 32%)}
