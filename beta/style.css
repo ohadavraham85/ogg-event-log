@@ -2267,3 +2267,5 @@ body.tk-resizing,body.tk-resizing *{cursor:col-resize !important;user-select:non
 #tkForm .tk-files-f .tk-fbtns{display:flex}
 /* v3.32: files dragged from outside — the task or form under the pointer lights up */
 .drop-on{outline:3px dashed var(--water) !important;outline-offset:2px;background:color-mix(in srgb,var(--water-soft) 60%,var(--panel)) !important}
+.tk-hrs-f[hidden]{display:none}
+.tk-rep-f[hidden]{display:none}
