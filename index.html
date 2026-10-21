@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Arimo:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=3.29">
+<link rel="stylesheet" href="style.css?v=3.30">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0E7C86">
 <meta name="color-scheme" content="light dark">
@@ -112,7 +112,7 @@
       <img class="logo" src="icons/logo-header.png" alt="מבט&quot;י — מפעלי ביוב וטיהור ירושלים" width="101" height="137">
       <div class="mark">יומן אירועים ומשימות <span class="sub">מט"ש אוג</span></div>
       <div class="clock" id="clock" aria-live="off"><span class="c-hello" id="cHello" hidden></span><span class="c-day" id="cDay"></span><span class="c-date" id="cDate"></span><b class="c-time" id="cTime"></b></div>
-      <span class="ver" id="verChip" title="גרסה">v3.29</span>
+      <span class="ver" id="verChip" title="גרסה">v3.30</span>
       <button class="icon-btn info-btn" id="infoBtn" type="button" aria-label="מה חדש בגרסה" title="מה חדש בגרסה"><span aria-hidden="true">i</span><span class="info-dot" id="infoDot" hidden></span></button>
       <button class="icon-btn inbox-btn" id="inboxBtn" aria-label="הודעות" title="הודעות" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm7-6V11a7 7 0 0 0-5.5-6.84V3.5a1.5 1.5 0 0 0-3 0v.66A7 7 0 0 0 5 11v5l-2 2v1h18v-1z" fill="currentColor"/></svg><span class="newcnt" id="inboxN" hidden></span></button>
       <button class="icon-btn" id="refreshBtn" aria-label="רענון" title="רענון — טעינה מחדש ובדיקת עדכון"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M20.5 3.5v5h-5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
@@ -319,15 +319,18 @@
         <label class="tk-f"><span>תאריך יעד</span><input type="date" id="tkDue"></label>
         <div class="tk-f tk-rep-f"><span>מחזוריות</span>
           <div class="tk-rep">
-            <select id="tkRep" aria-label="מחזוריות"><option value="">ללא — משימה חד-פעמית</option><option value="d">כל יום</option><option value="w">כל שבוע</option><option value="m">כל חודש</option><option value="y">כל שנה</option><option value="c">מותאם אישית…</option><option value="h">⏱ לפי שעות עבודה…</option></select>
+            <select id="tkRep" aria-label="מחזוריות"><option value="">ללא — משימה חד-פעמית</option><option value="d">כל יום</option><option value="w">כל שבוע</option><option value="m">כל חודש</option><option value="y">כל שנה</option><option value="c">מותאם אישית…</option></select>
             <span class="tk-rep-c" id="tkRepC" hidden>כל <input type="number" id="tkRepN" min="1" max="366" value="2" inputmode="numeric" aria-label="כל כמה"> <select id="tkRepU" aria-label="יחידה"><option value="d">ימים</option><option value="w">שבועות</option><option value="m">חודשים</option><option value="y">שנים</option></select></span>
           </div>
-            <span class="tk-rep-c" id="tkRepH" hidden>כל <input type="number" id="tkHrsN" min="1" max="100000" value="250" inputmode="numeric" aria-label="כל כמה שעות עבודה"> שעות עבודה</span>
-          <div class="tk-hrs" id="tkHrsF" hidden>
-            <label><span>קריאת מונה עכשיו <i class="req">*</i></span><input type="number" id="tkHrsCur" min="0" step="0.1" inputmode="decimal" placeholder="למשל 1410"></label>
+          <small class="tk-rep-hint" id="tkRepHint" hidden>כשמסיימים את המשימה נפתחת אוטומטית הבאה, עם אותם פרטים ותאריכים מוזזים.</small>
+        </div>
+        <div class="tk-f tk-hrs-f"><span>⏱ שעות עבודה (מונה)</span>
+          <div class="tk-hrs" id="tkHrsF">
+            <label><span>קריאת מונה עכשיו</span><input type="number" id="tkHrsCur" min="0" step="0.1" inputmode="decimal" placeholder="למשל 1410"></label>
+            <label><span>טיפול כל … שעות</span><input type="number" id="tkHrsN" min="1" max="100000" inputmode="numeric" placeholder="לא חובה, למשל 250"></label>
             <label><span>בטיפול האחרון</span><input type="number" id="tkHrsBase" min="0" step="0.1" inputmode="decimal" placeholder="אם לא ידוע — כמו עכשיו"></label>
           </div>
-          <small class="tk-rep-hint" id="tkRepHint" hidden>כשמסיימים את המשימה נפתחת אוטומטית הבאה, עם אותם פרטים ותאריכים מוזזים.</small>
+          <small class="tk-rep-hint">משימה עם קריאת מונה: בסגירה חובה לרשום את שעות המונה. עם "טיפול כל … שעות" — הטיפול הבא נפתח לפי המונה.</small>
         </div>
         <div class="tk-f tk-ppl-f"><span>הקצאה למשתמשים (הראשון = אחראי ★) <i class="req">*</i></span><select id="tkPpl" aria-label="הוסף משתמש למשימה"></select><div class="pchips" id="tkPplChips" hidden></div></div>
         <label class="tk-f"><span>מיקום <i class="req">*</i></span><select id="tkLoc"></select></label>
@@ -501,7 +504,7 @@
 
     <div class="card" data-sg="general">
       <h3>גרסה</h3>
-      <p id="verLine">גרסה 3.29 · 21/10/2026</p>
+      <p id="verLine">גרסה 3.30 · 21/10/2026</p>
       <div class="row"><button class="btn" id="reloadApp">בדוק עדכון</button></div>
     </div>
 
@@ -814,9 +817,9 @@
     <button class="btn ghost" type="button" data-snz="m">מחר ב-08:00</button></div>
 </dialog>
 
-<script src="firebase-config.js?v=3.29"></script>
-<script src="app.js?v=3.29"></script>
-<script src="cloud.js?v=3.29"></script>
+<script src="firebase-config.js?v=3.30"></script>
+<script src="app.js?v=3.30"></script>
+<script src="cloud.js?v=3.30"></script>
 <script>
 if("serviceWorker" in navigator){
   window.addEventListener("load",()=>{ navigator.serviceWorker.register("sw.js").catch(()=>{}); });
