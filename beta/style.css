@@ -2269,3 +2269,7 @@ body.tk-resizing,body.tk-resizing *{cursor:col-resize !important;user-select:non
 .drop-on{outline:3px dashed var(--water) !important;outline-offset:2px;background:color-mix(in srgb,var(--water-soft) 60%,var(--panel)) !important}
 .tk-hrs-f[hidden]{display:none}
 .tk-rep-f[hidden]{display:none}
+/* v3.34: shared into the app */
+#dlgShare .ev-ph-grid{margin:6px 0 12px}
+#dlgShare .shr-row{display:flex;flex-wrap:wrap;gap:8px}
+#dlgShare .shr-row .btn.primary{flex:1 1 130px}
