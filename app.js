@@ -2081,7 +2081,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.34", APP_DATE="21/10/2026";
+const APP_VER="3.35", APP_DATE="21/10/2026";
 $("#verChip").textContent="v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -3096,7 +3096,7 @@ function openTaskForm(id, copy){
   $("#tkDue").value=t?t.due||"":"";
   $("#tkScope").hidden = !!((t && !copy) || pt);                  // a task stays what it was (team or personal)
   setScope(pt || (!t && tkView==="priv") ? "me" : "team");   // from "אישיות" a new task starts as personal
-  if(pt){ $("#tkTitle").value=pt.title; $("#tkDesc").value=pt.desc; $("#tkDue").value=pt.due; fillSelect($("#tkPrio"), PRIOS, pt.prio); paintFormColors(); $("#tkCkWrap").hidden=true; }
+  if(pt){ $("#tkTitle").value=pt.title; $("#tkDesc").value=pt.desc; $("#tkDue").value=pt.due; $("#tkStart").value=pt.start||""; fillSelect($("#tkPrio"), PRIOS, pt.prio); paintFormColors(); $("#tkCkWrap").hidden=true; }
   setRep(t && t.rep, t && t.hrs); repAuto=false;
   $("#tkStart").value=pt ? (pt.start||"") : t && !copy ? (t.start || String(t.created||"").slice(0,10) || ymd(new Date())) : copy && t && t.start && t.start>ymd(new Date()) ? t.start : ymd(new Date());
   if(copy && t && t.due && t.due<$("#tkStart").value) $("#tkDue").value="";       // a copy doesn't start out late
@@ -3219,7 +3219,9 @@ $("#tkSave").onclick=()=>{
     if(!title){ $("#tkTitle").closest(".tk-f").classList.add("bad"); toast("חסר: כותרת המשימה"); $("#tkTitle").focus(); return; }
     const st=$("#tkStart").value||"", du=$("#tkDue").value||"";
     if(st && du && st>du){ $("#tkDue").closest(".tk-f").classList.add("bad"); toast("תאריך היעד לפני תאריך ההתחלה"); return; }
-    const data={title:title.slice(0,300), desc:$("#tkDesc").value.trim(), prio:$("#tkPrio").value||"רגילה", start:st, due:du};
+    const pt0=tkEditPriv && meGet().find(m=>m.id===tkEditPriv);
+    const data={title:title.slice(0,300), desc:$("#tkDesc").value.trim(), prio:$("#tkPrio").value||"רגילה",
+      start: st || (pt0 && pt0.created ? ymd(new Date(pt0.created)) : ymd(new Date())), due:du};   // the start is always there: the day it was opened
     if(tkEditPriv){ meSet(tkEditPriv, data); closeTaskForm(); toast("המשימה האישית עודכנה"); return; }
     const pend=($("#tkCk input")||{}).value; if(pend && pend.trim() && !tkCkSel.includes(pend.trim())) tkCkSel.push(pend.trim());
     const now=new Date().toISOString(), a=meGet();
@@ -3917,7 +3919,7 @@ function meSet(id, patch){ const a=meGet(), x=a.find(m=>m.id===id); if(!x) retur
 /* personal tasks live in the tasks board, marked 🔒 (only their owner sees them; never assigned, never written to the log) */
 function privTasks(){
   return meGet().filter(x=>!x.del).map(x=>({priv:true, id:"p:"+x.id, pid:x.id, title:x.title||x.text||"", desc:x.desc||"", prio:x.prio||"רגילה",
-    start:x.start||"", due:x.due||"", check:(x.check||[]).filter(c=>c && !c.del), status:x.done?"הושלמה":"פתוחה", doneAt:x.doneAt||"",
+    start:x.start||(x.created ? ymd(new Date(x.created)) : ""), due:x.due||"", check:(x.check||[]).filter(c=>c && !c.del),   // no start: the day it was opened status:x.done?"הושלמה":"פתוחה", doneAt:x.doneAt||"",
     created:x.created||x.upd||"", upd:x.upd||""}));
 }
 function paintMe2(){ if(typeof renderTasks==="function") renderTasks(); }
@@ -3935,7 +3937,7 @@ function privCard(t, today){
   if(tkOpen(t)){
     const pr=prioOf(t); if(pr!=="רגילה") tag(pr,"",PRIO_HUE[pr],"prio");
     if(t.check.length) tag("☑ "+t.check.filter(x=>x.done).length+"/"+t.check.length, t.check.every(x=>x.done)?"ok":"");
-    if(t.start && t.start>today) tag("מתחילה "+dmy(t.start).slice(0,5),"",null,"due");
+    if(t.start) tag((t.start>today?"מתחילה ":"התחלה ")+dmy(t.start).slice(0,5),"pstart",null,"due");   // a personal task always shows its start (the day it was opened, unless set)
     if(t.due) tag((t.due<today?"באיחור · ":t.due===today?"היום · ":"יעד ")+dmy(t.due).slice(0,5), t.due<today?"late":t.due===today?"today":"future", null, "due");
   } else tag("בוצעה"+(t.doneAt?" "+fmtWhen(t.doneAt).slice(0,5):""),"ok",null,"due");
   c.appendChild(tags);
