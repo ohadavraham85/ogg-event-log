@@ -2081,7 +2081,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.33", APP_DATE="21/10/2026";
+const APP_VER="3.34", APP_DATE="21/10/2026";
 $("#verChip").textContent="v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2207,6 +2207,35 @@ let DEEP_OPEN=false;
   if(v==="open"){ DEEP_OPEN=true; if(!REFRESH_VIEW) REFRESH_VIEW="List"; }
   else if(["Dash","New","List","Data","Tasks","Cal"].includes(v) && !REFRESH_VIEW) REFRESH_VIEW=v;
   u.searchParams.delete("view"); history.replaceState(null,"",u.pathname+u.search);
+})();
+/* shared into the app (Android: "שתף" → the app): the photos / files wait in the service worker's cache; once the app is
+   open (after the opening screen) a window asks what to open with them — a new task or a new event — with them attached */
+(function(){
+  const u=new URL(location.href); if(u.searchParams.get("share")!=="1") return;
+  u.searchParams.delete("share"); history.replaceState(null,"",u.pathname+u.search);
+  const NAME=location.pathname.includes("/beta/") ? "ogg-beta-share" : "ogg-share";
+  (async()=>{ let files=[], meta={};
+    try{ const c=await caches.open(NAME); const mr=await c.match("share-meta"); meta=mr ? await mr.json() : {};
+      for(let i=0;i<(meta.n||0);i++){ const r=await c.match("share-"+i); if(!r) continue; const b=await r.blob();
+        files.push(new File([b], decodeURIComponent(r.headers.get("x-name")||"file"), {type:b.type})); }
+      await caches.delete(NAME); }catch(e){}
+    const text=[meta.title,meta.text,meta.url].filter(Boolean).join(" ").trim();
+    if(!files.length && !text) return;
+    const ready=()=>{ const sp=$("#splash"); return !sp || sp.hidden || getComputedStyle(sp).display==="none"; };
+    let tries=0; while(!ready() && tries++<240) await new Promise(r=>setTimeout(r,500));   // wait for the opening screen / sign-in
+    const box=$("#shrThumbs"); box.textContent="";
+    files.forEach(f=>{ const d=mk("div","tk-file"+(/^image\//.test(f.type)?" img":""));
+      if(/^image\//.test(f.type)){ const im=mk("img"); im.src=URL.createObjectURL(f); im.alt=f.name; d.appendChild(im); } else d.appendChild(mk("span",null,"📎 "+f.name)); box.appendChild(d); });
+    $("#shrSub").textContent = (files.length ? (files.length===1 ? "קובץ אחד" : files.length+" קבצים") : "")+(text ? (files.length?" · ":"")+"“"+text.slice(0,120)+"”" : "")+" — מה לפתוח?";
+    $("#shrTask").hidden=isViewer(); $("#shrEv").hidden=isViewer();
+    $("#shrNo").onclick=()=>$("#dlgShare").close();
+    $("#shrTask").onclick=()=>{ $("#dlgShare").close(); show("Tasks"); openTaskForm(); if(files.length) tkPendAdd(files,false);
+      if(text && !$("#tkTitle").value) $("#tkTitle").value=text.slice(0,120); };
+    $("#shrEv").onclick=async()=>{ $("#dlgShare").close(); resetForm(); show("New");
+      if(text) $("#desc").value=text;
+      if(files.length){ const out=await storeFiles(files.slice(0,8), false); if(out.length){ evFiles.push(...out); paintEvFiles(); toast(out.length===1?"צורף לאירוע":"צורפו "+out.length+" לאירוע"); } } };
+    $("#dlgShare").showModal();
+  })();
 })();
 (function(){
   const sp=$("#splash"); if(!sp) return;
