@@ -2250,3 +2250,12 @@ body.tk-resizing,body.tk-resizing *{cursor:col-resize !important;user-select:non
 .notif-list{display:flex;flex-direction:column;gap:8px;margin:6px 0 4px}
 .notif-dev:empty{display:none}
 .notif-dev{margin-top:12px;padding-top:10px;border-top:1px solid var(--edge-2)}
+/* v3.29: ⏱ maintenance by working hours */
+.tk-hrs{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.tk-hrs[hidden]{display:none}
+.tk-hrs label{display:flex;flex-direction:column;gap:4px;flex:1 1 140px;min-width:0;font-size:13px;font-weight:700;color:var(--ink-2)}
+.tk-hrs input{font:inherit;font-size:15px;padding:8px 10px;border:1.5px solid var(--edge);border-radius:10px;background:var(--panel);color:var(--ink);width:100%;box-sizing:border-box}
+.tk-tag.hrs.ok{background:var(--c-visit-bg);color:var(--c-visit);border-color:transparent}
+.tk-tag.hrs.soon{background:var(--c-flood-bg);color:var(--c-flood);border-color:var(--c-flood)}
+.tk-tag.hrs.late{background:var(--c-fault);color:#fff;border-color:transparent}
+#dlgHrs input{font-size:22px;font-weight:800;direction:ltr;text-align:center}
