@@ -2081,7 +2081,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.35", APP_DATE="21/10/2026";
+const APP_VER="3.36", APP_DATE="21/10/2026";
 $("#verChip").textContent="v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2651,6 +2651,15 @@ function ckToTask(t, it){
   tkLog(t, "פריט הפך למשימה"+(n.no?" #"+n.no:"")+": "+it.text, "", true); t.upd=now;
   saveTasks(); toast("נפתחה משימה"+(n.no?" #"+n.no:""),{label:"הצג",fn:()=>goTask(n.id)});
 }
+/* card view: the first photo on the task is the card's background (faint, so the text stays readable). The small preview
+   kept with the task shows at once; the full photo (this device / the cloud copy) replaces it when it is at hand. */
+const tkBgFull=new Map();
+function tkBg(t, c){
+  const m=(t.files||[]).find(x=>x && !x.del && x.thumb && /^image\//.test(x.type||"")); if(!m) return;
+  const set=u=>c.style.setProperty("--tkbg",'url("'+u+'")');
+  c.classList.add("has-bg"); set(tkBgFull.get(m.id) || m.thumb);
+  if(!tkBgFull.has(m.id)) fGet(m.id).then(r=>{ const u=r && (r.data||r.url); if(u && /^data:image\//.test(u)){ tkBgFull.set(m.id,u); set(u); } else tkBgFull.set(m.id,m.thumb); });
+}
 function renderCheck(t, c){
   const items=(t.check||[]).filter(x=>x && !x.del), open=tkOpen(t);
   if(!items.length && !open) return;
@@ -2926,6 +2935,7 @@ function renderTasks(){
     if(t.priv){ box.appendChild(privCard(t, today)); return; }
     const pr=prioOf(t), ph=PRIO_HUE[pr];
     const c=mk("div","tk"+(tkOpen(t)?"":" done")+(tkRowOpen.has(t.id)?" x":"")); c.dataset.id=t.id;
+    tkBg(t, c);   // cards: the task's first photo shows faintly behind it
     // "רשימה": one compact line per task; a tap opens it in full (and closes it again)
     c.addEventListener("click",ev=>{ if(tkLV!=="rows" || ev.target.closest("button,input,textarea,select,a,label,.tk-log,.tk-check,.tk-files,.qk")) return;
       tkRowOpen.has(t.id) ? tkRowOpen.delete(t.id) : tkRowOpen.add(t.id); c.classList.toggle("x"); }); c.style.borderInlineStartColor = tkOpen(t) && !t.due ? "var(--c-"+ph+")" : "";
