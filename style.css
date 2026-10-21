@@ -1929,7 +1929,7 @@ dialog.brief-dlg{max-width:720px;width:calc(100% - 20px);max-height:calc(100dvh 
 .tk-file-grid{display:flex;flex-wrap:wrap;gap:8px}
 .tk-file-grid:empty{display:none}
 .tk-files-f .tk-fbtns{margin-top:6px}
-#tkForm.priv .tk-files-f{display:none}
+/* personal tasks have photos too (v3.37) */
 
 /* ===== notice board studio: the office-screen look, as 16:9 slides (sizes follow the slide's width: cqw) ===== */
 .bs-dlg{width:min(1180px,calc(100vw - 20px));max-width:none;max-height:calc(100dvh - 20px);padding:14px}
@@ -2280,3 +2280,10 @@ body.tk-resizing,body.tk-resizing *{cursor:col-resize !important;user-select:non
 @media (max-width:899px){ #viewTasks.rows .tk.has-bg::before{content:"";position:absolute;inset:0;z-index:-1;border-radius:inherit;pointer-events:none;background:var(--tkbg) center/cover no-repeat;opacity:.22} }
 @media (prefers-color-scheme:dark){ :root:not([data-theme="light"]) #viewTasks .tk.has-bg::before{opacity:.16} }
 :root[data-theme="dark"] #viewTasks .tk.has-bg::before{opacity:.16}
+/* v3.37: personal tasks — photos/files, and 🔒 moves an open one to the team */
+.priv-sn{border:none;font:inherit;cursor:default}
+.priv-sn.priv-go{cursor:pointer;transition:box-shadow .12s}
+@media (hover:hover){ .priv-sn.priv-go:hover{box-shadow:0 0 0 2px var(--water)} }
+.priv-ph{margin-top:8px}
+.priv-add{cursor:pointer}
+.priv-carry{margin:4px 0 6px;color:var(--water);font-weight:700}
