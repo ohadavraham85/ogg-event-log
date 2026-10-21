@@ -2081,7 +2081,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.28", APP_DATE="20/10/2026";
+const APP_VER="3.29", APP_DATE="21/10/2026";
 $("#verChip").textContent="v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2864,7 +2864,7 @@ function renderTasks(){
   const today=ymd(new Date());
   const pass=t=>(!tkF.ppl || (t.ppl||[]).includes(tkF.ppl)) && (!tkF.loc || (t.loc||[]).includes(tkF.loc))
              && (!tkF.type || tkCatPicked().includes(t.type)) && (!tkF.prio || prioOf(t)===tkF.prio)
-             && (!tkF.late || (t.due && t.due<today)) && (!tkF.dept || tkInDept(t,tkF.dept)) && (!tkF.rep || !!t.rep)
+             && (!tkF.late || (t.due && t.due<today)) && (!tkF.dept || tkInDept(t,tkF.dept)) && (!tkF.rep || !!(t.rep || t.hrs))
              && (!tkF.q || tkText(t).includes(tkF.q.trim().toLowerCase()));
   const rows = tkView==="priv" ? [] : (tkView!=="done"
     ? tkVis().filter(t=>tkOpen(t) && (tkView!=="mine" || isMine(t)) && (tkView!=="opened" || openedByMe(t))).sort((a,b)=>{
@@ -2921,6 +2921,9 @@ function renderTasks(){
       if(t.status==="בטיפול") tag("בטיפול","w",null,"stat");
       if(tkStat(t)==="בהמתנה") tag("⏸ בהמתנה","hold",null,"stat");
       if(t.rep) tag("🔁 "+repLabel(t.rep),"rep");
+      if(t.hrs){ const L=hrsLeft(t), w=L<=0 ? "late" : L<=t.hrs.every*.1 ? "soon" : "ok";
+        tag(L<=0 ? "⏱ עבר ב-"+nf(-L)+" ש'" : "⏱ עוד "+nf(L)+" ש'","hrs "+w,null,"extra");
+        const el=SL.extra.lastChild; el.title="מונה: "+nf(t.hrs.cur)+" ש' ("+dmy(t.hrs.at).slice(0,5)+") · טיפול ב-"+nf(t.hrs.base+t.hrs.every)+" ש' · כל "+nf(t.hrs.every)+" ש'"; }
       { const nf_=(t.files||[]).filter(x=>x&&!x.del).length; if(nf_) tag("📎 "+nf_); }
       { const ci=(t.check||[]).filter(x=>x && !x.del); if(ci.length) tag("☑ "+ci.filter(x=>x.done).length+"/"+ci.length, ci.every(x=>x.done)?"ok":""); }
       if(t.start && t.start>today) tag("מתחילה "+dmy(t.start).slice(0,5),"",null,"due");
@@ -2958,6 +2961,7 @@ function renderTasks(){
         tkLog(t, t.status==="בהמתנה" ? "הועברה להמתנה" : "שוחררה מהמתנה", "", true); t.upd=new Date().toISOString(); saveTasks(); });
       btn("ערוך","",()=>openTaskForm(t.id));
       if(!isViewer()) btn("⧉ שכפל","",()=>dupTask(t.id));
+      if(t.hrs && !isViewer()) btn("⏱ קריאת מונה","keep",()=>hrsAsk(t));   // at the machine: one tap, type the number
     } else if(!isViewer()){
       // a completed task can be reopened (its event in the log reopens with it) and edited
       btn("↩ פתח מחדש","keep",()=>reopenTask(t));
@@ -3063,7 +3067,7 @@ function openTaskForm(id, copy){
   $("#tkScope").hidden = !!((t && !copy) || pt);                  // a task stays what it was (team or personal)
   setScope(pt || (!t && tkView==="priv") ? "me" : "team");   // from "אישיות" a new task starts as personal
   if(pt){ $("#tkTitle").value=pt.title; $("#tkDesc").value=pt.desc; $("#tkDue").value=pt.due; fillSelect($("#tkPrio"), PRIOS, pt.prio); paintFormColors(); $("#tkCkWrap").hidden=true; }
-  setRep(t && t.rep); repAuto=false;
+  setRep(t && t.rep, t && t.hrs); repAuto=false;
   $("#tkStart").value=pt ? (pt.start||"") : t && !copy ? (t.start || String(t.created||"").slice(0,10) || ymd(new Date())) : copy && t && t.start && t.start>ymd(new Date()) ? t.start : ymd(new Date());
   if(copy && t && t.due && t.due<$("#tkStart").value) $("#tkDue").value="";       // a copy doesn't start out late
   $("#tkDue").min=$("#tkStart").value;
@@ -3187,10 +3191,16 @@ $("#tkSave").onclick=()=>{
   if(miss.length){ toast("חסר: "+miss.map(m=>m[1]).join(", "));
     const f=$(miss[0][0]); (f.classList.contains("ss-hidden") ? f.nextElementSibling : f).focus(); return; }
   if($("#tkStart").value && $("#tkDue").value && $("#tkStart").value > $("#tkDue").value){ $("#tkDue").closest(".tk-f").classList.add("bad"); toast("תאריך היעד לפני תאריך ההתחלה"); $("#tkDue").focus(); return; }
+  const hrs=readHrs();
+  if(hrs===null){ toast("⏱ לפי שעות עבודה: כל כמה שעות, וקריאת המונה עכשיו"); ($("#tkHrsCur").value ? $("#tkHrsN") : $("#tkHrsCur")).focus(); return; }
   const title=$("#tkTitle").value.trim();
   const now=new Date().toISOString(), prio=$("#tkPrio").value||"רגילה";
   const data={title, desc:$("#tkDesc").value.trim(), type:$("#tkType").value||"", prio, urgent:prio==="דחופה",
-    ppl:tkPplSel.slice(), loc:one($("#tkLoc").value), eq:one($("#tkEq").value), due:$("#tkDue").value||"", start:$("#tkStart").value||"", depts:tkDeptSel.slice(), rep:readRep(), upd:now};
+    ppl:tkPplSel.slice(), loc:one($("#tkLoc").value), eq:one($("#tkEq").value), due:$("#tkDue").value||"", start:$("#tkStart").value||"", depts:tkDeptSel.slice(), rep:readRep(), hrs, upd:now};
+  if(hrs){ const old=tkEdit && tasks.find(x=>x.id===tkEdit), oh=old && old.hrs;   // keep the readings already kept
+    hrs.hist = oh && oh.cur===hrs.cur ? (oh.hist||[]) : ((oh && oh.hist)||[]).filter(x=>x.at!==hrs.at).concat({h:hrs.cur,at:hrs.at}).slice(-12);
+    if(oh && oh.cur===hrs.cur) hrs.at=oh.at;
+    data.due=hrsDue({hrs, due:data.due}); }
   const was=tkEdit;
   if(was){ const t=tasks.find(x=>x.id===was); if(t){ Object.assign(t,data);
       const pend=($("#tkCk input")||{}).value; if(pend && pend.trim() && !tkCkSel.includes(pend.trim())) tkCkSel.push(pend.trim());
@@ -3289,16 +3299,52 @@ const REP_U={d:["יום","ימים"],w:["שבוע","שבועות"],m:["חודש"
 function repLabel(r){ if(!r || !REP_U[r.u]) return "";
   if(+r.n===1) return {d:"יומית",w:"שבועית",m:"חודשית",y:"שנתית"}[r.u];
   return "כל "+r.n+" "+REP_U[r.u][1]; }
-function readRep(){ const v=$("#tkRep").value; if(!v) return undefined;
+function readRep(){ const v=$("#tkRep").value; if(!v || v==="h") return undefined;
   if(v!=="c") return {n:1,u:v};
   const n=Math.max(1,Math.min(366,parseInt($("#tkRepN").value,10)||1)); return {n, u:$("#tkRepU").value||"d"}; }
-function setRep(r){
+function setRep(r, hrs){
+  if(hrs){ $("#tkRep").value="h"; $("#tkHrsN").value=hrs.every; $("#tkHrsCur").value=hrs.cur; $("#tkHrsBase").value=hrs.base; paintRep(); return; }
+  $("#tkHrsN").value=250; $("#tkHrsCur").value=""; $("#tkHrsBase").value="";
   const ok=r && REP_U[r.u];
   $("#tkRep").value = !ok ? "" : +r.n===1 ? r.u : "c";
   if(ok && +r.n!==1){ $("#tkRepN").value=r.n; $("#tkRepU").value=r.u; } else { $("#tkRepN").value=2; $("#tkRepU").value="d"; }
   paintRep();
 }
-function paintRep(){ const v=$("#tkRep").value; $("#tkRepC").hidden = v!=="c"; $("#tkRepHint").hidden = !v; }
+function paintRep(){ const v=$("#tkRep").value; $("#tkRepC").hidden = v!=="c"; $("#tkRepH").hidden = $("#tkHrsF").hidden = v!=="h";
+  $("#tkRepHint").hidden = !v;
+  $("#tkRepHint").textContent = v==="h" ? "לפי מונה השעות של הציוד שבמשימה. כשנשארות 10% מהשעות — כתום, כשעוברים — אדום. בסיום מזינים את קריאת המונה, והטיפול הבא נפתח ממנה."
+    : "כשמסיימים את המשימה נפתחת אוטומטית הבאה, עם אותם פרטים ותאריכים מוזזים."; }
+/* ⏱ maintenance by working hours (generators first): a task keeps hrs = {every, base (the reading at the last service),
+   cur (the latest reading), at (its date), hist (recent readings, for the pace)}. A reading entered on one task updates every
+   open hours-task of the same equipment. The due date is estimated from the pace (hours a day) when there are two readings. */
+function readHrs(){ if($("#tkRep").value!=="h") return undefined;
+  const every=parseFloat($("#tkHrsN").value), cur=parseFloat($("#tkHrsCur").value), b=parseFloat($("#tkHrsBase").value);
+  if(!(every>0) || !(cur>=0)) return null;
+  return {every, cur, base: b>=0 ? b : cur, at:ymd(new Date())}; }
+const hrsLeft=t=>t.hrs ? +(t.hrs.base+t.hrs.every-t.hrs.cur).toFixed(1) : null;
+function hrsPace(h){ const H=(h.hist||[]).filter(x=>x && x.at); if(H.length<2) return 0;   // hours a day, from the first and last reading kept
+  const a=H[0], b=H[H.length-1], d=(Date.parse(b.at)-Date.parse(a.at))/864e5; return d>=1 && b.h>a.h ? (b.h-a.h)/d : 0; }
+function hrsDue(t){ const left=hrsLeft(t), p=hrsPace(t.hrs); if(left===null) return t.due||"";
+  if(left<=0) return t.hrs.at; if(!p) return t.due||"";
+  const d=new Date(t.hrs.at+"T12:00:00"); d.setDate(d.getDate()+Math.floor(left/p)); return ymd(d); }
+function hrsSet(eq, val, by){   // a new reading for this equipment: every open hours-task of it
+  const at=ymd(new Date()); let n=0;
+  tasks.filter(t=>t.hrs && tkOpen(t) && (t.eq||[])[0]===eq).forEach(t=>{ const h=t.hrs;
+    h.cur=val; h.at=at; h.hist=(h.hist||[]).filter(x=>x.at!==at).concat({h:val,at}).slice(-12);
+    t.due=hrsDue(t); t.upd=new Date().toISOString(); tkLog(t, "⏱ קריאת מונה: "+nf(val)+" ש'", by||"", true); n++; });
+  return n; }
+let hrsT=null;
+function hrsAsk(t){ hrsT=t; const eq=(t.eq||[])[0]||"";
+  $("#hrSub").textContent=eq; $("#hrVal").value="";
+  $("#hrLast").textContent = t.hrs ? "קריאה אחרונה: "+nf(t.hrs.cur)+" ש' ("+dmy(t.hrs.at).slice(0,5)+") · הטיפול הבא ב-"+nf(t.hrs.base+t.hrs.every)+" ש'" : "";
+  $("#dlgHrs").showModal(); setTimeout(()=>$("#hrVal").focus(),50); }
+$("#hrNo").onclick=()=>$("#dlgHrs").close();
+$("#hrOk").onclick=()=>{ const v=parseFloat($("#hrVal").value), t=hrsT; if(!t) return;
+  if(!(v>=0)){ toast("הקלד את המספר שעל המונה"); $("#hrVal").focus(); return; }
+  if(v<t.hrs.cur && !confirm("הקריאה נמוכה מהקודמת ("+nf(t.hrs.cur)+"). לשמור בכל זאת?")) return;
+  const n=hrsSet((t.eq||[])[0]||"", v); $("#dlgHrs").close(); saveTasks();
+  toast("⏱ נשמר: "+nf(v)+" ש'"+(n>1?" · עודכנו "+n+" משימות של אותו ציוד":"")); };
+$("#hrVal").onkeydown=e=>{ if(e.key==="Enter"){ e.preventDefault(); $("#hrOk").click(); } };
 $("#tkRep").addEventListener("change",()=>{ repAuto=false; paintRep(); });
 /* a type that says how often (יומית / שבועית / חודשית / שנתית, also "סיור בטיחות חודשי") sets the recurrence by itself;
    picked by hand it stays as chosen, and switching to a type without one clears only what was set automatically */
@@ -3316,6 +3362,14 @@ function addRep(s, r, k){                     // "YYYY-MM-DD" + k intervals (mon
   return ymd(new Date(y2,m2,Math.min(D,last),12));
 }
 function nextOccurrence(t){
+  if(t.hrs){ const now=new Date().toISOString(), h=t.hrs, at=ymd(new Date()), b=+t.hrsDone>=0 ? +t.hrsDone : h.cur;
+    const n={id:newId(), status:"פתוחה", created:now, upd:now, log:[], title:t.title, desc:t.desc||"", type:t.type||"", prio:t.prio||"רגילה", urgent:!!t.urgent,
+      ppl:(t.ppl||[]).slice(), loc:(t.loc||[]).slice(), eq:(t.eq||[]).slice(), depts:(t.depts||[]).slice(), start:"", prevId:t.id,
+      hrs:{every:h.every, base:b, cur:Math.max(b,h.cur), at, hist:(h.hist||[]).filter(x=>x.at!==at).concat({h:Math.max(b,h.cur),at}).slice(-12)}};
+    n.due=hrsDue(n);
+    const items=(t.check||[]).filter(x=>x && !x.del); if(items.length) n.check=items.map(x=>({id:newId(), text:x.text, done:false}));
+    tkLog(n, "⏱ טיפול לפי שעות (כל "+nf(h.every)+" ש') — נפתח אחרי שהקודם הושלם ב-"+nf(b)+" ש'; הבא ב-"+nf(b+h.every)+" ש'", "", true);
+    return n; }
   const r=t.rep, base=t.due || ymd(new Date()), today=ymd(new Date());
   let k=1; while(addRep(base,r,k)<today && k<2000) k++;
   const now=new Date().toISOString();
@@ -3335,6 +3389,7 @@ function openTaskDone(id){
   fillSelect($("#tdType"), types, def);
   colorSelect($("#tdType"), hueOf($("#tdType").value));
   $("#tdWhen").value=nowLocal();
+  $("#tdHrsF").hidden=!t.hrs; $("#tdHrs").value = t.hrs ? t.hrs.cur : "";
   // writing it to the log is optional; the choice is remembered on this device (on unless turned off)
   let lg=true; try{ lg=localStorage.getItem("ogg-td-log")!=="0"; }catch(e){}
   if(t.eventId && events.some(e=>e.id===t.eventId)) lg=true;        // reopened from its event: it closes that event again
@@ -3348,12 +3403,14 @@ $("#tdCancel").onclick=()=>$("#dlgTaskDone").close();
 $("#tdOk").onclick=()=>{
   const t=tasks.find(x=>x.id===tkDoneId); if(!t){ $("#dlgTaskDone").close(); return; }
   const when=$("#tdWhen").value||nowLocal(), act=$("#tdAct").value.trim(), type=$("#tdType").value;
+  if(t.hrs){ const v=parseFloat($("#tdHrs").value); if(!(v>=0)){ toast("⏱ הקלד את קריאת המונה בזמן הטיפול"); $("#tdHrs").focus(); return; }
+    t.hrsDone=v; if(v>t.hrs.cur) hrsSet((t.eq||[])[0]||"", v); tkLog(t, "⏱ טופל ב-"+nf(v)+" ש'", "", true); }
   if(!$("#tdLog").checked){                       // complete only — no event in the log
     Object.assign(t,{status:"הושלמה", doneAt:nowLocal(), doneBy:reporter()||"", act, upd:new Date().toISOString()});
     tkLog(t, "הושלמה"+(act?": "+act:"")+" (לא נרשם ביומן)", "", true);
-    const nx0 = t.rep && !t.nextId ? nextOccurrence(t) : null; if(nx0){ tasks.push(nx0); t.nextId=nx0.id; }
+    const nx0 = (t.rep || t.hrs) && !t.nextId ? nextOccurrence(t) : null; if(nx0){ tasks.push(nx0); t.nextId=nx0.id; }
     $("#dlgTaskDone").close(); saveTasks(); renderTasks();
-    if(nx0) toast("המשימה הושלמה · נפתחה המשימה הבאה ליעד "+dmy(nx0.due).slice(0,5),{label:"הצג",fn:()=>goTask(nx0.id)});
+    if(nx0) toast("המשימה הושלמה · נפתחה המשימה הבאה"+(nx0.hrs?" ב-"+nf(nx0.hrs.base+nx0.hrs.every)+" ש'":" ליעד "+dmy(nx0.due).slice(0,5)),{label:"הצג",fn:()=>goTask(nx0.id)});
     else toast("המשימה הושלמה ועברה ל\"הושלמו\"");
     return;
   }
@@ -3367,11 +3424,11 @@ $("#tdOk").onclick=()=>{
   ["loc","eq","ppl"].forEach(k=>(ev[k]||[]).forEach(v=>{ if(!lists[k].includes(v)) lists[k].push(v); }));
   Object.assign(t,{status:"הושלמה", doneAt:when, doneBy:reporter()||"", act, eventType:type, eventId:ev.id, upd:new Date().toISOString()});
   tkLog(t, "הושלמה ונרשמה ביומן"+(act?": "+act:""), "", true);
-  const nx = t.rep && !t.nextId ? nextOccurrence(t) : null;    // recurring: open the next one
+  const nx = (t.rep || t.hrs) && !t.nextId ? nextOccurrence(t) : null;    // recurring: open the next one
   if(nx){ tasks.push(nx); t.nextId=nx.id; }
   $("#dlgTaskDone").close();
   persist(); renderAll(); saveTasks();
-  if(nx) toast("הושלמה ונרשמה ביומן · נפתחה המשימה הבאה ליעד "+dmy(nx.due).slice(0,5),{label:"הצג",fn:()=>goTask(nx.id)});
+  if(nx) toast("הושלמה ונרשמה ביומן · נפתחה המשימה הבאה"+(nx.hrs?" ב-"+nf(nx.hrs.base+nx.hrs.every)+" ש'":" ליעד "+dmy(nx.due).slice(0,5)),{label:"הצג",fn:()=>goTask(nx.id)});
   else toast("המשימה הושלמה ונרשמה ביומן",{label:"הצג",fn:()=>{ $("#sortBy").value="edit"; goList({ppl:""}); }});
 };
 let tkLiteSet=false;
