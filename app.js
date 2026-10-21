@@ -2081,7 +2081,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.32", APP_DATE="21/10/2026";
+const APP_VER="3.33", APP_DATE="21/10/2026";
 $("#verChip").textContent="v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -3325,16 +3325,21 @@ function setRep(r, hrs){ setHrs(hrs);
   if(ok && +r.n!==1){ $("#tkRepN").value=r.n; $("#tkRepU").value=r.u; } else { $("#tkRepN").value=2; $("#tkRepU").value="d"; }
   paintRep();
 }
-function paintRep(){ const v=$("#tkRep").value; $("#tkRepC").hidden = v!=="c"; $("#tkRepHint").hidden = !v; }
+function paintRep(){ const v=$("#tkRep").value; $("#tkRepC").hidden = v!=="c"; $("#tkRepHint").hidden = !v; if(typeof paintHrsF==="function") paintHrsF(); }
 /* ⏱ working hours (a field of its own on every team task): a task with a meter reading keeps hrs = {every (0 = no cycle), base (the reading at the last service),
    cur (the latest reading), at (its date), hist (recent readings, for the pace)}. A reading entered on one task updates every
    open hours-task of the same equipment. The due date is estimated from the pace (hours a day) when there are two readings. */
-function readHrs(){ if(tkScope==="me") return undefined;
+function readHrs(){ if(tkScope==="me" || $("#tkHrsF").closest(".tk-hrs-f").hidden) return undefined;
   const every=parseFloat($("#tkHrsN").value), cur=parseFloat($("#tkHrsCur").value), b=parseFloat($("#tkHrsBase").value);
   if($("#tkHrsCur").value==="" && $("#tkHrsN").value==="" && $("#tkHrsBase").value==="") return undefined;
   if(!(cur>=0)) return null;                                   // a cycle or a last reading needs the reading now
   return {every: every>0 ? every : 0, cur, base: b>=0 ? b : cur, at:ymd(new Date())}; }
-function setHrs(h){ $("#tkHrsCur").value = h ? h.cur : ""; $("#tkHrsN").value = h && h.every ? h.every : ""; $("#tkHrsBase").value = h && h.every ? h.base : ""; }
+function setHrs(h){ $("#tkHrsCur").value = h ? h.cur : ""; $("#tkHrsN").value = h && h.every ? h.every : ""; $("#tkHrsBase").value = h && h.every ? h.base : ""; paintHrsF(); }
+// the working-hours block shows for the "אחזקות מתוכננות" category (or when the task already has a reading)
+function paintHrsF(){ const plan=$("#tkType").value==="אחזקות מתוכננות";
+  $("#tkHrsF").closest(".tk-hrs-f").hidden = !(plan || ["#tkHrsCur","#tkHrsN","#tkHrsBase"].some(id=>$(id).value!==""));
+  $("#tkRep").closest(".tk-rep-f").hidden = !(plan || $("#tkRep").value); }   // the recurrence too (or when the task already repeats)
+$("#tkType").addEventListener("change",paintHrsF);
 const hrsLeft=t=>t.hrs && t.hrs.every>0 ? +(t.hrs.base+t.hrs.every-t.hrs.cur).toFixed(1) : null;
 function hrsPace(h){ const H=(h.hist||[]).filter(x=>x && x.at); if(H.length<2) return 0;   // hours a day, from the first and last reading kept
   const a=H[0], b=H[H.length-1], d=(Date.parse(b.at)-Date.parse(a.at))/864e5; return d>=1 && b.h>a.h ? (b.h-a.h)/d : 0; }
