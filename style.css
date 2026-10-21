@@ -2242,3 +2242,34 @@ body.tk-resizing,body.tk-resizing *{cursor:col-resize !important;user-select:non
 .cat-sw{width:10px;height:10px;border-radius:50%;flex:none}
 .cat-all{border:none;background:none;font:inherit;font-size:14px;font-weight:800;color:var(--ink-2);text-align:start;padding:8px 10px;border-radius:8px;cursor:pointer}
 .cat-all.on{color:var(--water);background:var(--water-soft)}
+
+/* reminders: repeat */
+.rem-rep{display:flex;align-items:center;gap:8px;margin:0 0 10px;font-weight:700}
+.rem-rep select{height:36px;font:inherit;border:1px solid var(--edge);border-radius:9px;padding:0 8px;background:var(--panel-2);color:var(--ink)}
+/* settings → 🔔 התראות */
+.notif-list{display:flex;flex-direction:column;gap:8px;margin:6px 0 4px}
+.notif-dev:empty{display:none}
+.notif-dev{margin-top:12px;padding-top:10px;border-top:1px solid var(--edge-2)}
+/* v3.29: ⏱ maintenance by working hours */
+.tk-hrs{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.tk-hrs[hidden]{display:none}
+.tk-hrs label{display:flex;flex-direction:column;gap:4px;flex:1 1 140px;min-width:0;font-size:13px;font-weight:700;color:var(--ink-2)}
+.tk-hrs input{font:inherit;font-size:15px;padding:8px 10px;border:1.5px solid var(--edge);border-radius:10px;background:var(--panel);color:var(--ink);width:100%;box-sizing:border-box}
+.tk-tag.hrs.ok{background:var(--c-visit-bg);color:var(--c-visit);border-color:transparent}
+.tk-tag.hrs.soon{background:var(--c-flood-bg);color:var(--c-flood);border-color:var(--c-flood)}
+.tk-tag.hrs.late{background:var(--c-fault);color:#fff;border-color:transparent}
+#dlgHrs input{font-size:22px;font-weight:800;direction:ltr;text-align:center}
+/* v3.30: working hours — a field of its own in the task form (team tasks) */
+.tk-hrs-f .tk-hrs{margin-top:0}
+#tkForm.priv .tk-hrs-f{display:none}
+.tk-tag.hrs.meter{background:var(--panel-2);color:var(--ink);border-color:var(--edge)}
+/* v3.31: the task form keeps its photo / file buttons (on the card they wait in "⋯") */
+#tkForm .tk-files-f .tk-fbtns{display:flex}
+/* v3.32: files dragged from outside — the task or form under the pointer lights up */
+.drop-on{outline:3px dashed var(--water) !important;outline-offset:2px;background:color-mix(in srgb,var(--water-soft) 60%,var(--panel)) !important}
+.tk-hrs-f[hidden]{display:none}
+.tk-rep-f[hidden]{display:none}
+/* v3.34: shared into the app */
+#dlgShare .ev-ph-grid{margin:6px 0 12px}
+#dlgShare .shr-row{display:flex;flex-wrap:wrap;gap:8px}
+#dlgShare .shr-row .btn.primary{flex:1 1 130px}

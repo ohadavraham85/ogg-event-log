@@ -1522,7 +1522,8 @@ let sgCur="lists"; try{ sgCur=localStorage.getItem("ogg-settings-topic")||"lists
 function isManager(){ if(!CLOUD_ON) return true; try{ return localStorage.getItem("ogg-cloud-role")==="admin"; }catch(e){ return false; } }
 function paintSettings(){
   const team=!!$("#cloudCard"), mgr=isManager();
-  $("#sgNav [data-sg=team]").hidden=!team;
+  $("#sgNav [data-sg=team]").hidden=!team; $("#sgNav [data-sg=notif]").hidden=!team || isViewer();
+  if(sgCur==="notif" && (!team || isViewer())) sgCur="general";
   $("#sgNav [data-sg=lists]").hidden=!mgr; $("#sgNav [data-sg=files]").hidden=!mgr; $("#sgNav [data-sg=sec]").hidden=!mgr || TV;
   if((!mgr || isLite()) && (sgCur==="lists"||sgCur==="files")) sgCur = team ? "team" : "general";   // phone view: no lists / files topics
   if(sgCur==="sec" && (!mgr || TV)) sgCur = team ? "team" : "general";
@@ -2080,7 +2081,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.27", APP_DATE="20/10/2026";
+const APP_VER="3.34", APP_DATE="21/10/2026";
 $("#verChip").textContent="v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2206,6 +2207,35 @@ let DEEP_OPEN=false;
   if(v==="open"){ DEEP_OPEN=true; if(!REFRESH_VIEW) REFRESH_VIEW="List"; }
   else if(["Dash","New","List","Data","Tasks","Cal"].includes(v) && !REFRESH_VIEW) REFRESH_VIEW=v;
   u.searchParams.delete("view"); history.replaceState(null,"",u.pathname+u.search);
+})();
+/* shared into the app (Android: "שתף" → the app): the photos / files wait in the service worker's cache; once the app is
+   open (after the opening screen) a window asks what to open with them — a new task or a new event — with them attached */
+(function(){
+  const u=new URL(location.href); if(u.searchParams.get("share")!=="1") return;
+  u.searchParams.delete("share"); history.replaceState(null,"",u.pathname+u.search);
+  const NAME=location.pathname.includes("/beta/") ? "ogg-beta-share" : "ogg-share";
+  (async()=>{ let files=[], meta={};
+    try{ const c=await caches.open(NAME); const mr=await c.match("share-meta"); meta=mr ? await mr.json() : {};
+      for(let i=0;i<(meta.n||0);i++){ const r=await c.match("share-"+i); if(!r) continue; const b=await r.blob();
+        files.push(new File([b], decodeURIComponent(r.headers.get("x-name")||"file"), {type:b.type})); }
+      await caches.delete(NAME); }catch(e){}
+    const text=[meta.title,meta.text,meta.url].filter(Boolean).join(" ").trim();
+    if(!files.length && !text) return;
+    const ready=()=>{ const sp=$("#splash"); return !sp || sp.hidden || getComputedStyle(sp).display==="none"; };
+    let tries=0; while(!ready() && tries++<240) await new Promise(r=>setTimeout(r,500));   // wait for the opening screen / sign-in
+    const box=$("#shrThumbs"); box.textContent="";
+    files.forEach(f=>{ const d=mk("div","tk-file"+(/^image\//.test(f.type)?" img":""));
+      if(/^image\//.test(f.type)){ const im=mk("img"); im.src=URL.createObjectURL(f); im.alt=f.name; d.appendChild(im); } else d.appendChild(mk("span",null,"📎 "+f.name)); box.appendChild(d); });
+    $("#shrSub").textContent = (files.length ? (files.length===1 ? "קובץ אחד" : files.length+" קבצים") : "")+(text ? (files.length?" · ":"")+"“"+text.slice(0,120)+"”" : "")+" — מה לפתוח?";
+    $("#shrTask").hidden=isViewer(); $("#shrEv").hidden=isViewer();
+    $("#shrNo").onclick=()=>$("#dlgShare").close();
+    $("#shrTask").onclick=()=>{ $("#dlgShare").close(); show("Tasks"); openTaskForm(); if(files.length) tkPendAdd(files,false);
+      if(text && !$("#tkTitle").value) $("#tkTitle").value=text.slice(0,120); };
+    $("#shrEv").onclick=async()=>{ $("#dlgShare").close(); resetForm(); show("New");
+      if(text) $("#desc").value=text;
+      if(files.length){ const out=await storeFiles(files.slice(0,8), false); if(out.length){ evFiles.push(...out); paintEvFiles(); toast(out.length===1?"צורף לאירוע":"צורפו "+out.length+" לאירוע"); } } };
+    $("#dlgShare").showModal();
+  })();
 })();
 (function(){
   const sp=$("#splash"); if(!sp) return;
@@ -2863,7 +2893,7 @@ function renderTasks(){
   const today=ymd(new Date());
   const pass=t=>(!tkF.ppl || (t.ppl||[]).includes(tkF.ppl)) && (!tkF.loc || (t.loc||[]).includes(tkF.loc))
              && (!tkF.type || tkCatPicked().includes(t.type)) && (!tkF.prio || prioOf(t)===tkF.prio)
-             && (!tkF.late || (t.due && t.due<today)) && (!tkF.dept || tkInDept(t,tkF.dept)) && (!tkF.rep || !!t.rep)
+             && (!tkF.late || (t.due && t.due<today)) && (!tkF.dept || tkInDept(t,tkF.dept)) && (!tkF.rep || !!(t.rep || (t.hrs && t.hrs.every>0)))
              && (!tkF.q || tkText(t).includes(tkF.q.trim().toLowerCase()));
   const rows = tkView==="priv" ? [] : (tkView!=="done"
     ? tkVis().filter(t=>tkOpen(t) && (tkView!=="mine" || isMine(t)) && (tkView!=="opened" || openedByMe(t))).sort((a,b)=>{
@@ -2920,6 +2950,10 @@ function renderTasks(){
       if(t.status==="בטיפול") tag("בטיפול","w",null,"stat");
       if(tkStat(t)==="בהמתנה") tag("⏸ בהמתנה","hold",null,"stat");
       if(t.rep) tag("🔁 "+repLabel(t.rep),"rep");
+      if(t.hrs && !(t.hrs.every>0)) tag("⏱ "+nf(t.hrs.cur)+" ש'","hrs meter",null,"extra");   // a meter, no cycle
+      else if(t.hrs){ const L=hrsLeft(t), w=L<=0 ? "late" : L<=t.hrs.every*.1 ? "soon" : "ok";
+        tag(L<=0 ? "⏱ עבר ב-"+nf(-L)+" ש'" : "⏱ עוד "+nf(L)+" ש'","hrs "+w,null,"extra");
+        const el=SL.extra.lastChild; el.title="מונה: "+nf(t.hrs.cur)+" ש' ("+dmy(t.hrs.at).slice(0,5)+") · טיפול ב-"+nf(t.hrs.base+t.hrs.every)+" ש' · כל "+nf(t.hrs.every)+" ש'"; }
       { const nf_=(t.files||[]).filter(x=>x&&!x.del).length; if(nf_) tag("📎 "+nf_); }
       { const ci=(t.check||[]).filter(x=>x && !x.del); if(ci.length) tag("☑ "+ci.filter(x=>x.done).length+"/"+ci.length, ci.every(x=>x.done)?"ok":""); }
       if(t.start && t.start>today) tag("מתחילה "+dmy(t.start).slice(0,5),"",null,"due");
@@ -2957,6 +2991,7 @@ function renderTasks(){
         tkLog(t, t.status==="בהמתנה" ? "הועברה להמתנה" : "שוחררה מהמתנה", "", true); t.upd=new Date().toISOString(); saveTasks(); });
       btn("ערוך","",()=>openTaskForm(t.id));
       if(!isViewer()) btn("⧉ שכפל","",()=>dupTask(t.id));
+      if(t.hrs && !isViewer()) btn("⏱ קריאת מונה","keep",()=>hrsAsk(t));   // at the machine: one tap, type the number
     } else if(!isViewer()){
       // a completed task can be reopened (its event in the log reopens with it) and edited
       btn("↩ פתח מחדש","keep",()=>reopenTask(t));
@@ -3062,7 +3097,7 @@ function openTaskForm(id, copy){
   $("#tkScope").hidden = !!((t && !copy) || pt);                  // a task stays what it was (team or personal)
   setScope(pt || (!t && tkView==="priv") ? "me" : "team");   // from "אישיות" a new task starts as personal
   if(pt){ $("#tkTitle").value=pt.title; $("#tkDesc").value=pt.desc; $("#tkDue").value=pt.due; fillSelect($("#tkPrio"), PRIOS, pt.prio); paintFormColors(); $("#tkCkWrap").hidden=true; }
-  setRep(t && t.rep); repAuto=false;
+  setRep(t && t.rep, t && t.hrs); repAuto=false;
   $("#tkStart").value=pt ? (pt.start||"") : t && !copy ? (t.start || String(t.created||"").slice(0,10) || ymd(new Date())) : copy && t && t.start && t.start>ymd(new Date()) ? t.start : ymd(new Date());
   if(copy && t && t.due && t.due<$("#tkStart").value) $("#tkDue").value="";       // a copy doesn't start out late
   $("#tkDue").min=$("#tkStart").value;
@@ -3157,6 +3192,22 @@ function tkPendPaint(){ const box=$("#tkPendList"); if(!box) return; box.textCon
     const d=mk("span","tf-del","✕"); d.setAttribute("role","button"); d.setAttribute("aria-label","הסר את "+(x.f.name||"הקובץ"));
     d.onclick=()=>{ if(x.url) URL.revokeObjectURL(x.url); tkPend.splice(i,1); tkPendPaint(); }; b.appendChild(d); box.appendChild(b); }); }
 function tkPendAdd(list, cam){ [...list].forEach(f=>tkPend.push({f, cam, url:/^image\//.test(f.type||"") ? URL.createObjectURL(f) : ""})); tkPendPaint(); }
+/* files dragged in from outside (the computer's folders, the desktop, an e-mail): dropped on the task form they wait with
+   the form's photos; dropped on an open task card they are added to it. Anywhere else the browser doesn't open them. */
+let dropEl=null;
+const dropFiles=e=>e.dataTransfer && [...(e.dataTransfer.types||[])].includes("Files");
+function dropTarget(e){ const f=e.target.closest && e.target.closest("#tkForm"); if(f && !f.hidden) return f;
+  const c=e.target.closest && e.target.closest("#tkList .tk[data-id]"); if(!c || isViewer()) return null;
+  const t=tasks.find(x=>x.id===c.dataset.id); return t && tkOpen(t) ? c : null; }
+function dropMark(el){ if(dropEl===el) return; if(dropEl) dropEl.classList.remove("drop-on"); dropEl=el; if(el) el.classList.add("drop-on"); }
+document.addEventListener("dragover",e=>{ if(!dropFiles(e)) return; e.preventDefault(); const el=dropTarget(e);
+  e.dataTransfer.dropEffect = el ? "copy" : "none"; dropMark(el); });
+document.addEventListener("dragleave",e=>{ if(!e.relatedTarget) dropMark(null); });
+document.addEventListener("drop",e=>{ if(!dropFiles(e)) return; e.preventDefault(); const el=dropTarget(e), fl=[...e.dataTransfer.files]; dropMark(null);
+  if(!fl.length) return;
+  if(!el){ toast("גרור את הקבצים לתוך משימה פתוחה או לטופס המשימה"); return; }
+  if(el.id==="tkForm"){ if(tkScope==="me"){ toast("למשימה אישית אין קבצים"); return; } tkPendAdd(fl,false); toast(fl.length===1?"הקובץ יצורף בשמירה":fl.length+" קבצים יצורפו בשמירה"); return; }
+  const t=tasks.find(x=>x.id===el.dataset.id); if(t) addFiles(t, fl, false); });
 $("#tkPendCam").onchange=e=>{ tkPendAdd(e.target.files,true); e.target.value=""; };
 $("#tkPendFile").onchange=e=>{ tkPendAdd(e.target.files,false); e.target.value=""; };
 const one=v=>v && v!=="__other" ? [v] : [];
@@ -3186,10 +3237,16 @@ $("#tkSave").onclick=()=>{
   if(miss.length){ toast("חסר: "+miss.map(m=>m[1]).join(", "));
     const f=$(miss[0][0]); (f.classList.contains("ss-hidden") ? f.nextElementSibling : f).focus(); return; }
   if($("#tkStart").value && $("#tkDue").value && $("#tkStart").value > $("#tkDue").value){ $("#tkDue").closest(".tk-f").classList.add("bad"); toast("תאריך היעד לפני תאריך ההתחלה"); $("#tkDue").focus(); return; }
+  const hrs=readHrs();
+  if(hrs===null){ toast("⏱ שעות עבודה: הקלד את קריאת המונה עכשיו"); $("#tkHrsCur").focus(); return; }
   const title=$("#tkTitle").value.trim();
   const now=new Date().toISOString(), prio=$("#tkPrio").value||"רגילה";
   const data={title, desc:$("#tkDesc").value.trim(), type:$("#tkType").value||"", prio, urgent:prio==="דחופה",
-    ppl:tkPplSel.slice(), loc:one($("#tkLoc").value), eq:one($("#tkEq").value), due:$("#tkDue").value||"", start:$("#tkStart").value||"", depts:tkDeptSel.slice(), rep:readRep(), upd:now};
+    ppl:tkPplSel.slice(), loc:one($("#tkLoc").value), eq:one($("#tkEq").value), due:$("#tkDue").value||"", start:$("#tkStart").value||"", depts:tkDeptSel.slice(), rep:readRep(), hrs, upd:now};
+  if(hrs){ const old=tkEdit && tasks.find(x=>x.id===tkEdit), oh=old && old.hrs;   // keep the readings already kept
+    hrs.hist = oh && oh.cur===hrs.cur ? (oh.hist||[]) : ((oh && oh.hist)||[]).filter(x=>x.at!==hrs.at).concat({h:hrs.cur,at:hrs.at}).slice(-12);
+    if(oh && oh.cur===hrs.cur) hrs.at=oh.at;
+    data.due=hrsDue({hrs, due:data.due}); }
   const was=tkEdit;
   if(was){ const t=tasks.find(x=>x.id===was); if(t){ Object.assign(t,data);
       const pend=($("#tkCk input")||{}).value; if(pend && pend.trim() && !tkCkSel.includes(pend.trim())) tkCkSel.push(pend.trim());
@@ -3291,13 +3348,51 @@ function repLabel(r){ if(!r || !REP_U[r.u]) return "";
 function readRep(){ const v=$("#tkRep").value; if(!v) return undefined;
   if(v!=="c") return {n:1,u:v};
   const n=Math.max(1,Math.min(366,parseInt($("#tkRepN").value,10)||1)); return {n, u:$("#tkRepU").value||"d"}; }
-function setRep(r){
+function setRep(r, hrs){ setHrs(hrs);
   const ok=r && REP_U[r.u];
   $("#tkRep").value = !ok ? "" : +r.n===1 ? r.u : "c";
   if(ok && +r.n!==1){ $("#tkRepN").value=r.n; $("#tkRepU").value=r.u; } else { $("#tkRepN").value=2; $("#tkRepU").value="d"; }
   paintRep();
 }
-function paintRep(){ const v=$("#tkRep").value; $("#tkRepC").hidden = v!=="c"; $("#tkRepHint").hidden = !v; }
+function paintRep(){ const v=$("#tkRep").value; $("#tkRepC").hidden = v!=="c"; $("#tkRepHint").hidden = !v; if(typeof paintHrsF==="function") paintHrsF(); }
+/* ⏱ working hours (a field of its own on every team task): a task with a meter reading keeps hrs = {every (0 = no cycle), base (the reading at the last service),
+   cur (the latest reading), at (its date), hist (recent readings, for the pace)}. A reading entered on one task updates every
+   open hours-task of the same equipment. The due date is estimated from the pace (hours a day) when there are two readings. */
+function readHrs(){ if(tkScope==="me" || $("#tkHrsF").closest(".tk-hrs-f").hidden) return undefined;
+  const every=parseFloat($("#tkHrsN").value), cur=parseFloat($("#tkHrsCur").value), b=parseFloat($("#tkHrsBase").value);
+  if($("#tkHrsCur").value==="" && $("#tkHrsN").value==="" && $("#tkHrsBase").value==="") return undefined;
+  if(!(cur>=0)) return null;                                   // a cycle or a last reading needs the reading now
+  return {every: every>0 ? every : 0, cur, base: b>=0 ? b : cur, at:ymd(new Date())}; }
+function setHrs(h){ $("#tkHrsCur").value = h ? h.cur : ""; $("#tkHrsN").value = h && h.every ? h.every : ""; $("#tkHrsBase").value = h && h.every ? h.base : ""; paintHrsF(); }
+// the working-hours block shows for the "אחזקות מתוכננות" category (or when the task already has a reading)
+function paintHrsF(){ const plan=$("#tkType").value==="אחזקות מתוכננות";
+  $("#tkHrsF").closest(".tk-hrs-f").hidden = !(plan || ["#tkHrsCur","#tkHrsN","#tkHrsBase"].some(id=>$(id).value!==""));
+  $("#tkRep").closest(".tk-rep-f").hidden = !(plan || $("#tkRep").value); }   // the recurrence too (or when the task already repeats)
+$("#tkType").addEventListener("change",paintHrsF);
+const hrsLeft=t=>t.hrs && t.hrs.every>0 ? +(t.hrs.base+t.hrs.every-t.hrs.cur).toFixed(1) : null;
+function hrsPace(h){ const H=(h.hist||[]).filter(x=>x && x.at); if(H.length<2) return 0;   // hours a day, from the first and last reading kept
+  const a=H[0], b=H[H.length-1], d=(Date.parse(b.at)-Date.parse(a.at))/864e5; return d>=1 && b.h>a.h ? (b.h-a.h)/d : 0; }
+function hrsDue(t){ const left=hrsLeft(t), p=hrsPace(t.hrs); if(left===null) return t.due||"";
+  if(left<=0) return t.hrs.at; if(!p) return t.due||"";
+  const d=new Date(t.hrs.at+"T12:00:00"); d.setDate(d.getDate()+Math.floor(left/p)); return ymd(d); }
+function hrsSet(eq, val, by){   // a new reading for this equipment: every open hours-task of it
+  const at=ymd(new Date()); let n=0;
+  tasks.filter(t=>t.hrs && tkOpen(t) && (t.eq||[])[0]===eq).forEach(t=>{ const h=t.hrs;
+    h.cur=val; h.at=at; h.hist=(h.hist||[]).filter(x=>x.at!==at).concat({h:val,at}).slice(-12);
+    t.due=hrsDue(t); t.upd=new Date().toISOString(); tkLog(t, "⏱ קריאת מונה: "+nf(val)+" ש'", by||"", true); n++; });
+  return n; }
+let hrsT=null;
+function hrsAsk(t){ hrsT=t; const eq=(t.eq||[])[0]||"";
+  $("#hrSub").textContent=eq; $("#hrVal").value="";
+  $("#hrLast").textContent = t.hrs ? "קריאה אחרונה: "+nf(t.hrs.cur)+" ש' ("+dmy(t.hrs.at).slice(0,5)+")"+(t.hrs.every>0?" · הטיפול הבא ב-"+nf(t.hrs.base+t.hrs.every)+" ש'":"") : "";
+  $("#dlgHrs").showModal(); setTimeout(()=>$("#hrVal").focus(),50); }
+$("#hrNo").onclick=()=>$("#dlgHrs").close();
+$("#hrOk").onclick=()=>{ const v=parseFloat($("#hrVal").value), t=hrsT; if(!t) return;
+  if(!(v>=0)){ toast("הקלד את המספר שעל המונה"); $("#hrVal").focus(); return; }
+  if(v<t.hrs.cur && !confirm("הקריאה נמוכה מהקודמת ("+nf(t.hrs.cur)+"). לשמור בכל זאת?")) return;
+  const n=hrsSet((t.eq||[])[0]||"", v); $("#dlgHrs").close(); saveTasks();
+  toast("⏱ נשמר: "+nf(v)+" ש'"+(n>1?" · עודכנו "+n+" משימות של אותו ציוד":"")); };
+$("#hrVal").onkeydown=e=>{ if(e.key==="Enter"){ e.preventDefault(); $("#hrOk").click(); } };
 $("#tkRep").addEventListener("change",()=>{ repAuto=false; paintRep(); });
 /* a type that says how often (יומית / שבועית / חודשית / שנתית, also "סיור בטיחות חודשי") sets the recurrence by itself;
    picked by hand it stays as chosen, and switching to a type without one clears only what was set automatically */
@@ -3315,12 +3410,21 @@ function addRep(s, r, k){                     // "YYYY-MM-DD" + k intervals (mon
   return ymd(new Date(y2,m2,Math.min(D,last),12));
 }
 function nextOccurrence(t){
+  if(t.hrs && t.hrs.every>0){ const now=new Date().toISOString(), h=t.hrs, at=ymd(new Date()), b=+t.hrsDone>=0 ? +t.hrsDone : h.cur;
+    const n={id:newId(), status:"פתוחה", created:now, upd:now, log:[], title:t.title, desc:t.desc||"", type:t.type||"", prio:t.prio||"רגילה", urgent:!!t.urgent,
+      ppl:(t.ppl||[]).slice(), loc:(t.loc||[]).slice(), eq:(t.eq||[]).slice(), depts:(t.depts||[]).slice(), start:"", prevId:t.id,
+      hrs:{every:h.every, base:b, cur:Math.max(b,h.cur), at, hist:(h.hist||[]).filter(x=>x.at!==at).concat({h:Math.max(b,h.cur),at}).slice(-12)}};
+    n.due=hrsDue(n);
+    const items=(t.check||[]).filter(x=>x && !x.del); if(items.length) n.check=items.map(x=>({id:newId(), text:x.text, done:false}));
+    tkLog(n, "⏱ טיפול לפי שעות (כל "+nf(h.every)+" ש') — נפתח אחרי שהקודם הושלם ב-"+nf(b)+" ש'; הבא ב-"+nf(b+h.every)+" ש'", "", true);
+    return n; }
   const r=t.rep, base=t.due || ymd(new Date()), today=ymd(new Date());
   let k=1; while(addRep(base,r,k)<today && k<2000) k++;
   const now=new Date().toISOString();
   const n={id:newId(), status:"פתוחה", created:now, upd:now, log:[], title:t.title, desc:t.desc||"", type:t.type||"", prio:t.prio||"רגילה", urgent:!!t.urgent,
     ppl:(t.ppl||[]).slice(), loc:(t.loc||[]).slice(), eq:(t.eq||[]).slice(), depts:(t.depts||[]).slice(), rep:{n:+r.n||1,u:r.u},
     due:addRep(base,r,k), start:t.start ? addRep(t.start,r,k) : "", prevId:t.id};
+  if(t.hrs){ const b=+t.hrsDone>=0 ? +t.hrsDone : t.hrs.cur, at=ymd(new Date()); n.hrs={every:0, base:b, cur:b, at, hist:(t.hrs.hist||[]).filter(x=>x.at!==at).concat({h:b,at}).slice(-12)}; }
   const items=(t.check||[]).filter(x=>x && !x.del);
   if(items.length) n.check=items.map(x=>({id:newId(), text:x.text, done:false}));
   tkLog(n, "משימה מחזורית ("+repLabel(r)+") — נפתחה אחרי שהקודמת הושלמה"+(t.due?" (יעד קודם "+dmy(t.due).slice(0,5)+")":""), "", true);
@@ -3334,6 +3438,7 @@ function openTaskDone(id){
   fillSelect($("#tdType"), types, def);
   colorSelect($("#tdType"), hueOf($("#tdType").value));
   $("#tdWhen").value=nowLocal();
+  $("#tdHrsF").hidden=!t.hrs; $("#tdHrs").value = t.hrs ? t.hrs.cur : "";
   // writing it to the log is optional; the choice is remembered on this device (on unless turned off)
   let lg=true; try{ lg=localStorage.getItem("ogg-td-log")!=="0"; }catch(e){}
   if(t.eventId && events.some(e=>e.id===t.eventId)) lg=true;        // reopened from its event: it closes that event again
@@ -3347,12 +3452,14 @@ $("#tdCancel").onclick=()=>$("#dlgTaskDone").close();
 $("#tdOk").onclick=()=>{
   const t=tasks.find(x=>x.id===tkDoneId); if(!t){ $("#dlgTaskDone").close(); return; }
   const when=$("#tdWhen").value||nowLocal(), act=$("#tdAct").value.trim(), type=$("#tdType").value;
+  if(t.hrs){ const v=parseFloat($("#tdHrs").value); if(!(v>=0)){ toast("⏱ הקלד את קריאת המונה בזמן הטיפול"); $("#tdHrs").focus(); return; }
+    t.hrsDone=v; if(v>t.hrs.cur) hrsSet((t.eq||[])[0]||"", v); tkLog(t, "⏱ טופל ב-"+nf(v)+" ש'", "", true); }
   if(!$("#tdLog").checked){                       // complete only — no event in the log
     Object.assign(t,{status:"הושלמה", doneAt:nowLocal(), doneBy:reporter()||"", act, upd:new Date().toISOString()});
     tkLog(t, "הושלמה"+(act?": "+act:"")+" (לא נרשם ביומן)", "", true);
-    const nx0 = t.rep && !t.nextId ? nextOccurrence(t) : null; if(nx0){ tasks.push(nx0); t.nextId=nx0.id; }
+    const nx0 = (t.rep || (t.hrs && t.hrs.every>0)) && !t.nextId ? nextOccurrence(t) : null; if(nx0){ tasks.push(nx0); t.nextId=nx0.id; }
     $("#dlgTaskDone").close(); saveTasks(); renderTasks();
-    if(nx0) toast("המשימה הושלמה · נפתחה המשימה הבאה ליעד "+dmy(nx0.due).slice(0,5),{label:"הצג",fn:()=>goTask(nx0.id)});
+    if(nx0) toast("המשימה הושלמה · נפתחה המשימה הבאה"+(nx0.hrs && nx0.hrs.every?" ב-"+nf(nx0.hrs.base+nx0.hrs.every)+" ש'":" ליעד "+dmy(nx0.due).slice(0,5)),{label:"הצג",fn:()=>goTask(nx0.id)});
     else toast("המשימה הושלמה ועברה ל\"הושלמו\"");
     return;
   }
@@ -3366,11 +3473,11 @@ $("#tdOk").onclick=()=>{
   ["loc","eq","ppl"].forEach(k=>(ev[k]||[]).forEach(v=>{ if(!lists[k].includes(v)) lists[k].push(v); }));
   Object.assign(t,{status:"הושלמה", doneAt:when, doneBy:reporter()||"", act, eventType:type, eventId:ev.id, upd:new Date().toISOString()});
   tkLog(t, "הושלמה ונרשמה ביומן"+(act?": "+act:""), "", true);
-  const nx = t.rep && !t.nextId ? nextOccurrence(t) : null;    // recurring: open the next one
+  const nx = (t.rep || (t.hrs && t.hrs.every>0)) && !t.nextId ? nextOccurrence(t) : null;    // recurring: open the next one
   if(nx){ tasks.push(nx); t.nextId=nx.id; }
   $("#dlgTaskDone").close();
   persist(); renderAll(); saveTasks();
-  if(nx) toast("הושלמה ונרשמה ביומן · נפתחה המשימה הבאה ליעד "+dmy(nx.due).slice(0,5),{label:"הצג",fn:()=>goTask(nx.id)});
+  if(nx) toast("הושלמה ונרשמה ביומן · נפתחה המשימה הבאה"+(nx.hrs && nx.hrs.every?" ב-"+nf(nx.hrs.base+nx.hrs.every)+" ש'":" ליעד "+dmy(nx.due).slice(0,5)),{label:"הצג",fn:()=>goTask(nx.id)});
   else toast("המשימה הושלמה ונרשמה ביומן",{label:"הצג",fn:()=>{ $("#sortBy").value="edit"; goList({ppl:""}); }});
 };
 let tkLiteSet=false;
@@ -4753,21 +4860,27 @@ function remSave(){ try{ localStorage.setItem("ogg-rems",JSON.stringify(REMS)); 
 window.remApply=list=>{ REMS=Array.isArray(list)?list.filter(r=>r && r.tid && r.at):[]; try{ localStorage.setItem("ogg-rems",JSON.stringify(REMS)); }catch(e){}
   if(typeof renderTasks==="function") renderTasks(); };
 function remOf(tid){ return remList().find(r=>r.tid===tid); }
+// a repeating reminder: the next time after "now" (same hour; day / week / month)
+function remNextAt(at,rep,now){ const d=new Date(at); let n=0;
+  while(d.getTime()<=now && n++<2000){ if(rep==="d") d.setDate(d.getDate()+1); else if(rep==="w") d.setDate(d.getDate()+7); else if(rep==="m") d.setMonth(d.getMonth()+1); else return 0; }
+  return d.getTime(); }
+var REP_TXT={d:"כל יום",w:"כל שבוע",m:"כל חודש"};
 function remWhen(ms){ const d=new Date(ms), p=n=>String(n).padStart(2,"0"), dd=ymd(d);
   const day = dd===ymd(new Date()) ? "היום" : dd===ymd(new Date(Date.now()+864e5)) ? "מחר" : p(d.getDate())+"/"+p(d.getMonth()+1);
   return day+" "+p(d.getHours())+":"+p(d.getMinutes()); }
 function remBell(t){
   const r=remOf(t.id), b=mk("button","tk-bell"+(r?" on":"")); b.type="button";
   b.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm7-6V11a7 7 0 0 0-5.5-6.84V3.5a1.5 1.5 0 0 0-3 0v.66A7 7 0 0 0 5 11v5l-2 2v1h18v-1z"/></svg>';
-  if(r) b.appendChild(mk("span","tk-bell-t",remWhen(r.at)));
-  b.title = r ? "תזכורת: "+remWhen(r.at)+" — לחץ לשינוי" : "תזכורת למשימה"; b.setAttribute("aria-label",b.title);
+  if(r) b.appendChild(mk("span","tk-bell-t",(r.rep?"🔁 ":"")+remWhen(r.at)));
+  b.title = r ? "תזכורת: "+remWhen(r.at)+(r.rep?" · "+REP_TXT[r.rep]:"")+" — לחץ לשינוי" : "תזכורת למשימה"; b.setAttribute("aria-label",b.title);
   b.onclick=ev=>{ ev.stopPropagation(); remOpen(t); }; return b;
 }
 let remFor=null;
 function remOpen(t){
   remFor=t; const r=remOf(t.id), d=$("#dlgRem"), at8=v=>new Date(v+"T08:00").getTime();
   $("#remTitle").textContent="🔔 תזכורת · "+(t.priv?"🔒 ":t.no?"#"+t.no+" ":"")+(t.title||"");
-  $("#remNow").textContent = r ? "יש תזכורת ל"+remWhen(r.at) : "";
+  $("#remNow").textContent = r ? "יש תזכורת ל"+remWhen(r.at)+(r.rep?" · חוזרת "+REP_TXT[r.rep]:"") : "";
+  $("#remRep").value = r && r.rep || "";
   const box=$("#remOpts"); box.textContent="";
   const opt=(label,ms)=>{ const b=mk("button","btn",label); b.type="button"; b.onclick=()=>remSet(ms()); box.appendChild(b); };
   opt("בעוד שעה",()=>Date.now()+3600e3); opt("בעוד 3 שעות",()=>Date.now()+3*3600e3);
@@ -4782,8 +4895,9 @@ function remOpen(t){
 function remSet(ms){
   if(!remFor || !(ms>Date.now())){ toast("בחר זמן עתידי"); return; }
   const t=remFor;
-  REMS=remList().filter(x=>x.tid!==t.id).concat({id:newId(), tid:t.id, at:Math.round(ms), title:(t.priv?"🔒 ":t.no?"#"+t.no+" ":"")+(t.title||"משימה")});
-  remSave(); $("#dlgRem").close(); renderTasks(); toast("🔔 תזכורת נקבעה ל"+remWhen(ms));
+  const rp=$("#remRep").value;
+  REMS=remList().filter(x=>x.tid!==t.id).concat(Object.assign({id:newId(), tid:t.id, at:Math.round(ms), title:(t.priv?"🔒 ":t.no?"#"+t.no+" ":"")+(t.title||"משימה")}, rp?{rep:rp}:{}));
+  remSave(); $("#dlgRem").close(); renderTasks(); toast("🔔 תזכורת נקבעה ל"+remWhen(ms)+(rp?" · "+REP_TXT[rp]:""));
 }
 $("#remSetAt").onclick=()=>{ const v=$("#remAt").value; if(!v){ $("#remAt").focus(); return; } remSet(new Date(v).getTime()); };
 $("#remOff").onclick=()=>{ if(!remFor) return; REMS=remList().filter(x=>x.tid!==remFor.id); remSave(); $("#dlgRem").close(); renderTasks(); toast("התזכורת בוטלה"); };
@@ -4795,12 +4909,28 @@ function remTick(){
   if(document.hidden && CLOUD_ON && push) return;                 // the cloud sends it (and clears it)
   due.forEach(r=>{
     if(!document.hidden) toast("🔔 תזכורת: "+r.title,{label:"פתח",fn:()=>goTask(r.tid)});
-    else if("Notification" in window && Notification.permission==="granted" && navigator.serviceWorker)
+    else if(window.notifOn("rem") && "Notification" in window && Notification.permission==="granted" && navigator.serviceWorker)
       navigator.serviceWorker.ready.then(g=>g.showNotification("🔔 תזכורת",{body:r.title, tag:"ogg-task-"+r.tid, icon:"icons/icon-notebook-192.png", badge:"icons/badge-96.png", lang:"he", dir:"rtl", data:{tid:r.tid}})).catch(()=>{});
   });
-  REMS=REMS.filter(r=>r.at>now); remSave(); renderTasks();
+  REMS=REMS.filter(r=>r.at>now || r.rep).map(r=>r.at>now ? r : Object.assign({},r,{at:remNextAt(r.at,r.rep,now)})).filter(r=>r.at>now);   // a repeating one moves on
+  remSave(); renderTasks();
 }
-setInterval(remTick,30e3); document.addEventListener("visibilitychange",()=>{ if(!document.hidden) setTimeout(remTick,800); }); setTimeout(remTick,3000);
+setInterval(remTick,30e3);
+/* ===== settings → 🔔 התראות: what to be notified about — push to the phone and notifications on the device (the 📨 list keeps everything).
+   Saved here and on meta/me-<me>.notifOff (the cloud functions read it), so it holds on every device of the account. */
+var NOTIF_KINDS=[["assign","משימה חדשה או שהוקצתה לי"],["update","עדכון שנכתב במשימה"],["status","שינוי סטטוס וסיום משימה"],
+  ["edit","שינוי פרטים, קבצים ורשימת בדיקה"],["off","משימה שהוסרה ממני או נמחקה"],["fb","תשובה למשוב שלי"],["rem","תזכורות 🔔 שקבעתי"],["ev","אירוע חדש ביומן"]];
+function notifOff(){ try{ const a=JSON.parse(localStorage.getItem("ogg-notif-off")||"[]"); return Array.isArray(a)?a:[]; }catch(e){ return []; } }
+window.notifOn=k=>!notifOff().includes(k);
+window.notifApply=a=>{ if(!Array.isArray(a)) return; try{ localStorage.setItem("ogg-notif-off",JSON.stringify(a)); }catch(e){} paintNotif(); };
+function paintNotif(){
+  const box=$("#notifList"); if(!box) return; box.textContent=""; const off=notifOff();
+  NOTIF_KINDS.forEach(([k,label])=>{ const l=mk("label","tk-chk"), i=document.createElement("input"); i.type="checkbox"; i.checked=!off.includes(k);
+    i.onchange=()=>{ const o=notifOff().filter(x=>x!==k); if(!i.checked) o.push(k);
+      try{ localStorage.setItem("ogg-notif-off",JSON.stringify(o)); }catch(e){} if(window.cloudSetNotif) window.cloudSetNotif(o); };
+    l.append(i, document.createTextNode(" "+label)); box.appendChild(l); });
+}
+paintNotif(); document.addEventListener("visibilitychange",()=>{ if(!document.hidden) setTimeout(remTick,800); }); setTimeout(remTick,3000);
 
 /* ===== recycle bin (🗑): deleted events and tasks, 30 days. This device keeps what it deleted; the team log also keeps every
    deleted document in the cloud (deleting only marks it _del), so the bin also shows what was deleted elsewhere. Restoring = a manager. */

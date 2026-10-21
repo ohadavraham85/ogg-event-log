@@ -1,7 +1,7 @@
 /* Service worker — network first, cache as offline fallback.
    Online the app always loads the latest files (so "בדוק עדכון" keeps working);
    offline, or when the site answers with an error (404/5xx), it serves the last copy it saw. Data stays in localStorage, not here. */
-const CACHE = "ogg-log-3.27";   // bump together with APP_VER in app.js
+const CACHE = "ogg-log-3.34";   // bump together with APP_VER in app.js
 // the beta copy (…/beta/) keeps its own cache, so the two copies never clear each other's
 const BETA = self.location.pathname.includes("/beta/");
 const PFX = BETA ? "ogg-beta-" : "ogg-log-", CNAME = CACHE.replace("ogg-log-", PFX);
@@ -17,13 +17,28 @@ self.addEventListener("install", ev => {
 self.addEventListener("activate", ev => {
   ev.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(k => k !== CNAME && (k.startsWith(PFX) || (!BETA && !k.startsWith("ogg-beta-")))).map(k => caches.delete(k))))
+      .then(keys => Promise.all(keys.filter(k => k !== CNAME && !/-share$/.test(k) && (k.startsWith(PFX) || (!BETA && !k.startsWith("ogg-beta-")))).map(k => caches.delete(k))))   // a share waiting to be opened stays
       .then(() => self.clients.claim())
   );
 });
 
+// "share to the app" (Android, installed app): photos / files shared from the gallery or another app arrive here as a POST;
+// they wait in a cache of their own and the app opens with ?share=1 to ask what to open with them (a task or an event)
+const SHARE = BETA ? "ogg-beta-share" : "ogg-share";
 self.addEventListener("fetch", ev => {
   const req = ev.request;
+  if (req.method === "POST" && new URL(req.url).pathname.endsWith("/share-target")) {
+    ev.respondWith((async () => {
+      try {
+        const fd = await req.formData(), files = fd.getAll("files").filter(f => f && f.size);
+        await caches.delete(SHARE); const c = await caches.open(SHARE);
+        await Promise.all(files.slice(0, 8).map((f, i) => c.put("share-" + i, new Response(f, { headers: { "content-type": f.type || "application/octet-stream", "x-name": encodeURIComponent(f.name || "file") } }))));
+        await c.put("share-meta", new Response(JSON.stringify({ n: Math.min(files.length, 8), title: String(fd.get("title") || ""), text: String(fd.get("text") || ""), url: String(fd.get("url") || "") })));
+      } catch (e) {}
+      return Response.redirect(new URL("./?share=1", self.registration.scope).href, 303);
+    })());
+    return;
+  }
   if (req.method !== "GET") return;
   const url = new URL(req.url);
   const sameOrigin = url.origin === self.location.origin;
