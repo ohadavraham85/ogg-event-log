@@ -2081,7 +2081,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.36", APP_DATE="21/10/2026";
+const APP_VER="3.37", APP_DATE="21/10/2026";
 $("#verChip").textContent="v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -3191,7 +3191,7 @@ function paintDeptChips(sel){
       if(tkDeptSel.length) $("#tkPpl").closest(".tk-f").classList.remove("bad"), box.closest(".tk-f").classList.remove("bad"); };
     box.appendChild(b); });
 }
-function closeTaskForm(){ $("#tkForm").hidden=true; $("#tkNewBtn").hidden=false; tkEdit=null; tkEditPriv=null; tkPendClear(); }
+function closeTaskForm(){ $("#tkForm").hidden=true; $("#tkNewBtn").hidden=false; tkEdit=null; tkEditPriv=null; tkFromPriv=null; document.querySelectorAll(".priv-carry").forEach(x=>x.remove()); tkPendClear(); }
 /* photos and files picked in the task form: kept here until "שמור משימה", then attached to the task (the same as 📷 / 📎 on a task) */
 var tkPend=[];
 function tkPendClear(){ tkPend.forEach(x=>{ if(x.url) URL.revokeObjectURL(x.url); }); tkPend=[]; tkPendPaint(); }
@@ -3208,7 +3208,7 @@ let dropEl=null;
 const dropFiles=e=>e.dataTransfer && [...(e.dataTransfer.types||[])].includes("Files");
 function dropTarget(e){ const f=e.target.closest && e.target.closest("#tkForm"); if(f && !f.hidden) return f;
   const c=e.target.closest && e.target.closest("#tkList .tk[data-id]"); if(!c || isViewer()) return null;
-  const t=tasks.find(x=>x.id===c.dataset.id); return t && tkOpen(t) ? c : null; }
+  const t=String(c.dataset.id).startsWith("p:") ? privTasks().find(x=>x.id===c.dataset.id) : tasks.find(x=>x.id===c.dataset.id); return t && tkOpen(t) ? c : null; }
 function dropMark(el){ if(dropEl===el) return; if(dropEl) dropEl.classList.remove("drop-on"); dropEl=el; if(el) el.classList.add("drop-on"); }
 document.addEventListener("dragover",e=>{ if(!dropFiles(e)) return; e.preventDefault(); const el=dropTarget(e);
   e.dataTransfer.dropEffect = el ? "copy" : "none"; dropMark(el); });
@@ -3216,7 +3216,8 @@ document.addEventListener("dragleave",e=>{ if(!e.relatedTarget) dropMark(null); 
 document.addEventListener("drop",e=>{ if(!dropFiles(e)) return; e.preventDefault(); const el=dropTarget(e), fl=[...e.dataTransfer.files]; dropMark(null);
   if(!fl.length) return;
   if(!el){ toast("גרור את הקבצים לתוך משימה פתוחה או לטופס המשימה"); return; }
-  if(el.id==="tkForm"){ if(tkScope==="me"){ toast("למשימה אישית אין קבצים"); return; } tkPendAdd(fl,false); toast(fl.length===1?"הקובץ יצורף בשמירה":fl.length+" קבצים יצורפו בשמירה"); return; }
+  if(el.id==="tkForm"){ tkPendAdd(fl,false); toast(fl.length===1?"הקובץ יצורף בשמירה":fl.length+" קבצים יצורפו בשמירה"); return; }
+  if(String(el.dataset.id).startsWith("p:")){ privAddFiles(el.dataset.id.slice(2), fl, false); return; }
   const t=tasks.find(x=>x.id===el.dataset.id); if(t) addFiles(t, fl, false); });
 $("#tkPendCam").onchange=e=>{ tkPendAdd(e.target.files,true); e.target.value=""; };
 $("#tkPendFile").onchange=e=>{ tkPendAdd(e.target.files,false); e.target.value=""; };
@@ -3232,11 +3233,13 @@ $("#tkSave").onclick=()=>{
     const pt0=tkEditPriv && meGet().find(m=>m.id===tkEditPriv);
     const data={title:title.slice(0,300), desc:$("#tkDesc").value.trim(), prio:$("#tkPrio").value||"רגילה",
       start: st || (pt0 && pt0.created ? ymd(new Date(pt0.created)) : ymd(new Date())), due:du};   // the start is always there: the day it was opened
-    if(tkEditPriv){ meSet(tkEditPriv, data); closeTaskForm(); toast("המשימה האישית עודכנה"); return; }
+    const pf=tkPend.map(x=>x.f); tkPend=[];                     // photos / files picked in the form
+    if(tkEditPriv){ const id=tkEditPriv; meSet(id, data); closeTaskForm(); toast("המשימה האישית עודכנה"); if(pf.length) privAddFiles(id, pf, false); return; }
     const pend=($("#tkCk input")||{}).value; if(pend && pend.trim() && !tkCkSel.includes(pend.trim())) tkCkSel.push(pend.trim());
     const now=new Date().toISOString(), a=meGet();
     a.unshift(Object.assign({id:newId(), done:false, at:nowLocal(), created:now, upd:now, check:tkCkSel.map(text=>({id:newId(), text, done:false}))}, data));
     closeTaskForm(); tkView="priv"; paintTkSeg(); mePut(a);   // show it where personal tasks live
+    if(pf.length) privAddFiles(a[0].id, pf, false);
     toast(window.cloudMineState==="denied" ? "נשמרה 🔒 — כרגע רק במכשיר הזה" : "המשימה האישית נשמרה 🔒 — רק אתה רואה אותה"); return;
   }
   // required: type, priority, assignee (person or department), location, equipment and the title
@@ -3268,7 +3271,10 @@ $("#tkSave").onclick=()=>{
   else { const pend=($("#tkCk input")||{}).value; if(pend && pend.trim() && !tkCkSel.includes(pend.trim())) tkCkSel.push(pend.trim());
     const t=Object.assign({id:newId(), status:"פתוחה", created:now, log:[], openedBy:reporter()||"", openedMail:(window.cloudMe && window.cloudMe())||""}, data);
     if(tkCkSel.length) t.check=tkCkSel.map(text=>({id:newId(), text, done:false}));
-    tkLog(t, "המשימה נפתחה"+(data.ppl.length?" · אחראי: "+data.ppl[0]:"")+(data.ppl.length>1?" · משויכים: "+data.ppl.slice(1).join(", "):"")+(data.depts.length?" · מחלקות: "+data.depts.join(", "):""), "", true); tasks.push(t); }
+    if(tkFromPriv){ const fp=tkFromPriv; if(fp.files.length) t.files=fp.files.slice();
+      if(t.check) t.check.forEach(c=>{ const o=fp.check.find(x=>x.text===c.text); if(o && o.done) c.done=true; });
+      t._fromPriv=1; meSet(fp.pid,{del:true}); }
+    tkLog(t, "המשימה נפתחה"+(data.ppl.length?" · אחראי: "+data.ppl[0]:"")+(data.ppl.length>1?" · משויכים: "+data.ppl.slice(1).join(", "):"")+(data.depts.length?" · מחלקות: "+data.depts.join(", "):""), "", true); if(t._fromPriv){ delete t._fromPriv; tkLog(t, "הועברה ממשימה אישית", "", true); } tasks.push(t); }
   const pend=tkPend; tkPend=[];                                     // photos / files picked in the form (closing the form would drop them)
   closeTaskForm(); if(tkView==="done"){ tkView="open"; paintTkSeg(); } saveTasks();
   const saved=tasks.find(x=>x.id===(was||tasks[tasks.length-1].id));
@@ -3930,16 +3936,37 @@ function meSet(id, patch){ const a=meGet(), x=a.find(m=>m.id===id); if(!x) retur
 function privTasks(){
   return meGet().filter(x=>!x.del).map(x=>({priv:true, id:"p:"+x.id, pid:x.id, title:x.title||x.text||"", desc:x.desc||"", prio:x.prio||"רגילה",
     start:x.start||(x.created ? ymd(new Date(x.created)) : ""), due:x.due||"", check:(x.check||[]).filter(c=>c && !c.del),   // no start: the day it was opened status:x.done?"הושלמה":"פתוחה", doneAt:x.doneAt||"",
-    created:x.created||x.upd||"", upd:x.upd||""}));
+    created:x.created||x.upd||"", upd:x.upd||"", files:(x.files||[]).filter(m=>m && !m.del)}));
 }
 function paintMe2(){ if(typeof renderTasks==="function") renderTasks(); }
 window.paintMe2=paintMe2;
+// a personal task's photos / files: kept like a team task's (this device + the cloud copy), listed on the personal task
+async function privAddFiles(pid, list, cam){
+  const out=await storeFiles(list, cam); if(!out.length) return;
+  const x=meGet().find(z=>z.id===pid); if(!x) return;
+  meSet(pid,{files:(x.files||[]).concat(out)}); toast(out.length===1?"צורף 🔒":"צורפו "+out.length+" 🔒"); }
+/* 🔒 tapped on an open personal task: it moves to the team — the team form opens with its title, details, dates, checklist and
+   files; once the missing team details (category, people, place…) are filled and it is saved, the personal copy goes away */
+let tkFromPriv=null;
+function privToTeam(t){
+  if(!confirm("להעביר את המשימה האישית לצוות?\n"+t.title+"\n\nייפתח טופס משימת צוות עם הפרטים שלה — משלימים קטגוריה, אחראי, מיקום וציוד ושומרים.")) return;
+  openTaskForm(null); setScope("team"); $("#tkScope").hidden=true;
+  $("#tkFormTitle").textContent="העברה לצוות — "+t.title;
+  $("#tkTitle").value=t.title; $("#tkDesc").value=t.desc||""; fillSelect($("#tkPrio"), PRIOS, t.prio||"רגילה"); paintFormColors();
+  $("#tkStart").value=t.start||ymd(new Date()); $("#tkDue").value=t.due||""; $("#tkDue").min=$("#tkStart").value;
+  paintFormCk((t.check||[]).map(c=>c.text), []);
+  tkFromPriv={pid:t.pid, files:(t.files||[]).slice(), check:(t.check||[]).map(c=>({text:c.text, done:!!c.done}))};
+  if(tkFromPriv.files.length){ const n=mk("div","hint priv-carry","📎 "+tkFromPriv.files.length+" קבצים יעברו עם המשימה"); $("#tkPendList").before(n); }
+  toast("משלימים את פרטי הצוות ושומרים — המשימה תעבור לצוות");
+}
 function privCard(t, today){
   const c=mk("div","tk priv"+(tkOpen(t)?"":" done")+(tkRowOpen.has(t.id)?" x":"")); c.dataset.id=t.id;
   c.addEventListener("click",ev=>{ if(tkLV!=="rows" || ev.target.closest("button,input,textarea,select,a,label,.tk-check")) return;
     tkRowOpen.has(t.id) ? tkRowOpen.delete(t.id) : tkRowOpen.add(t.id); c.classList.toggle("x"); });
   if(tkOpen(t) && t.due) c.classList.add(t.due<today?"tl-late":t.due===today?"tl-today":"tl-future");
-  const tt=mk("div","tk-t"), lk=mk("span","sn priv-sn","🔒"); lk.title="משימה אישית — רק אתה רואה אותה";
+  const tt=mk("div","tk-t"), lk=mk("button","sn priv-sn","🔒"); lk.type="button";
+  if(tkOpen(t) && !isViewer()){ lk.classList.add("priv-go"); lk.onclick=ev=>{ ev.stopPropagation(); privToTeam(t); }; }
+  lk.title="משימה אישית — רק אתה רואה אותה";
   tt.append(tkCircle(t, ()=>{ meSet(t.pid,{done:tkOpen(t), doneAt:tkOpen(t)?nowLocal():""}); toast(tkOpen(t)?"סומנה כבוצעה — לא נרשם ביומן":"הוחזרה לפתוחות"); }, true), lk, mk("span","tk-tt",t.title||"(ללא כותרת)")); if(tkOpen(t)) tt.appendChild(remBell(t)); c.appendChild(tt);
   const tags=mk("div","tk-tags"), SL={}; ["eq","who","dept","prio","type","stat","extra","due"].forEach(k=>{ SL[k]=mk("span","sl sl-"+k); tags.appendChild(SL[k]); });
   const tag=(txt,cls,hue,slot)=>{ const x=mk("span","tk-tag"+(cls?" "+cls:""),txt); if(hue){ x.style.background="var(--c-"+hue+"-bg)"; x.style.color="var(--c-"+hue+")"; } SL[slot||"extra"].appendChild(x); };
@@ -3963,9 +3990,15 @@ function privCard(t, today){
       const tx=mk("span","ck-t",it.text); tx.onclick=()=>b.click(); r.append(b,tx); box.appendChild(r); });
     c.appendChild(box);
   }
+  tkBg(t, c);
+  if(t.files.length){ const ph=mk("div","ev-ph-grid priv-ph"); evThumbs(t.files, ph, tkOpen(t) ? m=>{ if(!confirm("להסיר את הקובץ מהמשימה?\n"+m.name)) return;
+      const x=meGet().find(z=>z.id===t.pid); if(x) upd({files:(x.files||[]).filter(f=>f.id!==m.id)}); } : null); c.appendChild(ph); }
   const acts=mk("div","tk-acts row");
   if(tkOpen(t)){ const ok=mk("button","btn primary","✓ בוצע"); ok.type="button"; ok.onclick=()=>{ upd({done:true, doneAt:nowLocal()}); toast("סומנה כבוצעה — לא נרשם ביומן"); }; acts.appendChild(ok);
-    const ed=mk("button","btn","ערוך"); ed.type="button"; ed.onclick=()=>openTaskForm(t.id); acts.appendChild(ed); }
+    const ed=mk("button","btn","ערוך"); ed.type="button"; ed.onclick=()=>openTaskForm(t.id); acts.appendChild(ed);
+    [["📷","צילום",true],["📎","קובץ / תמונה",false]].forEach(([ic,lb,cam])=>{ const l=mk("label","btn priv-add"), i=mk("input"); i.type="file"; i.hidden=true;
+      if(cam){ i.accept="image/*"; i.setAttribute("capture","environment"); } else i.multiple=true; l.title=lb; l.append(ic+" "+lb, i);
+      i.onchange=async()=>{ const fl=[...i.files]; i.value=""; if(fl.length) await privAddFiles(t.pid, fl, cam); }; acts.appendChild(l); }); }
   else { const bk=mk("button","btn","↩ החזר לפתוחות"); bk.type="button"; bk.onclick=()=>upd({done:false, doneAt:""}); acts.appendChild(bk); }
   const del=mk("button","btn ghost","מחק"); del.type="button"; del.onclick=()=>{ if(!confirm("למחוק את המשימה האישית?\n"+t.title)) return; upd({del:true}); toast("המשימה האישית נמחקה"); };   // my own: I delete it (not the managers-only delete)
   acts.appendChild(del); c.appendChild(acts);
