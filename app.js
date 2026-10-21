@@ -2081,7 +2081,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.37", APP_DATE="21/10/2026";
+const APP_VER="3.38", APP_DATE="21/10/2026";
 $("#verChip").textContent="v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -3935,7 +3935,8 @@ function meSet(id, patch){ const a=meGet(), x=a.find(m=>m.id===id); if(!x) retur
 /* personal tasks live in the tasks board, marked 🔒 (only their owner sees them; never assigned, never written to the log) */
 function privTasks(){
   return meGet().filter(x=>!x.del).map(x=>({priv:true, id:"p:"+x.id, pid:x.id, title:x.title||x.text||"", desc:x.desc||"", prio:x.prio||"רגילה",
-    start:x.start||(x.created ? ymd(new Date(x.created)) : ""), due:x.due||"", check:(x.check||[]).filter(c=>c && !c.del),   // no start: the day it was opened status:x.done?"הושלמה":"פתוחה", doneAt:x.doneAt||"",
+    start:x.start||(x.created ? ymd(new Date(x.created)) : ""),   /* no start: the day it was opened */ due:x.due||"", check:(x.check||[]).filter(c=>c && !c.del),
+    status:x.done?"הושלמה":"פתוחה", doneAt:x.doneAt||"",
     created:x.created||x.upd||"", upd:x.upd||"", files:(x.files||[]).filter(m=>m && !m.del)}));
 }
 function paintMe2(){ if(typeof renderTasks==="function") renderTasks(); }
@@ -3994,7 +3995,7 @@ function privCard(t, today){
   if(t.files.length){ const ph=mk("div","ev-ph-grid priv-ph"); evThumbs(t.files, ph, tkOpen(t) ? m=>{ if(!confirm("להסיר את הקובץ מהמשימה?\n"+m.name)) return;
       const x=meGet().find(z=>z.id===t.pid); if(x) upd({files:(x.files||[]).filter(f=>f.id!==m.id)}); } : null); c.appendChild(ph); }
   const acts=mk("div","tk-acts row");
-  if(tkOpen(t)){ const ok=mk("button","btn primary","✓ בוצע"); ok.type="button"; ok.onclick=()=>{ upd({done:true, doneAt:nowLocal()}); toast("סומנה כבוצעה — לא נרשם ביומן"); }; acts.appendChild(ok);
+  if(tkOpen(t)){   // done: only with the circle at the start of the task
     const ed=mk("button","btn","ערוך"); ed.type="button"; ed.onclick=()=>openTaskForm(t.id); acts.appendChild(ed);
     [["📷","צילום",true],["📎","קובץ / תמונה",false]].forEach(([ic,lb,cam])=>{ const l=mk("label","btn priv-add"), i=mk("input"); i.type="file"; i.hidden=true;
       if(cam){ i.accept="image/*"; i.setAttribute("capture","environment"); } else i.multiple=true; l.title=lb; l.append(ic+" "+lb, i);
