@@ -2273,3 +2273,10 @@ body.tk-resizing,body.tk-resizing *{cursor:col-resize !important;user-select:non
 #dlgShare .ev-ph-grid{margin:6px 0 12px}
 #dlgShare .shr-row{display:flex;flex-wrap:wrap;gap:8px}
 #dlgShare .shr-row .btn.primary{flex:1 1 130px}
+/* v3.36: card view — the task's first photo, faint, behind the card */
+#viewTasks .tk.has-bg{isolation:isolate;position:relative}
+#viewTasks:not(.rows) .tk.has-bg::before{content:"";position:absolute;inset:0;z-index:-1;border-radius:inherit;pointer-events:none;
+  background:var(--tkbg) center/cover no-repeat;opacity:.22}
+@media (max-width:899px){ #viewTasks.rows .tk.has-bg::before{content:"";position:absolute;inset:0;z-index:-1;border-radius:inherit;pointer-events:none;background:var(--tkbg) center/cover no-repeat;opacity:.22} }
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]) #viewTasks .tk.has-bg::before{opacity:.16} }
+:root[data-theme="dark"] #viewTasks .tk.has-bg::before{opacity:.16}
