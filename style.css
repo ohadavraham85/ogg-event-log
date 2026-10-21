@@ -2265,3 +2265,5 @@ body.tk-resizing,body.tk-resizing *{cursor:col-resize !important;user-select:non
 .tk-tag.hrs.meter{background:var(--panel-2);color:var(--ink);border-color:var(--edge)}
 /* v3.31: the task form keeps its photo / file buttons (on the card they wait in "⋯") */
 #tkForm .tk-files-f .tk-fbtns{display:flex}
+/* v3.32: files dragged from outside — the task or form under the pointer lights up */
+.drop-on{outline:3px dashed var(--water) !important;outline-offset:2px;background:color-mix(in srgb,var(--water-soft) 60%,var(--panel)) !important}
