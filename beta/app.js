@@ -2081,7 +2081,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.31", APP_DATE="21/10/2026";
+const APP_VER="3.32", APP_DATE="21/10/2026";
 $("#verChip").textContent="v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -3163,6 +3163,22 @@ function tkPendPaint(){ const box=$("#tkPendList"); if(!box) return; box.textCon
     const d=mk("span","tf-del","✕"); d.setAttribute("role","button"); d.setAttribute("aria-label","הסר את "+(x.f.name||"הקובץ"));
     d.onclick=()=>{ if(x.url) URL.revokeObjectURL(x.url); tkPend.splice(i,1); tkPendPaint(); }; b.appendChild(d); box.appendChild(b); }); }
 function tkPendAdd(list, cam){ [...list].forEach(f=>tkPend.push({f, cam, url:/^image\//.test(f.type||"") ? URL.createObjectURL(f) : ""})); tkPendPaint(); }
+/* files dragged in from outside (the computer's folders, the desktop, an e-mail): dropped on the task form they wait with
+   the form's photos; dropped on an open task card they are added to it. Anywhere else the browser doesn't open them. */
+let dropEl=null;
+const dropFiles=e=>e.dataTransfer && [...(e.dataTransfer.types||[])].includes("Files");
+function dropTarget(e){ const f=e.target.closest && e.target.closest("#tkForm"); if(f && !f.hidden) return f;
+  const c=e.target.closest && e.target.closest("#tkList .tk[data-id]"); if(!c || isViewer()) return null;
+  const t=tasks.find(x=>x.id===c.dataset.id); return t && tkOpen(t) ? c : null; }
+function dropMark(el){ if(dropEl===el) return; if(dropEl) dropEl.classList.remove("drop-on"); dropEl=el; if(el) el.classList.add("drop-on"); }
+document.addEventListener("dragover",e=>{ if(!dropFiles(e)) return; e.preventDefault(); const el=dropTarget(e);
+  e.dataTransfer.dropEffect = el ? "copy" : "none"; dropMark(el); });
+document.addEventListener("dragleave",e=>{ if(!e.relatedTarget) dropMark(null); });
+document.addEventListener("drop",e=>{ if(!dropFiles(e)) return; e.preventDefault(); const el=dropTarget(e), fl=[...e.dataTransfer.files]; dropMark(null);
+  if(!fl.length) return;
+  if(!el){ toast("גרור את הקבצים לתוך משימה פתוחה או לטופס המשימה"); return; }
+  if(el.id==="tkForm"){ if(tkScope==="me"){ toast("למשימה אישית אין קבצים"); return; } tkPendAdd(fl,false); toast(fl.length===1?"הקובץ יצורף בשמירה":fl.length+" קבצים יצורפו בשמירה"); return; }
+  const t=tasks.find(x=>x.id===el.dataset.id); if(t) addFiles(t, fl, false); });
 $("#tkPendCam").onchange=e=>{ tkPendAdd(e.target.files,true); e.target.value=""; };
 $("#tkPendFile").onchange=e=>{ tkPendAdd(e.target.files,false); e.target.value=""; };
 const one=v=>v && v!=="__other" ? [v] : [];
