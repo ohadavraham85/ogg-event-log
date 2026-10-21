@@ -2287,3 +2287,61 @@ body.tk-resizing,body.tk-resizing *{cursor:col-resize !important;user-select:non
 .priv-ph{margin-top:8px}
 .priv-add{cursor:pointer}
 .priv-carry{margin:4px 0 6px;color:var(--water);font-weight:700}
+/* ===== v3.39: phone (html.lite) — bottom bar, thin header, 3 choices + 🔍, one line per task, swipe to complete ===== */
+.botnav,.bn-menu,.lite-title,.tk-srch,.lite-due,.lite-sub,.lite-only{display:none}
+html.lite .tabs{display:none}
+html.lite .botnav{display:flex;position:fixed;inset-inline:0;bottom:0;z-index:60;background:var(--panel);border-top:1px solid var(--edge);
+  padding:4px 4px calc(6px + env(safe-area-inset-bottom,0px));justify-content:space-around;align-items:flex-end;box-shadow:0 -4px 14px rgba(0,0,0,.06)}
+html.lite .botnav button{flex:1;display:flex;flex-direction:column;align-items:center;gap:1px;border:none;background:none;font:inherit;font-size:11px;font-weight:800;color:var(--ink-3);padding:4px 0;position:relative;cursor:pointer}
+html.lite .botnav button b{font-size:20px;line-height:1.1}
+html.lite .botnav button[aria-current="page"]{color:var(--water)}
+html.lite .botnav .bn-plus b{width:50px;height:50px;border-radius:50%;background:var(--water);color:#fff;display:grid;place-items:center;font-size:28px;margin-top:-24px;box-shadow:0 4px 12px color-mix(in srgb,var(--water) 45%,transparent)}
+html.lite .bn-n{position:absolute;top:0;inset-inline-start:calc(50% + 6px);background:var(--c-fault);color:#fff;font-size:10px;font-weight:900;border-radius:9px;padding:1px 5px;line-height:1.3}
+html.lite .bn-n[hidden]{display:none}
+html.lite .bn-menu:not([hidden]){display:flex;flex-direction:column;gap:6px;position:fixed;bottom:84px;inset-inline:0;margin:auto;width:220px;z-index:61;background:var(--panel);border:1px solid var(--edge);border-radius:14px;padding:8px;box-shadow:0 10px 28px rgba(0,0,0,.22)}
+html.lite .bn-menu button{font:inherit;font-size:15px;font-weight:800;border:none;background:var(--panel-2);color:var(--ink);border-radius:10px;padding:12px;text-align:start;cursor:pointer}
+html.lite .fab{display:none!important}
+html.lite .savebar{bottom:calc(64px + env(safe-area-inset-bottom,0px))}
+html.lite .wrap{padding-bottom:150px}
+/* header: one thin line — the screen's name, 🔔, ⚙; the clock / hello only on the dashboard */
+html.lite .bar .mark{display:none}
+html.lite .lite-title{display:block;flex:1;font-size:18px;font-weight:900;color:var(--ink);min-width:0}
+html.lite:not([data-view="Dash"]) .clock{display:none}
+html.lite .bar .logo{height:32px;width:auto}
+html.lite .bar-row{gap:8px}
+/* tasks: three choices + 🔍; the rest waits behind 🔍 */
+html.lite #viewTasks .dsh-head h2{display:none}
+html.lite #tkSeg [data-v="opened"],html.lite #tkSeg [data-v="done"]{display:none}
+html.lite #tkSeg{flex-wrap:nowrap;width:100%;align-items:center}
+html.lite .tk-srch{display:inline-flex;align-items:center;justify-content:center;margin-inline-start:auto;width:40px;height:36px;border-radius:50%;border:1px solid var(--edge);background:var(--panel);font-size:16px;cursor:pointer;position:relative;flex:none}
+html.lite #viewTasks.fopen .tk-srch{background:var(--water);border-color:var(--water)}
+html.lite .lite-only{display:inline-flex}
+html.lite #viewTasks:not(.fopen) .toolbar,html.lite #viewTasks:not(.fopen) #tfPanel,html.lite #viewTasks:not(.fopen) #tkMe,
+html.lite #viewTasks:not(.fopen) #tkDeptSeg,html.lite #viewTasks:not(.fopen) .tk-hint{display:none!important}
+html.lite #viewTasks.fopen .resbar .sortwrap{display:flex!important}
+html.lite #viewTasks.fopen #tfPanel{display:block}
+html.lite #viewTasks .resbar{margin-bottom:6px}
+/* one line per task (tap opens it in full) */
+html.lite #viewTasks .tk{padding:10px 12px;margin-bottom:7px}
+html.lite #viewTasks .tk:not(.x) > :not(.tk-t):not(.lite-sub){display:none!important}
+html.lite #viewTasks .tk:not(.x) .tk-t{align-items:center}
+html.lite #viewTasks .tk:not(.x) .tk-tt{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:15.5px}
+html.lite #viewTasks .tk:not(.x) .tk-t .tk-eqtag,html.lite #viewTasks .tk:not(.x) .tk-t .tk-bell,html.lite #viewTasks .tk:not(.x) .tk-t .sn{display:none}
+html.lite .lite-due{display:inline-block;flex:none;margin-inline-start:auto;font-size:12px;font-weight:900;padding:3px 8px;border-radius:99px;white-space:nowrap}
+html.lite .lite-due.late{background:var(--c-fault);color:#fff}
+html.lite .lite-due.today{background:var(--c-visit-bg);color:var(--c-visit)}
+html.lite .lite-due.future{background:var(--c-flood-bg);color:var(--c-flood)}
+html.lite .lite-sub{display:block;font-size:12.5px;color:var(--ink-3);margin:2px 0 0;padding-inline-start:33px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+html.lite #viewTasks .tk.x .lite-sub{display:none}
+/* swipe right: the card slides, green when far enough */
+html.lite #viewTasks .tk{transition:transform .12s ease-out}
+html.lite #viewTasks .tk.sw-go{box-shadow:inset 6px 0 0 var(--c-visit),0 0 0 2px var(--c-visit)}
+html.lite #tkSeg button[data-v]{padding-inline:10px;white-space:nowrap}
+html.lite #tkSeg{min-width:0;overflow:hidden}
+html.lite #tkSeg{gap:4px}
+html.lite #tkSeg button[data-v]{padding:6px 8px;font-size:13.5px}
+html.lite #tkSeg .seg-n{margin-inline-start:2px}
+html.lite .tk-srch{width:36px;height:34px}
+@media (max-width:350px){ html.lite #tkSeg button[data-v]{padding:6px 6px;font-size:13px} html.lite #tkSeg{gap:2px} }
+html.lite #viewTasks .tk.x .lite-due{display:none}
+html.lite .fb-btn{bottom:calc(80px + env(safe-area-inset-bottom,0px));width:38px;height:38px;font-size:17px}

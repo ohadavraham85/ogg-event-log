@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Arimo:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=3.38">
+<link rel="stylesheet" href="style.css?v=3.39">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0E7C86">
 <meta name="color-scheme" content="light dark">
@@ -111,8 +111,9 @@
     <div class="bar-row">
       <img class="logo" src="icons/logo-header.png" alt="מבט&quot;י — מפעלי ביוב וטיהור ירושלים" width="101" height="137">
       <div class="mark">יומן אירועים ומשימות <span class="sub">מט"ש אוג</span></div>
+      <b class="lite-title" id="liteTitle"></b>
       <div class="clock" id="clock" aria-live="off"><span class="c-hello" id="cHello" hidden></span><span class="c-day" id="cDay"></span><span class="c-date" id="cDate"></span><b class="c-time" id="cTime"></b></div>
-      <span class="ver" id="verChip" title="גרסה">v3.38</span>
+      <span class="ver" id="verChip" title="גרסה">v3.39</span>
       <button class="icon-btn info-btn" id="infoBtn" type="button" aria-label="מה חדש בגרסה" title="מה חדש בגרסה"><span aria-hidden="true">i</span><span class="info-dot" id="infoDot" hidden></span></button>
       <button class="icon-btn inbox-btn" id="inboxBtn" aria-label="הודעות" title="הודעות" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm7-6V11a7 7 0 0 0-5.5-6.84V3.5a1.5 1.5 0 0 0-3 0v.66A7 7 0 0 0 5 11v5l-2 2v1h18v-1z" fill="currentColor"/></svg><span class="newcnt" id="inboxN" hidden></span></button>
       <button class="icon-btn" id="refreshBtn" aria-label="רענון" title="רענון — טעינה מחדש ובדיקת עדכון"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M20.5 3.5v5h-5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
@@ -273,6 +274,7 @@
         <button type="button" data-v="open" aria-pressed="true">פתוחות</button>
         <button type="button" data-v="done" aria-pressed="false">הושלמו</button>
         <button type="button" data-v="priv" aria-pressed="false" class="seg-priv">🔒 אישיות</button>
+        <button type="button" class="tk-srch" id="tkSrch" aria-expanded="false" aria-label="חיפוש, סינון ומיון" title="חיפוש, סינון ומיון">🔍<span class="tk-srch-n" id="tkSrchN" hidden></span></button>
       </div>
     </div>
     <div class="tk-me" id="tkMe"></div>
@@ -291,6 +293,8 @@
       <div class="row" style="margin-top:10px">
         <button type="button" class="btn" id="tfLate" aria-pressed="false">רק באיחור</button>
         <button type="button" class="btn" id="tfRep" aria-pressed="false">🔁 רק מחזוריות</button>
+        <button type="button" class="btn lite-only" id="tfDone" aria-pressed="false">✓ הושלמו</button>
+        <button type="button" class="btn lite-only" id="tfOpened" aria-pressed="false">שפתחתי</button>
         <button type="button" class="btn ghost" id="tfClear" style="margin-inline-start:auto">נקה סינון</button>
       </div>
     </div>
@@ -504,7 +508,7 @@
 
     <div class="card" data-sg="general">
       <h3>גרסה</h3>
-      <p id="verLine">גרסה 3.38 · 21/10/2026</p>
+      <p id="verLine">גרסה 3.39 · 21/10/2026</p>
       <div class="row"><button class="btn" id="reloadApp">בדוק עדכון</button></div>
     </div>
 
@@ -520,6 +524,14 @@
   <footer class="credit">כל הזכויות לפיתוח ובנייה שמורות לאוהד אברהם · <a href="tel:0535505382" dir="ltr">053-5505382</a></footer>
 </div>
 
+<nav class="botnav" id="botNav" aria-label="ניווט">
+  <button type="button" data-go="Tasks"><b aria-hidden="true">📋</b>משימות<span class="bn-n" id="bnTk" hidden></span></button>
+  <button type="button" data-go="Dash"><b aria-hidden="true">📊</b>דשבורד</button>
+  <button type="button" class="bn-plus" data-go="plus" aria-label="חדש"><b aria-hidden="true">＋</b></button>
+  <button type="button" data-go="List"><b aria-hidden="true">📝</b>אירועים<span class="bn-n" id="bnEv" hidden></span></button>
+  <button type="button" data-go="Data"><b aria-hidden="true">☰</b>עוד</button>
+</nav>
+<div class="bn-menu" id="bnMenu" hidden><button type="button" data-n="task">📋 משימה חדשה</button><button type="button" data-n="ev">📝 אירוע חדש</button></div>
 <div class="savebar" id="savebar">
   <div class="inner">
     <button class="btn ghost" id="clearBtn">נקה</button>
@@ -824,9 +836,9 @@
     <button class="btn ghost" type="button" data-snz="m">מחר ב-08:00</button></div>
 </dialog>
 
-<script src="firebase-config.js?v=3.38"></script>
-<script src="app.js?v=3.38"></script>
-<script src="cloud.js?v=3.38"></script>
+<script src="firebase-config.js?v=3.39"></script>
+<script src="app.js?v=3.39"></script>
+<script src="cloud.js?v=3.39"></script>
 <script>
 if("serviceWorker" in navigator){
   window.addEventListener("load",()=>{ navigator.serviceWorker.register("sw.js").catch(()=>{}); });
