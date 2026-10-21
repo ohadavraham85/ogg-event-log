@@ -2259,3 +2259,7 @@ body.tk-resizing,body.tk-resizing *{cursor:col-resize !important;user-select:non
 .tk-tag.hrs.soon{background:var(--c-flood-bg);color:var(--c-flood);border-color:var(--c-flood)}
 .tk-tag.hrs.late{background:var(--c-fault);color:#fff;border-color:transparent}
 #dlgHrs input{font-size:22px;font-weight:800;direction:ltr;text-align:center}
+/* v3.30: working hours — a field of its own in the task form (team tasks) */
+.tk-hrs-f .tk-hrs{margin-top:0}
+#tkForm.priv .tk-hrs-f{display:none}
+.tk-tag.hrs.meter{background:var(--panel-2);color:var(--ink);border-color:var(--edge)}

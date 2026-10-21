@@ -2081,7 +2081,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.29", APP_DATE="21/10/2026";
+const APP_VER="3.30", APP_DATE="21/10/2026";
 $("#verChip").textContent="v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2864,7 +2864,7 @@ function renderTasks(){
   const today=ymd(new Date());
   const pass=t=>(!tkF.ppl || (t.ppl||[]).includes(tkF.ppl)) && (!tkF.loc || (t.loc||[]).includes(tkF.loc))
              && (!tkF.type || tkCatPicked().includes(t.type)) && (!tkF.prio || prioOf(t)===tkF.prio)
-             && (!tkF.late || (t.due && t.due<today)) && (!tkF.dept || tkInDept(t,tkF.dept)) && (!tkF.rep || !!(t.rep || t.hrs))
+             && (!tkF.late || (t.due && t.due<today)) && (!tkF.dept || tkInDept(t,tkF.dept)) && (!tkF.rep || !!(t.rep || (t.hrs && t.hrs.every>0)))
              && (!tkF.q || tkText(t).includes(tkF.q.trim().toLowerCase()));
   const rows = tkView==="priv" ? [] : (tkView!=="done"
     ? tkVis().filter(t=>tkOpen(t) && (tkView!=="mine" || isMine(t)) && (tkView!=="opened" || openedByMe(t))).sort((a,b)=>{
@@ -2921,7 +2921,8 @@ function renderTasks(){
       if(t.status==="בטיפול") tag("בטיפול","w",null,"stat");
       if(tkStat(t)==="בהמתנה") tag("⏸ בהמתנה","hold",null,"stat");
       if(t.rep) tag("🔁 "+repLabel(t.rep),"rep");
-      if(t.hrs){ const L=hrsLeft(t), w=L<=0 ? "late" : L<=t.hrs.every*.1 ? "soon" : "ok";
+      if(t.hrs && !(t.hrs.every>0)) tag("⏱ "+nf(t.hrs.cur)+" ש'","hrs meter",null,"extra");   // a meter, no cycle
+      else if(t.hrs){ const L=hrsLeft(t), w=L<=0 ? "late" : L<=t.hrs.every*.1 ? "soon" : "ok";
         tag(L<=0 ? "⏱ עבר ב-"+nf(-L)+" ש'" : "⏱ עוד "+nf(L)+" ש'","hrs "+w,null,"extra");
         const el=SL.extra.lastChild; el.title="מונה: "+nf(t.hrs.cur)+" ש' ("+dmy(t.hrs.at).slice(0,5)+") · טיפול ב-"+nf(t.hrs.base+t.hrs.every)+" ש' · כל "+nf(t.hrs.every)+" ש'"; }
       { const nf_=(t.files||[]).filter(x=>x&&!x.del).length; if(nf_) tag("📎 "+nf_); }
@@ -3192,7 +3193,7 @@ $("#tkSave").onclick=()=>{
     const f=$(miss[0][0]); (f.classList.contains("ss-hidden") ? f.nextElementSibling : f).focus(); return; }
   if($("#tkStart").value && $("#tkDue").value && $("#tkStart").value > $("#tkDue").value){ $("#tkDue").closest(".tk-f").classList.add("bad"); toast("תאריך היעד לפני תאריך ההתחלה"); $("#tkDue").focus(); return; }
   const hrs=readHrs();
-  if(hrs===null){ toast("⏱ לפי שעות עבודה: כל כמה שעות, וקריאת המונה עכשיו"); ($("#tkHrsCur").value ? $("#tkHrsN") : $("#tkHrsCur")).focus(); return; }
+  if(hrs===null){ toast("⏱ שעות עבודה: הקלד את קריאת המונה עכשיו"); $("#tkHrsCur").focus(); return; }
   const title=$("#tkTitle").value.trim();
   const now=new Date().toISOString(), prio=$("#tkPrio").value||"רגילה";
   const data={title, desc:$("#tkDesc").value.trim(), type:$("#tkType").value||"", prio, urgent:prio==="דחופה",
@@ -3299,29 +3300,26 @@ const REP_U={d:["יום","ימים"],w:["שבוע","שבועות"],m:["חודש"
 function repLabel(r){ if(!r || !REP_U[r.u]) return "";
   if(+r.n===1) return {d:"יומית",w:"שבועית",m:"חודשית",y:"שנתית"}[r.u];
   return "כל "+r.n+" "+REP_U[r.u][1]; }
-function readRep(){ const v=$("#tkRep").value; if(!v || v==="h") return undefined;
+function readRep(){ const v=$("#tkRep").value; if(!v) return undefined;
   if(v!=="c") return {n:1,u:v};
   const n=Math.max(1,Math.min(366,parseInt($("#tkRepN").value,10)||1)); return {n, u:$("#tkRepU").value||"d"}; }
-function setRep(r, hrs){
-  if(hrs){ $("#tkRep").value="h"; $("#tkHrsN").value=hrs.every; $("#tkHrsCur").value=hrs.cur; $("#tkHrsBase").value=hrs.base; paintRep(); return; }
-  $("#tkHrsN").value=250; $("#tkHrsCur").value=""; $("#tkHrsBase").value="";
+function setRep(r, hrs){ setHrs(hrs);
   const ok=r && REP_U[r.u];
   $("#tkRep").value = !ok ? "" : +r.n===1 ? r.u : "c";
   if(ok && +r.n!==1){ $("#tkRepN").value=r.n; $("#tkRepU").value=r.u; } else { $("#tkRepN").value=2; $("#tkRepU").value="d"; }
   paintRep();
 }
-function paintRep(){ const v=$("#tkRep").value; $("#tkRepC").hidden = v!=="c"; $("#tkRepH").hidden = $("#tkHrsF").hidden = v!=="h";
-  $("#tkRepHint").hidden = !v;
-  $("#tkRepHint").textContent = v==="h" ? "לפי מונה השעות של הציוד שבמשימה. כשנשארות 10% מהשעות — כתום, כשעוברים — אדום. בסיום מזינים את קריאת המונה, והטיפול הבא נפתח ממנה."
-    : "כשמסיימים את המשימה נפתחת אוטומטית הבאה, עם אותם פרטים ותאריכים מוזזים."; }
-/* ⏱ maintenance by working hours (generators first): a task keeps hrs = {every, base (the reading at the last service),
+function paintRep(){ const v=$("#tkRep").value; $("#tkRepC").hidden = v!=="c"; $("#tkRepHint").hidden = !v; }
+/* ⏱ working hours (a field of its own on every team task): a task with a meter reading keeps hrs = {every (0 = no cycle), base (the reading at the last service),
    cur (the latest reading), at (its date), hist (recent readings, for the pace)}. A reading entered on one task updates every
    open hours-task of the same equipment. The due date is estimated from the pace (hours a day) when there are two readings. */
-function readHrs(){ if($("#tkRep").value!=="h") return undefined;
+function readHrs(){ if(tkScope==="me") return undefined;
   const every=parseFloat($("#tkHrsN").value), cur=parseFloat($("#tkHrsCur").value), b=parseFloat($("#tkHrsBase").value);
-  if(!(every>0) || !(cur>=0)) return null;
-  return {every, cur, base: b>=0 ? b : cur, at:ymd(new Date())}; }
-const hrsLeft=t=>t.hrs ? +(t.hrs.base+t.hrs.every-t.hrs.cur).toFixed(1) : null;
+  if($("#tkHrsCur").value==="" && $("#tkHrsN").value==="" && $("#tkHrsBase").value==="") return undefined;
+  if(!(cur>=0)) return null;                                   // a cycle or a last reading needs the reading now
+  return {every: every>0 ? every : 0, cur, base: b>=0 ? b : cur, at:ymd(new Date())}; }
+function setHrs(h){ $("#tkHrsCur").value = h ? h.cur : ""; $("#tkHrsN").value = h && h.every ? h.every : ""; $("#tkHrsBase").value = h && h.every ? h.base : ""; }
+const hrsLeft=t=>t.hrs && t.hrs.every>0 ? +(t.hrs.base+t.hrs.every-t.hrs.cur).toFixed(1) : null;
 function hrsPace(h){ const H=(h.hist||[]).filter(x=>x && x.at); if(H.length<2) return 0;   // hours a day, from the first and last reading kept
   const a=H[0], b=H[H.length-1], d=(Date.parse(b.at)-Date.parse(a.at))/864e5; return d>=1 && b.h>a.h ? (b.h-a.h)/d : 0; }
 function hrsDue(t){ const left=hrsLeft(t), p=hrsPace(t.hrs); if(left===null) return t.due||"";
@@ -3336,7 +3334,7 @@ function hrsSet(eq, val, by){   // a new reading for this equipment: every open 
 let hrsT=null;
 function hrsAsk(t){ hrsT=t; const eq=(t.eq||[])[0]||"";
   $("#hrSub").textContent=eq; $("#hrVal").value="";
-  $("#hrLast").textContent = t.hrs ? "קריאה אחרונה: "+nf(t.hrs.cur)+" ש' ("+dmy(t.hrs.at).slice(0,5)+") · הטיפול הבא ב-"+nf(t.hrs.base+t.hrs.every)+" ש'" : "";
+  $("#hrLast").textContent = t.hrs ? "קריאה אחרונה: "+nf(t.hrs.cur)+" ש' ("+dmy(t.hrs.at).slice(0,5)+")"+(t.hrs.every>0?" · הטיפול הבא ב-"+nf(t.hrs.base+t.hrs.every)+" ש'":"") : "";
   $("#dlgHrs").showModal(); setTimeout(()=>$("#hrVal").focus(),50); }
 $("#hrNo").onclick=()=>$("#dlgHrs").close();
 $("#hrOk").onclick=()=>{ const v=parseFloat($("#hrVal").value), t=hrsT; if(!t) return;
@@ -3362,7 +3360,7 @@ function addRep(s, r, k){                     // "YYYY-MM-DD" + k intervals (mon
   return ymd(new Date(y2,m2,Math.min(D,last),12));
 }
 function nextOccurrence(t){
-  if(t.hrs){ const now=new Date().toISOString(), h=t.hrs, at=ymd(new Date()), b=+t.hrsDone>=0 ? +t.hrsDone : h.cur;
+  if(t.hrs && t.hrs.every>0){ const now=new Date().toISOString(), h=t.hrs, at=ymd(new Date()), b=+t.hrsDone>=0 ? +t.hrsDone : h.cur;
     const n={id:newId(), status:"פתוחה", created:now, upd:now, log:[], title:t.title, desc:t.desc||"", type:t.type||"", prio:t.prio||"רגילה", urgent:!!t.urgent,
       ppl:(t.ppl||[]).slice(), loc:(t.loc||[]).slice(), eq:(t.eq||[]).slice(), depts:(t.depts||[]).slice(), start:"", prevId:t.id,
       hrs:{every:h.every, base:b, cur:Math.max(b,h.cur), at, hist:(h.hist||[]).filter(x=>x.at!==at).concat({h:Math.max(b,h.cur),at}).slice(-12)}};
@@ -3376,6 +3374,7 @@ function nextOccurrence(t){
   const n={id:newId(), status:"פתוחה", created:now, upd:now, log:[], title:t.title, desc:t.desc||"", type:t.type||"", prio:t.prio||"רגילה", urgent:!!t.urgent,
     ppl:(t.ppl||[]).slice(), loc:(t.loc||[]).slice(), eq:(t.eq||[]).slice(), depts:(t.depts||[]).slice(), rep:{n:+r.n||1,u:r.u},
     due:addRep(base,r,k), start:t.start ? addRep(t.start,r,k) : "", prevId:t.id};
+  if(t.hrs){ const b=+t.hrsDone>=0 ? +t.hrsDone : t.hrs.cur, at=ymd(new Date()); n.hrs={every:0, base:b, cur:b, at, hist:(t.hrs.hist||[]).filter(x=>x.at!==at).concat({h:b,at}).slice(-12)}; }
   const items=(t.check||[]).filter(x=>x && !x.del);
   if(items.length) n.check=items.map(x=>({id:newId(), text:x.text, done:false}));
   tkLog(n, "משימה מחזורית ("+repLabel(r)+") — נפתחה אחרי שהקודמת הושלמה"+(t.due?" (יעד קודם "+dmy(t.due).slice(0,5)+")":""), "", true);
@@ -3408,9 +3407,9 @@ $("#tdOk").onclick=()=>{
   if(!$("#tdLog").checked){                       // complete only — no event in the log
     Object.assign(t,{status:"הושלמה", doneAt:nowLocal(), doneBy:reporter()||"", act, upd:new Date().toISOString()});
     tkLog(t, "הושלמה"+(act?": "+act:"")+" (לא נרשם ביומן)", "", true);
-    const nx0 = (t.rep || t.hrs) && !t.nextId ? nextOccurrence(t) : null; if(nx0){ tasks.push(nx0); t.nextId=nx0.id; }
+    const nx0 = (t.rep || (t.hrs && t.hrs.every>0)) && !t.nextId ? nextOccurrence(t) : null; if(nx0){ tasks.push(nx0); t.nextId=nx0.id; }
     $("#dlgTaskDone").close(); saveTasks(); renderTasks();
-    if(nx0) toast("המשימה הושלמה · נפתחה המשימה הבאה"+(nx0.hrs?" ב-"+nf(nx0.hrs.base+nx0.hrs.every)+" ש'":" ליעד "+dmy(nx0.due).slice(0,5)),{label:"הצג",fn:()=>goTask(nx0.id)});
+    if(nx0) toast("המשימה הושלמה · נפתחה המשימה הבאה"+(nx0.hrs && nx0.hrs.every?" ב-"+nf(nx0.hrs.base+nx0.hrs.every)+" ש'":" ליעד "+dmy(nx0.due).slice(0,5)),{label:"הצג",fn:()=>goTask(nx0.id)});
     else toast("המשימה הושלמה ועברה ל\"הושלמו\"");
     return;
   }
@@ -3424,11 +3423,11 @@ $("#tdOk").onclick=()=>{
   ["loc","eq","ppl"].forEach(k=>(ev[k]||[]).forEach(v=>{ if(!lists[k].includes(v)) lists[k].push(v); }));
   Object.assign(t,{status:"הושלמה", doneAt:when, doneBy:reporter()||"", act, eventType:type, eventId:ev.id, upd:new Date().toISOString()});
   tkLog(t, "הושלמה ונרשמה ביומן"+(act?": "+act:""), "", true);
-  const nx = (t.rep || t.hrs) && !t.nextId ? nextOccurrence(t) : null;    // recurring: open the next one
+  const nx = (t.rep || (t.hrs && t.hrs.every>0)) && !t.nextId ? nextOccurrence(t) : null;    // recurring: open the next one
   if(nx){ tasks.push(nx); t.nextId=nx.id; }
   $("#dlgTaskDone").close();
   persist(); renderAll(); saveTasks();
-  if(nx) toast("הושלמה ונרשמה ביומן · נפתחה המשימה הבאה"+(nx.hrs?" ב-"+nf(nx.hrs.base+nx.hrs.every)+" ש'":" ליעד "+dmy(nx.due).slice(0,5)),{label:"הצג",fn:()=>goTask(nx.id)});
+  if(nx) toast("הושלמה ונרשמה ביומן · נפתחה המשימה הבאה"+(nx.hrs && nx.hrs.every?" ב-"+nf(nx.hrs.base+nx.hrs.every)+" ש'":" ליעד "+dmy(nx.due).slice(0,5)),{label:"הצג",fn:()=>goTask(nx.id)});
   else toast("המשימה הושלמה ונרשמה ביומן",{label:"הצג",fn:()=>{ $("#sortBy").value="edit"; goList({ppl:""}); }});
 };
 let tkLiteSet=false;
