@@ -193,6 +193,11 @@ function drawOpts(){
   let items = coreFirst(lists[k].slice().sort((a,b)=>(cnt[b]||0)-(cnt[a]||0)), k);
   if(k==="type") items=groupTypes(items);
   const hits = items.filter(v=>!q || v.includes(q));
+  if(q && !items.includes(q)){   // typed in the search and it isn't in the list: add it from here
+    const ad=document.createElement("button"); ad.type="button"; ad.className="opt opt-add"; ad.textContent="+ הוסף: "+q;
+    ad.onclick=()=>{ $("#shQ").value=""; addValue(k, q); if(!META[k].multi) closeSheet(); };
+    box.appendChild(ad);
+  }
   if(!hits.length){
     const d=document.createElement("div"); d.className="empty"; d.style.margin="10px";
     d.innerHTML="<b>אין התאמה</b>אפשר להוסיף את הערך למטה.";
@@ -256,7 +261,7 @@ function hideSeed(k, v){
 $("#shQ").oninput = drawOpts;
 $("#shAdd").onclick = ()=>{ const v=$("#shNew").value.trim(); if(!v) return; addValue(shKey, v); $("#shNew").value=""; closeSheet(); };
 $("#shNew").onkeydown = e=>{ if(e.key==="Enter"){ e.preventDefault(); $("#shAdd").click(); } };
-$("#shDone").onclick = closeSheet;
+$("#shDone").onclick = ()=>{ const v=$("#shNew").value.trim(); if(v){ $("#shAdd").click(); return; } closeSheet(); };   // a new value typed but "סיום" pressed: it is added
 $("#shClose").onclick = closeSheet;
 $("#scrim").onclick = closeSheet;
 document.addEventListener("keydown", e=>{ if(e.key==="Escape" && shKey) closeSheet(); });
@@ -2116,7 +2121,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.45", APP_DATE="22/10/2026";
+const APP_VER="3.46", APP_DATE="22/10/2026";
 $("#verChip").textContent = BETA && LITE_MQ.matches ? "בטא "+APP_VER : "v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){

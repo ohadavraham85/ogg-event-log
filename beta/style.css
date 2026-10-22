@@ -2423,3 +2423,5 @@ html.lite .lite-title{flex:1 1 0}
 html.lite .bar .icon-btn{width:40px;height:40px;flex:none}
 html.lite .bar .logo{flex:none}
 @media (max-width:360px){ html.lite .bar .icon-btn{width:36px;height:36px} html.lite .lite-title{font-size:16px} }
+/* v3.46: the list sheet — a value typed in the search can be added from there */
+.sheet .opt.opt-add{color:var(--water);font-weight:800;border:1.5px dashed var(--water);border-radius:12px;margin:6px 10px;justify-content:flex-start}
