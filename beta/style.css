@@ -2345,3 +2345,28 @@ html.lite .tk-srch{width:36px;height:34px}
 @media (max-width:350px){ html.lite #tkSeg button[data-v]{padding:6px 6px;font-size:13px} html.lite #tkSeg{gap:2px} }
 html.lite #viewTasks .tk.x .lite-due{display:none}
 html.lite .fb-btn{bottom:calc(80px + env(safe-area-inset-bottom,0px));width:38px;height:38px;font-size:17px}
+
+/* v3.40: phone — the bottom bar is bigger (three tabs; settings stay in the header ⚙), ＋ floats above it on the right;
+   events: only the search line; dashboard: compact */
+html.lite .botnav{padding:6px 6px calc(8px + env(safe-area-inset-bottom,0px));align-items:stretch}
+html.lite .botnav button{font-size:13.5px;gap:3px;padding:6px 0;border-radius:12px}
+html.lite .botnav button b{font-size:25px}
+html.lite .botnav button[aria-current="page"]{background:var(--water-soft)}
+html.lite .bn-n{inset-inline-start:calc(50% + 10px);font-size:11px}
+.lite-fab{display:none}
+html.lite .lite-fab{display:grid;place-items:center;position:fixed;z-index:61;inset-inline-start:16px;bottom:calc(92px + env(safe-area-inset-bottom,0px));
+  width:60px;height:60px;border-radius:50%;border:none;background:var(--water);color:#fff;font-size:32px;font-weight:700;line-height:1;cursor:pointer;
+  box-shadow:0 6px 16px color-mix(in srgb,var(--water) 45%,transparent),0 2px 4px rgba(0,0,0,.2)}
+html.lite[data-view="New"] .lite-fab,html.lite[data-view="Data"] .lite-fab{display:none}
+html.lite .bn-menu:not([hidden]){bottom:calc(160px + env(safe-area-inset-bottom,0px));inset-inline:auto;inset-inline-start:16px;margin:0}
+html.lite .fb-btn{bottom:calc(92px + env(safe-area-inset-bottom,0px))}
+html.lite .savebar{bottom:calc(76px + env(safe-area-inset-bottom,0px))}
+/* events on the phone: the search line only */
+html.lite #fToggle,html.lite #fPanel,html.lite #evCollAll{display:none!important}
+/* dashboard on the phone: hello, day and time on one quiet line; quick buttons as a small row */
+html.lite[data-view="Dash"] .clock{flex-wrap:nowrap;justify-content:flex-start;gap:6px;padding:6px 10px;font-size:13px}
+html.lite[data-view="Dash"] .clock .c-hello{flex-basis:auto;text-align:start;font-size:13px;margin:0}
+html.lite[data-view="Dash"] .clock .c-time{font-size:15px;min-width:0;margin-inline-start:auto}
+html.lite[data-view="Dash"] .clock .c-date,html.lite[data-view="Dash"] .clock .c-day{font-size:12.5px}
+html.lite #dQuick{display:flex;flex-wrap:nowrap;gap:6px;overflow-x:auto;scrollbar-width:none;margin:0 0 10px}
+html.lite #dQuick .qk-btn{flex:none;padding:6px 11px;font-size:13px;min-height:0}
