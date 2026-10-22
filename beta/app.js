@@ -1134,7 +1134,39 @@ function dashTasks(cards, from){
       .concat(PRIOS.map(p=>["עדיפות "+p, open.filter(t=>prioOf(t)===p).length])), ["מדד","משימות"]);
   c.classList.add("wide"); cards.appendChild(c);
 }
-function renderDash(){ renderDash0(); arrangeDash(); paintTicker(); paintBoard(); paintBriefCard(); }
+function renderDash(){ renderDash0(); arrangeDash(); paintTicker(); paintBoard(); paintBriefCard(); renderLitePie(); }
+/* phone dashboard: one pie, switched between views (kept on this device); a slice opens the tasks list filtered */
+const LP_VIEWS=[["type","קטגוריה"],["prio","עדיפות"],["dept","מחלקה"],["stat","סטטוס"],["ppl","אחראי"],["ev","אירועים לפי סוג"]];
+const LP_COL=["maint","flood","visit","power","fault","gen"];
+function renderLitePie(){
+  const box=$("#litePie"); if(!box) return; box.textContent=""; if(!isLite()) return;
+  let v="type"; try{ v=localStorage.getItem("ogg-lite-pie")||"type"; }catch(e){}
+  const seg=mk("div","lp-seg"); seg.setAttribute("role","group"); seg.setAttribute("aria-label","מה להציג בעוגה");
+  LP_VIEWS.forEach(([k,l])=>{ const b=mk("button","lp-b",l); b.type="button"; b.setAttribute("aria-pressed",String(k===v));
+    b.onclick=()=>{ try{ localStorage.setItem("ogg-lite-pie",k); }catch(e){} renderLitePie(); }; seg.appendChild(b); });
+  const open=tkVis().filter(tkOpen), cnt={}, add=(k,n)=>{ if(k) cnt[k]=(cnt[k]||0)+(n||1); };
+  let items=[], total=0, label="משימות פתוחות";
+  if(v==="ev"){ const ev=events.filter(e=>((e.stat||[])[0]||"פתוח")!=="נסגר"); ev.forEach(e=>((e.type||[]).length?e.type:["ללא סוג"]).forEach(t=>add(t)));
+    total=ev.length; label="אירועים פתוחים";
+    items=Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a]).map(k=>({l:k, v:cnt[k], color:"var(--c-"+hueOf(k)+")", go:()=>{ show("List"); }})); }
+  else {
+    total=open.length;
+    const keyOf={type:t=>t.type||"ללא קטגוריה", prio:t=>prioOf(t), dept:t=>(t.depts||[])[0]||"ללא מחלקה", stat:t=>tkStat(t), ppl:t=>(t.ppl||[])[0]||"ללא אחראי"}[v];
+    open.forEach(t=>add(keyOf(t)));
+    let keys=Object.keys(cnt).sort((a,b)=>v==="prio" ? PRIOS.indexOf(a)-PRIOS.indexOf(b) : cnt[b]-cnt[a]);
+    if(keys.length>6){ const rest=keys.slice(5).reduce((s,k)=>s+cnt[k],0); keys=keys.slice(0,5); cnt["אחרים"]=rest; keys.push("אחרים"); }
+    const col=(k,i)=> v==="type" ? hueOf(k) : v==="prio" ? PRIO_HUE[k] : v==="stat" ? ({"פתוחה":"maint","בטיפול":"visit","בהמתנה":"gen"}[k]||"gen") : LP_COL[i%LP_COL.length];
+    const go=k=>()=>{ if(k==="אחרים" || /^ללא/.test(k)) return goTasks({}); if(v==="stat") return goTasks({});
+      goTasks({f:{[v==="type"?"type":v==="prio"?"prio":v==="dept"?"dept":"ppl"]:k}}); };
+    items=keys.map((k,i)=>({l:(v==="dept"?deptIcon(k)+" ":"")+k, v:cnt[k], color:"var(--c-"+col(k,i)+")", go:go(k)}));
+  }
+  box.append(seg, items.length ? donut(items, total, label) : mk("p","hint","אין מה להציג כרגע."));
+}
+function liteStrips(){
+  document.querySelectorAll("#viewData > .card").forEach(c=>{ if(c.dataset.strip) return; const h=c.querySelector(":scope > h3, :scope > .bd-head, :scope > .card-h"); if(!h) return;
+    c.dataset.strip="1"; h.classList.add("strip-h");
+    h.addEventListener("click",e=>{ if(!isLite() || e.target.closest("button:not(.strip-h),a,input,select,.info-i,.ci-i")) return; c.classList.toggle("strip-open"); }); });
+}
 function renderDash0(){
   document.querySelectorAll("#dRange button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.r===dRange)));
   const from = dRange==="all" ? "" : ymd(daysAgo(+dRange-1));
@@ -1507,7 +1539,7 @@ function show(w){
     const tb=$("#tab"+v); if(tb) tb.setAttribute("aria-selected",String(v===lit));
   });
   $("#setBtn").setAttribute("aria-pressed",String(w==="Data"));
-  document.documentElement.dataset.view=w; if(typeof paintBotNav==="function") paintBotNav();
+  document.documentElement.dataset.view=w; if(typeof paintBotNav==="function") paintBotNav(); if(w==="Data" && typeof liteStrips==="function") liteStrips();
   $("#savebar").style.display = w==="New"?"block":"none";
   document.querySelector(".wrap").style.paddingBottom = w==="New"?"130px":"40px";
 }
@@ -2082,7 +2114,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.40", APP_DATE="22/10/2026";
+const APP_VER="3.41", APP_DATE="22/10/2026";
 $("#verChip").textContent="v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
