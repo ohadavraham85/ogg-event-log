@@ -1165,7 +1165,9 @@ function renderLitePie(){
 function liteStrips(){
   document.querySelectorAll("#viewData > .card").forEach(c=>{ if(c.dataset.strip) return; const h=c.querySelector(":scope > h3, :scope > .bd-head, :scope > .card-h"); if(!h) return;
     c.dataset.strip="1"; h.classList.add("strip-h");
-    h.addEventListener("click",e=>{ if(!isLite() || e.target.closest("button:not(.strip-h),a,input,select,.info-i,.ci-i")) return; c.classList.toggle("strip-open"); }); });
+    h.addEventListener("click",e=>{ if(!isLite() || e.target.closest("button:not(.strip-h),a,input,select,.info-i,.ci-i")) return;
+      const on=!c.classList.contains("strip-open"); document.querySelectorAll("#viewData > .card.strip-open").forEach(x=>x.classList.remove("strip-open"));
+      c.classList.toggle("strip-open",on); if(on) window.scrollTo({top:0,behavior:"smooth"}); }); });
 }
 function renderDash0(){
   document.querySelectorAll("#dRange button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.r===dRange)));
@@ -2114,7 +2116,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.41", APP_DATE="22/10/2026";
+const APP_VER="3.42", APP_DATE="22/10/2026";
 $("#verChip").textContent="v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2438,7 +2440,7 @@ function paintTaskCount(){
   const P=typeof privTasks==="function" ? privTasks() : [], po=P.filter(tkOpen).length;          // my open personal (🔒) tasks
   const segN={open:n, done:V.length-n, mine:m, opened:o, priv:po};   // personal (🔒) tasks show only under "אישיות"
   document.querySelectorAll("#tkSeg button[data-v]").forEach(b=>{
-    const base={open:"פתוחות",done:"הושלמו",mine:isLite()?"שלי":"המשימות שלי",opened:"שפתחתי",priv:"🔒 אישיות"}[b.dataset.v];   // phone: short words, one line
+    const base={open:isLite()?"כל המשימות":"פתוחות",done:"הושלמו",mine:isLite()?"שלי":"המשימות שלי",opened:"שפתחתי",priv:"🔒 אישיות"}[b.dataset.v];   // phone: short words, one line
     b.textContent=""; b.append(base+" "); b.appendChild(mk("span","seg-n",nf(segN[b.dataset.v]||0))); });
 }
 function showMyTasks(){
@@ -2611,6 +2613,12 @@ function renderTkFilters(){
   fillSelect($("#tfDept"), allDepts(), tkF.dept, "כל המחלקות"); $("#tfDept").hidden=!allDepts().length;
   $("#tfDept").classList.toggle("on",!!tkF.dept);
   fillSelect($("#tfLoc"), byUse("loc"), tkF.loc, "כל המיקומים");
+  { const box=$("#tkCatChips"); if(box){ box.textContent=""; const cs=tkCatPicked();   // phone: the categories in the top row, scrolling sideways
+      const used=new Set(tkVis().map(t=>t.type).filter(Boolean));   // the anchors, and other categories only when a task has them
+      tkCats().filter(v=>TK_CATS.includes(v) || used.has(v) || cs.includes(v)).forEach(v=>{ const on=cs.includes(v), b=mk("button","tk-cc"+(on?" on":""),v); b.type="button"; b.setAttribute("aria-pressed",String(on));
+        const h=hueOf(v); b.style.setProperty("--cc","var(--c-"+h+")"); b.style.setProperty("--ccb","var(--c-"+h+"-bg)");
+        b.onclick=()=>{ const now=tkCatPicked(); tkF.type=(now.includes(v) ? now.filter(x=>x!==v) : now.concat(v)).join("\n"); renderTasks(); };
+        box.appendChild(b); }); } }
   { const cs=tkCatPicked();   // several categories can be picked (kept as one text, one per line)
     fillSelect($("#tfType"), tkCats(), cs.length===1 ? cs[0] : "", "כל הקטגוריות");
     if(cs.length>1){ const o=mk("option",null,cs.length+" קטגוריות"); o.value="__multi"; $("#tfType").appendChild(o); $("#tfType").value="__multi"; }
@@ -2998,7 +3006,6 @@ function renderTasks(){
     const pr=prioOf(t), ph=PRIO_HUE[pr];
     const c=mk("div","tk"+(tkOpen(t)?"":" done")+(tkRowOpen.has(t.id)?" x":"")); c.dataset.id=t.id;
     tkBg(t, c);   // cards: the task's first photo shows faintly behind it
-    if(isLite()) liteSwipe(c, ()=>tkOpen(t) ? openTaskDone(t.id) : null);
     // "רשימה": one compact line per task; a tap opens it in full (and closes it again)
     c.addEventListener("click",ev=>{ if((tkLV!=="rows" && !isLite()) || c._swiped || ev.target.closest("button,input,textarea,select,a,label,.tk-log,.tk-check,.tk-files,.qk")) return;
       tkRowOpen.has(t.id) ? tkRowOpen.delete(t.id) : tkRowOpen.add(t.id); c.classList.toggle("x"); }); c.style.borderInlineStartColor = tkOpen(t) && !t.due ? "var(--c-"+ph+")" : "";
@@ -4063,7 +4070,7 @@ function privCard(t, today){
     c.appendChild(box);
   }
   tkBg(t, c);
-  if(isLite()){ if(tkOpen(t)) liteSwipe(c, ()=>{ meSet(t.pid,{done:true, doneAt:nowLocal()}); toast("סומנה כבוצעה — לא נרשם ביומן"); });
+  if(isLite()){
     if(tkOpen(t) && t.due) tt.appendChild(mk("span","lite-due "+(t.due<today?"late":t.due===today?"today":"future"), t.due<today?"באיחור · "+dmy(t.due).slice(0,5):t.due===today?"היום":dmy(t.due).slice(0,5)));
     const ci=t.check||[]; c.insertBefore(mk("div","lite-sub",["🔒 אישית", prioOf(t)!=="רגילה"?prioOf(t):"", ci.length?"☑ "+ci.filter(x=>x.done).length+"/"+ci.length:"", t.files.length?"📎 "+t.files.length:""].filter(Boolean).join(" · ")), tt.nextSibling); }
   if(t.files.length){ const ph=mk("div","ev-ph-grid priv-ph"); evThumbs(t.files, ph, tkOpen(t) ? m=>{ if(!confirm("להסיר את הקובץ מהמשימה?\n"+m.name)) return;
