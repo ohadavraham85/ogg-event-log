@@ -1595,7 +1595,7 @@ $("#themeBtn").onclick=()=>{
 try{ const th=localStorage.getItem("ogg-theme"); if(th==="light"||th==="dark") document.documentElement.setAttribute("data-theme",th); }catch(e){}
 if(darkMQ.addEventListener) darkMQ.addEventListener("change",paintThemeBtn);
 /* colour scheme (accent): the same app in another colour; the choice stays on this device */
-const ACCENTS=[["teal","טורקיז","#0E7C86"],["blue","כחול מבט\"י","#1565A8"],["purple","סגול","#6A3FB8"],["wine","בורדו","#9C2A4E"],["amber","כתום","#B45309"],["slate","גרפיט","#3F4B59"]];
+const ACCENTS=[["teal","טורקיז","#0E7C86"],["blue","כחול מבט\"י","#1565A8"],["red","אדום","#D32F2F"],["orange","כתום עז","#C94A00"],["green","ירוק","#1B8A3A"],["emerald","ירוק-טורקיז","#008C7A"],["cyan","תכלת","#0277BD"],["royal","כחול רויאל","#1D4ED8"],["violet","סגול עז","#7C3AED"],["magenta","מג׳נטה","#C2185B"],["black","שחור","#111827"],["purple","סגול","#6A3FB8"],["wine","בורדו","#9C2A4E"],["amber","כתום","#B45309"],["slate","גרפיט","#3F4B59"]];
 function curAccent(){ return document.documentElement.getAttribute("data-accent") || "teal"; }
 function paintAccents(){
   const box=$("#accList"); if(!box) return; box.textContent="";
@@ -2121,7 +2121,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.46", APP_DATE="22/10/2026";
+const APP_VER="3.47", APP_DATE="22/10/2026";
 $("#verChip").textContent = BETA && LITE_MQ.matches ? "בטא "+APP_VER : "v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){

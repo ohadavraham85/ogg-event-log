@@ -2425,3 +2425,33 @@ html.lite .bar .logo{flex:none}
 @media (max-width:360px){ html.lite .bar .icon-btn{width:36px;height:36px} html.lite .lite-title{font-size:16px} }
 /* v3.46: the list sheet — a value typed in the search can be added from there */
 .sheet .opt.opt-add{color:var(--water);font-weight:800;border:1.5px dashed var(--water);border-radius:12px;margin:6px 10px;justify-content:flex-start}
+
+/* v3.47: more colour schemes — strong ones (white text on them stays readable) */
+:root[data-accent="red"]{--water:#D32F2F;--water-soft:#FDE3E3}
+@media (prefers-color-scheme:dark){ :root[data-accent="red"]:not([data-theme="light"]){--water:#FF7B7B;--water-soft:#3D1515} }
+:root[data-accent="red"][data-theme="dark"]{--water:#FF7B7B;--water-soft:#3D1515}
+:root[data-accent="orange"]{--water:#C94A00;--water-soft:#FFE7D6}
+@media (prefers-color-scheme:dark){ :root[data-accent="orange"]:not([data-theme="light"]){--water:#FF9A4D;--water-soft:#3D220E} }
+:root[data-accent="orange"][data-theme="dark"]{--water:#FF9A4D;--water-soft:#3D220E}
+:root[data-accent="green"]{--water:#1B8A3A;--water-soft:#DDF4E3}
+@media (prefers-color-scheme:dark){ :root[data-accent="green"]:not([data-theme="light"]){--water:#5CD383;--water-soft:#11301C} }
+:root[data-accent="green"][data-theme="dark"]{--water:#5CD383;--water-soft:#11301C}
+:root[data-accent="emerald"]{--water:#008C7A;--water-soft:#D6F3EE}
+@media (prefers-color-scheme:dark){ :root[data-accent="emerald"]:not([data-theme="light"]){--water:#3FD9C2;--water-soft:#0D2F2A} }
+:root[data-accent="emerald"][data-theme="dark"]{--water:#3FD9C2;--water-soft:#0D2F2A}
+:root[data-accent="cyan"]{--water:#0277BD;--water-soft:#D9EEFB}
+@media (prefers-color-scheme:dark){ :root[data-accent="cyan"]:not([data-theme="light"]){--water:#5BC0F5;--water-soft:#0E2838} }
+:root[data-accent="cyan"][data-theme="dark"]{--water:#5BC0F5;--water-soft:#0E2838}
+:root[data-accent="royal"]{--water:#1D4ED8;--water-soft:#DEE7FD}
+@media (prefers-color-scheme:dark){ :root[data-accent="royal"]:not([data-theme="light"]){--water:#7EA2FF;--water-soft:#141F42} }
+:root[data-accent="royal"][data-theme="dark"]{--water:#7EA2FF;--water-soft:#141F42}
+:root[data-accent="violet"]{--water:#7C3AED;--water-soft:#ECE3FD}
+@media (prefers-color-scheme:dark){ :root[data-accent="violet"]:not([data-theme="light"]){--water:#B694FF;--water-soft:#24173F} }
+:root[data-accent="violet"][data-theme="dark"]{--water:#B694FF;--water-soft:#24173F}
+:root[data-accent="magenta"]{--water:#C2185B;--water-soft:#FBE0EA}
+@media (prefers-color-scheme:dark){ :root[data-accent="magenta"]:not([data-theme="light"]){--water:#FF6FA5;--water-soft:#3B1324} }
+:root[data-accent="magenta"][data-theme="dark"]{--water:#FF6FA5;--water-soft:#3B1324}
+:root[data-accent="black"]{--water:#111827;--water-soft:#E5E7EB}
+@media (prefers-color-scheme:dark){ :root[data-accent="black"]:not([data-theme="light"]){--water:#E5E7EB;--water-soft:#1F2937} }
+:root[data-accent="black"][data-theme="dark"]{--water:#E5E7EB;--water-soft:#1F2937}
+#accList{display:flex;flex-wrap:wrap;gap:8px}
