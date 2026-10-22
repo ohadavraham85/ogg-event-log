@@ -115,7 +115,7 @@ header.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:40;backgroun
 @media (max-width:700px){
   .clock{order:10;flex-basis:100%;justify-content:center;padding:5px 10px;margin-top:2px}
 }
-@media (max-width:360px){ .ver{display:none} .clock .c-date,.clock .c-day{font-size:13px} .clock .c-time{font-size:17px} }
+@media (max-width:360px){ .clock .c-date,.clock .c-day{font-size:13px} .clock .c-time{font-size:17px} }
 .icon-btn{border:1px solid var(--edge);background:var(--panel);border-radius:10px;width:40px;height:40px;
   display:grid;place-items:center;cursor:pointer;flex:none;font-size:17px}
 .tabs{display:flex;gap:6px;margin-top:10px}
@@ -1398,7 +1398,7 @@ small.dept{font-size:12px;font-weight:700;color:var(--c-maint);background:var(--
 .fb-row.done{opacity:.6}
 .fb-row .row{gap:6px;flex-wrap:wrap}
 /* ===== phone view (html.lite): only what is used in the field ===== */
-html.lite #verChip, html.lite #refreshBtn, html.lite #themeBtn, html.lite .sync-chip{display:none}
+html.lite #refreshBtn, html.lite #themeBtn, html.lite .sync-chip{display:none}
 html.lite .clock{padding:6px 10px}
 /* dashboard: the number tiles, the tasks card (counts + "דורשות טיפול עכשיו"); no charts, filters or team strip */
 html.lite #dRange, html.lite #dPpl, html.lite #dDept, html.lite .dlay-hint, html.lite #dTeam, html.lite #dScope, html.lite #dLayReset{display:none!important}
@@ -2415,3 +2415,6 @@ html.lite #viewData > .card[data-strip]:not(.strip-open) > .strip-h .tip-i{displ
 html.lite #viewData > .card[data-strip]:not(.strip-open):not([hidden]){display:flex}
 html.lite #viewData > .card[hidden]{display:none!important}
 html.lite #viewData > .card[data-strip]:not(.strip-open) > .strip-h{flex:1}
+/* v3.43: the version always shows, small, in the header (phone too) */
+html.lite #verChip{display:inline-flex;font-size:10.5px;padding:2px 7px;flex:none}
+@media (max-width:360px){ #verChip{font-size:10px;padding:1px 6px} }
