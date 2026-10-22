@@ -2082,7 +2082,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.39", APP_DATE="21/10/2026";
+const APP_VER="3.40", APP_DATE="22/10/2026";
 $("#verChip").textContent="v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2668,7 +2668,7 @@ function paintBotNav(){ const v=curView, lit=v==="New"?"List":v==="Cal"?"Tasks":
 function bnCopy(from, to){ const f=$(from), t=$(to); if(!f || !t) return; const sync=()=>{ t.textContent=f.textContent; t.hidden=f.hidden || !f.textContent; };
   sync(); new MutationObserver(sync).observe(f,{childList:true,characterData:true,subtree:true,attributes:true}); }
 bnCopy("#tkMine","#bnTk"); bnCopy("#newCnt","#bnEv");
-document.querySelectorAll("#botNav [data-go]").forEach(b=>b.onclick=ev=>{ const g=b.dataset.go; $("#bnMenu").hidden=true;
+document.querySelectorAll("#botNav [data-go], #liteFab").forEach(b=>b.onclick=ev=>{ const g=b.dataset.go; $("#bnMenu").hidden=true;
   if(g==="Tasks") $("#tabTasks").click(); else if(g==="Dash") $("#tabDash").click(); else if(g==="List") $("#tabList").click(); else if(g==="Data") $("#setBtn").click();
   else if(g==="plus"){ if(curView==="List" || curView==="New") $("#fabNew").click(); else if(curView==="Tasks") openTaskForm(null);
     else { ev.stopPropagation(); $("#bnMenu").hidden=!$("#bnMenu").hidden; } }
