@@ -2455,3 +2455,28 @@ html.lite .bar .logo{flex:none}
 @media (prefers-color-scheme:dark){ :root[data-accent="black"]:not([data-theme="light"]){--water:#E5E7EB;--water-soft:#1F2937} }
 :root[data-accent="black"][data-theme="dark"]{--water:#E5E7EB;--water-soft:#1F2937}
 #accList{display:flex;flex-wrap:wrap;gap:8px}
+/* ===== v3.48: the colour scheme shows — the phone's header in the colour, the page tinted with it, the active tab and choice filled ===== */
+html:not(.glass) body{background:color-mix(in srgb,var(--water) 7%,var(--bg))}
+html.lite header.bar{background:var(--water);border-bottom:none;box-shadow:0 2px 10px color-mix(in srgb,var(--water) 35%,transparent);backdrop-filter:none;-webkit-backdrop-filter:none}
+html.lite header.bar .lite-title{color:#fff}
+html.lite header.bar .icon-btn{background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.28);color:#fff}
+html.lite header.bar .icon-btn svg{color:#fff}
+html.lite header.bar .info-btn span:first-child{color:#fff}
+html.lite header.bar #setBtn[aria-pressed="true"]{background:#fff;color:var(--water)}
+html.lite header.bar #setBtn[aria-pressed="true"] svg{color:var(--water)}
+html.lite header.bar #verChip:not(.beta){background:#fff;color:var(--water);border-color:#fff}
+html.lite header.bar .logo{background:#fff;border-radius:10px;padding:3px 4px;height:36px;box-sizing:border-box}
+html.lite[data-view="Dash"] header.bar .clock{background:rgba(255,255,255,.95);border-color:transparent}
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]).lite header.bar{background:color-mix(in srgb,var(--water) 38%,#0B1218)} }
+:root[data-theme="dark"].lite header.bar{background:color-mix(in srgb,var(--water) 38%,#0B1218)}
+html.lite .botnav button[aria-current="page"]{background:var(--water);color:#fff}
+html.lite #tkSeg button[data-v][aria-pressed="true"]{background:var(--water);color:#fff}
+html.lite #tkSeg button[data-v][aria-pressed="true"] .seg-n{background:#fff;color:var(--water)}
+html.lite #viewData > .card > .strip-h{color:var(--water)}
+html.lite .lp-b[aria-pressed="true"]{background:var(--water)}
+html.lite .botnav button[aria-current="page"] .bn-n{background:#fff;color:var(--water)}
+/* dark: the colour is the light version — text on it is dark */
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]).lite .botnav button[aria-current="page"],:root:not([data-theme="light"]).lite #tkSeg button[data-v][aria-pressed="true"],:root:not([data-theme="light"]).lite .lite-fab,:root:not([data-theme="light"]).lite .lp-b[aria-pressed="true"]{color:#0B1218} }
+:root[data-theme="dark"].lite .botnav button[aria-current="page"],:root[data-theme="dark"].lite #tkSeg button[data-v][aria-pressed="true"],:root[data-theme="dark"].lite .lite-fab,:root[data-theme="dark"].lite .lp-b[aria-pressed="true"]{color:#0B1218}
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]).lite #tkSeg button[data-v][aria-pressed="true"] .seg-n{background:#0B1218;color:var(--water)} }
+:root[data-theme="dark"].lite #tkSeg button[data-v][aria-pressed="true"] .seg-n{background:#0B1218;color:var(--water)}
