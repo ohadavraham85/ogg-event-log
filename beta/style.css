@@ -2418,3 +2418,8 @@ html.lite #sgNav button[aria-pressed="true"]{grid-column:1/-1;order:-1;font-size
 #verChip{font-size:11px;padding:2px 7px;line-height:1.4}
 html.lite #verChip{font-size:9.5px;padding:1px 6px;font-weight:800;max-width:90px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 html.lite .lite-title{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* v3.45: phone header stays one line — the screen's name gives way (it shrinks), the buttons don't drop to a second line */
+html.lite .lite-title{flex:1 1 0}
+html.lite .bar .icon-btn{width:40px;height:40px;flex:none}
+html.lite .bar .logo{flex:none}
+@media (max-width:360px){ html.lite .bar .icon-btn{width:36px;height:36px} html.lite .lite-title{font-size:16px} }

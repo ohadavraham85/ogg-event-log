@@ -2116,8 +2116,8 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.44", APP_DATE="22/10/2026";
-$("#verChip").textContent="v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
+const APP_VER="3.45", APP_DATE="22/10/2026";
+$("#verChip").textContent = BETA && LITE_MQ.matches ? "בטא "+APP_VER : "v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
   const cur=["Dash","New","List","Data","Tasks","Cal"].find(v=>!$("#view"+v).hidden)||"Dash";
@@ -4949,7 +4949,7 @@ let relLive=null;
 async function relPaint(){
   const c=$("#relCard"); if(!c) return;
   const show=BETA && CLOUD_ON && isManager() && !isViewer(); c.dataset.off=show?"":"1";
-  const vc=$("#verChip"); if(vc && BETA){ vc.textContent=(show?"🚀 ":"")+"v"+APP_VER+" · בטא"; vc.classList.toggle("rel",show); vc.title=show?"פרסם את הבטא לכולם":"גרסה"; }
+  const vc=$("#verChip"); if(vc && BETA){ vc.textContent=LITE_MQ.matches ? "בטא "+APP_VER : (show?"🚀 ":"")+"v"+APP_VER+" · בטא"; /* phone: short */ vc.classList.toggle("rel",show); vc.title=show?"פרסם את הבטא לכולם":"גרסה"; }
   if(!show){ c.hidden=true; return; }
   let live="?"; try{ const r=await fetch("../version.txt?t="+Date.now(),{cache:"no-store"}); if(r.ok) live=(await r.text()).trim(); }catch(e){}
   const st=$("#relSt"), b=$("#relGo"), same=live===APP_VER;
