@@ -2121,7 +2121,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.48", APP_DATE="22/10/2026";
+const APP_VER="3.49", APP_DATE="26/10/2026";
 $("#verChip").textContent = BETA && LITE_MQ.matches ? "בטא "+APP_VER : "v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2320,7 +2320,7 @@ const tkStat=t=>t.status==="בטיפול" ? "בטיפול" : t.status==="בהמ�
 /* order of the open tasks: newest first (default), by due date, or by priority — picked above the list, kept on the device */
 let tkSort="new"; try{ tkSort=localStorage.getItem("ogg-tk-sort")||"new"; }catch(e){}
 /* "רשימה" on a wide screen: sort by a column (its heading) */
-const TK_COLS=[["title","משימה"],["eq","ציוד"],["who","שיוך"],["dept","מחלקה"],["prio","עדיפות"],["type","קטגוריה"],["stat","סטטוס"],["extra","נוספים"],["due","תאריכים"],["ppl","אחראי · מיקום"]];
+const TK_COLS=[["title","משימה"],["eq","ציוד"],["who","שיוך"],["dept","מחלקה"],["prio","עדיפות"],["type","קטגוריה"],["stat","סטטוס"],["extra","נוספים"],["due","תאריכים"],["ppl","פותח · אחראי · מיקום"]];
 let tkCol=null; try{ tkCol=JSON.parse(localStorage.getItem("ogg-tk-col")||"null"); }catch(e){}
 /* column widths in "רשימה": drag the edge of a heading; kept on this device. A narrower column leaves more room to the title. */
 const TK_COLW_DEF={title:"minmax(130px,2fr)",eq:"128px",who:"68px",dept:"96px",prio:"68px",type:"108px",stat:"64px",extra:"minmax(96px,1fr)",due:"118px",ppl:"minmax(60px,1fr)"};
@@ -3063,7 +3063,7 @@ function renderTasks(){
     }
     if(tags.querySelector(".tk-tag:not(.eqt)") || $("#viewTasks").classList.contains("rows")) c.appendChild(tags);
     const pn=n=>n;   // the worker's name only — department and role are in their own columns
-    const meta=[(t.ppl||[]).length ? "👤 "+(t.ppl.length>1 ? "אחראי: "+pn(t.ppl[0])+" · משויכים: "+t.ppl.slice(1).join(", ") : pn(t.ppl[0])) : "", (t.loc||[]).length?"📍 "+t.loc.join(", "):"", (t.eq||[]).length?"⚙ "+t.eq.join(", "):""].filter(Boolean).join("   ");
+    const meta=[t.openedBy ? "✍ פתח: "+t.openedBy : "", (t.ppl||[]).length ? "👤 "+(t.ppl.length>1 ? "אחראי: "+pn(t.ppl[0])+" · משויכים: "+t.ppl.slice(1).join(", ") : pn(t.ppl[0])) : "", (t.loc||[]).length?"📍 "+t.loc.join(", "):"", (t.eq||[]).length?"⚙ "+t.eq.join(", "):""].filter(Boolean).join("   ");
     if(meta){ const m=mk("div","tk-m",meta); c.appendChild(m);
       if(tkOpen(t) && !isViewer()){ m.classList.add("qk"); m.title="לחץ לשינוי"; m.onclick=ev=>{ ev.stopPropagation(); qkOpen(t,["ppl","loc"]); }; } }
     if(t.desc) c.appendChild(mk("div","tk-d",t.desc));
