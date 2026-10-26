@@ -2480,3 +2480,7 @@ html.lite .botnav button[aria-current="page"] .bn-n{background:#fff;color:var(--
 :root[data-theme="dark"].lite .botnav button[aria-current="page"],:root[data-theme="dark"].lite #tkSeg button[data-v][aria-pressed="true"],:root[data-theme="dark"].lite .lite-fab,:root[data-theme="dark"].lite .lp-b[aria-pressed="true"]{color:#0B1218}
 @media (prefers-color-scheme:dark){ :root:not([data-theme="light"]).lite #tkSeg button[data-v][aria-pressed="true"] .seg-n{background:#0B1218;color:var(--water)} }
 :root[data-theme="dark"].lite #tkSeg button[data-v][aria-pressed="true"] .seg-n{background:#0B1218;color:var(--water)}
+/* v3.50: "נפתח ע״י" — small, at the top of the task, on the right */
+.tk-by{font-size:11.5px;font-weight:700;color:var(--ink-3);margin:-4px 0 4px;line-height:1.3}
+#viewTasks.rows .tk:not(.x) .tk-by{grid-column:1/-1;margin:-4px 0 0}
+html.lite #viewTasks .tk:not(.x):not(.zz) > .tk-by.tk-by{display:block!important;margin:-3px 0 2px;font-size:11px}
