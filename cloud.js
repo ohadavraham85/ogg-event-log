@@ -922,6 +922,23 @@
     return pushSup;
   }
   const pushOn=()=>!!get(K_PUSH) && "Notification" in window && Notification.permission==="granted";
+  /* a write straight to the cloud's REST door — when the Firestore library itself is stuck ("INTERNAL ASSERTION FAILED:
+     Unexpected state", a known bug of the library when the app is open in more than one tab / the beta and the regular copy
+     at once). Same rules apply: it is signed in as me, and _upd is set by the server ("stamped"). */
+  async function restSet(coll, id, fields, merge){
+    const cfg=window.FIREBASE_CONFIG||{}, dbn=window.FIREBASE_DATABASE||"(default)";
+    const host=window.FIREBASE_EMULATOR ? "http://127.0.0.1:8080" : "https://firestore.googleapis.com";
+    const root="projects/"+cfg.projectId+"/databases/"+dbn+"/documents";
+    const tok=await auth.currentUser.getIdToken();
+    const val=v=> typeof v==="boolean" ? {booleanValue:v} : typeof v==="number" ? (Number.isInteger(v)?{integerValue:String(v)}:{doubleValue:v}) : {stringValue:String(v)};
+    const f={}; Object.keys(fields).forEach(k=>f[k]=val(fields[k]));
+    const w={update:{name:root+"/"+coll+"/"+id, fields:f}, updateTransforms:[{fieldPath:"_upd", setToServerValue:"REQUEST_TIME"}]};
+    if(merge) w.updateMask={fieldPaths:Object.keys(fields)};
+    const r=await fetch(host+"/v1/"+root.replace(/\/documents$/,"")+"/documents:commit?key="+encodeURIComponent(cfg.apiKey||""),
+      {method:"POST", headers:{"Content-Type":"application/json", Authorization:"Bearer "+tok}, body:JSON.stringify({writes:[w]})});
+    if(!r.ok){ let m=""; try{ m=((await r.json()).error||{}).status||""; }catch(e){} const e=new Error("rest "+r.status+" "+m); e.code=r.status===403?"permission-denied":"rest-"+r.status; throw e; }
+  }
+  const sdkStuck=e=>/INTERNAL ASSERTION|Unexpected state|internal/i.test(String((e && (e.message||e.code))||""));
   let pushErr="";                                         // why the last try failed — shown to the user
   async function pushRegister(ask){
     pushErr="";
@@ -938,7 +955,9 @@
     try{
       const old=get(K_PUSH);
       if(old && old!==tok) F.deleteDoc(F.doc(db,"push",old)).catch(()=>{});
-      await F.setDoc(F.doc(db,"push",tok),{token:tok, mail:me, all:get("ogg-news-all")!=="0", ua:navigator.userAgent.slice(0,120), _upd:F.serverTimestamp(), _by:me});
+      const data={token:tok, mail:me, all:get("ogg-news-all")!=="0", ua:navigator.userAgent.slice(0,120), _by:me};
+      try{ await F.setDoc(F.doc(db,"push",tok),Object.assign({_upd:F.serverTimestamp()},data)); }
+      catch(e){ if(!sdkStuck(e)) throw e; await restSet("push", tok, data); }   // the library is stuck: the same write by the REST door
     }catch(e){ pushErr = e && e.code==="permission-denied" ? "כללי האבטחה בענן עוד לא מאפשרים (צריך לפרסם את הכללים עם push)" : "השמירה בענן נכשלה ("+((e && (e.code||e.message))||"?")+")"; return false; }
     put(K_PUSH,tok); return true;
   }
@@ -967,7 +986,9 @@
       const row=mk("div","row");
       const ts=mk("button","btn","שלח לי פוש לבדיקה"); ts.type="button";
       ts.onclick=async()=>{ ts.disabled=true;
-        try{ await F.setDoc(F.doc(db,"push",get(K_PUSH)),{test:Date.now(),_upd:F.serverTimestamp(),_by:me},{merge:true}); toast("נשלח — ההתראה אמורה להגיע תוך כמה שניות"); }
+        try{ try{ await F.setDoc(F.doc(db,"push",get(K_PUSH)),{test:Date.now(),_upd:F.serverTimestamp(),_by:me},{merge:true}); }
+             catch(e){ if(!sdkStuck(e)) throw e; await restSet("push", get(K_PUSH), {test:Date.now(), _by:me, mail:me, token:get(K_PUSH)}, true); }
+             toast("נשלח — ההתראה אמורה להגיע תוך כמה שניות"); }
         catch(e){ toast("השליחה נכשלה: "+(e.code||"")); }
         setTimeout(()=>{ ts.disabled=false; },5000); };
       const b=mk("button","btn","כבה פוש במכשיר הזה"); b.type="button";
