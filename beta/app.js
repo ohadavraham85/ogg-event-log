@@ -548,7 +548,7 @@ function paintEvFiles(){ const box=$("#evPh"); if(box) evThumbs(evFiles, box, m=
 function resetForm(){
   evFiles=[]; paintEvFiles();
   sel.type=[]; sel.loc=[]; sel.eq=[]; sel.ppl=[]; sel.stat=["פתוח"];
-  $("#title").value=""; $("#desc").value=""; $("#act").value=""; editId=null;
+  $("#title").value=""; $("#desc").value=""; editId=null;
   $("#saveBtn").textContent="שמור אירוע"; $("#delEvBtn").hidden=true; setNow(); paintRows(); window.scrollTo({top:0});
 }
 function collect(){
@@ -556,7 +556,7 @@ function collect(){
     id: editId || (Date.now().toString(36)+Math.random().toString(36).slice(2,7)),
     type: sel.type.slice(), loc: sel.loc.slice(), eq: sel.eq.slice(), ppl: sel.ppl.slice(),
     stat: sel.stat.slice(), title: $("#title").value.trim(),
-    desc: $("#desc").value.trim(), act: $("#act").value.trim(),
+    desc: $("#desc").value.trim(),   // "פעולה שננקטה" is gone from the form; an edit keeps what an event already had
     when: whenStr(), ts: new Date().toISOString(), files: evFiles.slice()
   };
 }
@@ -580,13 +580,13 @@ function doSave(e){
   if(i>=0) events[i]=e; else events.unshift(e);
   events.sort((a,b)=>(b.when||"").localeCompare(a.when||""));
   const ts = i>=0 ? syncTaskFromEvent(e) : null;
-  persist(); renderAll(); toast((i>=0?"האירוע עודכן":"האירוע נשמר")+(ts ? (isOpen(e)?" · המשימה חזרה למשימות הפתוחות":" · המשימה סומנה כהושלמה") : "")); resetForm();
+  persist(); renderAll(); toast((i>=0?"האירוע עודכן":"האירוע נשמר")+(ts ? (isOpen(e)?" · המשימה חזרה למשימות הפתוחות":" · המשימה סומנה כהושלמה") : "")); resetForm(); show("List"); window.scrollTo({top:0});   // saved: back to the events list
 }
 $("#saveBtn").onclick = ()=>{
   const e=collect();
   if(!e.type.length){ toast("בחר סוג אירוע"); openSheet("type"); return; }
   if(!e.loc.length){ toast("בחר מיקום"); openSheet("loc"); return; }
-  if(!e.desc){ toast("כתוב מה קרה"); $("#desc").focus(); return; }
+  if(!e.desc){ toast("כתוב תיאור אירוע"); $("#desc").focus(); return; }
   const d=findDup(e);
   if(d){
     $("#dupText").textContent = fmtWhen(d.when)+" · "+(d.loc||[]).join(" · ")+" — "+d.desc.slice(0,90);
@@ -872,7 +872,7 @@ function loadInto(e){
   editId=e.id;
   sel.type=(e.type||[]).slice(); sel.loc=(e.loc||[]).slice();
   sel.eq=(e.eq||[]).slice(); sel.ppl=(e.ppl||[]).slice(); sel.stat=(e.stat||["פתוח"]).slice();
-  $("#title").value=e.title||""; $("#desc").value=e.desc||""; $("#act").value=e.act||"";
+  $("#title").value=e.title||""; $("#desc").value=e.desc||"";
   evFiles=(e.files||[]).filter(m=>m && !m.del).slice(); paintEvFiles();
   const parts=(e.when||"").split("T"); $("#dDate").value=parts[0]||""; $("#dTime").value=(parts[1]||"").slice(0,5);
   $("#saveBtn").textContent="עדכן אירוע"; $("#delEvBtn").hidden=!isManager(); show("New"); paintRows(); window.scrollTo({top:0});
@@ -2121,7 +2121,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.51", APP_DATE="26/10/2026";
+const APP_VER="3.52", APP_DATE="27/10/2026";
 $("#verChip").textContent = BETA && LITE_MQ.matches ? "בטא "+APP_VER : "v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
