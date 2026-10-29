@@ -2484,3 +2484,8 @@ html.lite .botnav button[aria-current="page"] .bn-n{background:#fff;color:var(--
 .tk-by{font-size:11.5px;font-weight:700;color:var(--ink-3);margin:-4px 0 4px;line-height:1.3}
 #viewTasks.rows .tk:not(.x) .tk-by{grid-column:1/-1;margin:-4px 0 0}
 html.lite #viewTasks .tk:not(.x):not(.zz) > .tk-by.tk-by{display:block!important;margin:-3px 0 2px;font-size:11px}
+/* בהמתנה: the whole task in grey, like a disabled button */
+.tk.tk-hold{background:color-mix(in srgb,#94a3b8 30%,var(--panel));border-color:color-mix(in srgb,#94a3b8 55%,var(--edge));border-inline-start-color:#64748b!important;box-shadow:none}
+.tk.tk-hold .tk-tt,.tk.tk-hold .sn,.tk.tk-hold .tk-by,.tk.tk-hold .lite-sub{color:color-mix(in srgb,var(--ink) 55%,#94a3b8)}
+.tk.tk-hold .tk-tag:not(.hold),.tk.tk-hold .tk-eqtag{filter:grayscale(.85);opacity:.75}
+.tk.tk-hold::before{filter:grayscale(1);opacity:.35}

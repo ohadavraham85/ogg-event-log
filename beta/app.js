@@ -2121,7 +2121,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.52", APP_DATE="27/10/2026";
+const APP_VER="3.53", APP_DATE="29/10/2026";
 $("#verChip").textContent = BETA && LITE_MQ.matches ? "בטא "+APP_VER : "v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -3017,6 +3017,7 @@ function renderTasks(){
       tkRowOpen.has(t.id) ? tkRowOpen.delete(t.id) : tkRowOpen.add(t.id); c.classList.toggle("x"); }); c.style.borderInlineStartColor = tkOpen(t) && !t.due ? "var(--c-"+ph+")" : "";
     if(tkOpen(t) && t.due) c.classList.add(t.due<today?"tl-late":t.due===today?"tl-today":"tl-future");   // the whole frame in the traffic-light colour of the due date
     if(tkOpen(t) && (pr==="גבוהה" || pr==="דחופה")) c.classList.add("tk-blink", pr==="דחופה" ? "hot" : "high");   // high and urgent: the whole task pulses red
+    if(tkOpen(t) && tkStat(t)==="בהמתנה"){ c.classList.remove("tk-blink","high","hot"); c.classList.add("tk-hold"); }   // בהמתנה: the whole task greyed out like a disabled button (no red pulse while it waits)
     const tx=mk("span","tk-tt",t.title||"(ללא כותרת)");
     { const tt=mk("div","tk-t"); tt.appendChild(tkCircle(t, ()=>tkOpen(t) ? openTaskDone(t.id) : reopenTask(t))); if(t.no) tt.appendChild(mk("span","sn","#"+t.no));
       (t.eq||[]).forEach(q=>{ const g=mk("span","tk-eqtag eqc","⚙ "+q); g.title="ציוד"; eqPaint(g,q); tx.appendChild(g); });   // the equipment, right by the title
