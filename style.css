@@ -2489,3 +2489,4 @@ html.lite #viewTasks .tk:not(.x):not(.zz) > .tk-by.tk-by{display:block!important
 .tk.tk-hold .tk-tt,.tk.tk-hold .sn,.tk.tk-hold .tk-by,.tk.tk-hold .lite-sub{color:color-mix(in srgb,var(--ink) 55%,#94a3b8)}
 .tk.tk-hold .tk-tag:not(.hold),.tk.tk-hold .tk-eqtag{filter:grayscale(.85);opacity:.75}
 .tk.tk-hold::before{filter:grayscale(1);opacity:.35}
+#psyncRow{margin-top:12px}
