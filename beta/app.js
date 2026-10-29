@@ -1536,7 +1536,7 @@ function show(w){
   if(w==="Cal" && isLite()) w="Dash";                // no calendar in the phone view
   if($("#dTip")) $("#dTip").hidden=true;
   const prev=curView; curView=w;
-  if(prev==="List" && w!=="List" && UNSEEN.size){ UNSEEN.clear(); saveUnseen(); }   // seen once you leave the list
+  if(prev==="List" && w!=="List" && UNSEEN.size){ evSeenAdd([...UNSEEN]); UNSEEN.clear(); saveUnseen(); }   // seen once you leave the list (on my other devices too)
   if(prev==="Tasks" && w!=="Tasks" && typeof tkMarkSeen==="function") tkMarkSeen();   // new tasks: seen once you leave the tasks list
   if($("#newCnt")) paintNewCount();
   // the calendar opens from the events or the tasks list, and that tab stays lit; settings is the gear in the header
@@ -1594,7 +1594,7 @@ $("#themeBtn").onclick=()=>{
 };
 try{ const th=localStorage.getItem("ogg-theme"); if(th==="light"||th==="dark") document.documentElement.setAttribute("data-theme",th); }catch(e){}
 if(darkMQ.addEventListener) darkMQ.addEventListener("change",paintThemeBtn);
-/* colour scheme (accent): the same app in another colour; the choice stays on this device */
+/* colour scheme (accent): the same app in another colour; the choice follows my devices (see "my devices in step") */
 const ACCENTS=[["teal","טורקיז","#0E7C86"],["blue","כחול מבט\"י","#1565A8"],["red","אדום","#D32F2F"],["orange","כתום עז","#C94A00"],["green","ירוק","#1B8A3A"],["emerald","ירוק-טורקיז","#008C7A"],["cyan","תכלת","#0277BD"],["royal","כחול רויאל","#1D4ED8"],["violet","סגול עז","#7C3AED"],["magenta","מג׳נטה","#C2185B"],["black","שחור","#111827"],["purple","סגול","#6A3FB8"],["wine","בורדו","#9C2A4E"],["amber","כתום","#B45309"],["slate","גרפיט","#3F4B59"]];
 function curAccent(){ return document.documentElement.getAttribute("data-accent") || "teal"; }
 function paintAccents(){
@@ -2121,7 +2121,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.53", APP_DATE="29/10/2026";
+const APP_VER="3.54", APP_DATE="29/10/2026";
 $("#verChip").textContent = BETA && LITE_MQ.matches ? "בטא "+APP_VER : "v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2435,7 +2435,7 @@ function tkSeenSave(){ const S=tkSeen; if(!S) return;
 function tkIsNew(t){ if(t.priv || !tkOpen(t)) return false; const S=tkSeenLoad();
   return !S.ids.has(t.id) && String(t.created||"")>S.since; }
 document.addEventListener("visibilitychange",()=>{ if(document.hidden && curView==="Tasks") tkMarkSeen(); });   // left the app from the list
-function tkMarkSeen(){ if(!tkShownNew.size) return; const S=tkSeenLoad(); tkShownNew.forEach(id=>S.ids.add(id)); tkShownNew.clear(); tkSeenSave(); }
+function tkMarkSeen(){ if(!tkShownNew.size) return; const S=tkSeenLoad(); tkShownNew.forEach(id=>S.ids.add(id)); tkShownNew.clear(); tkSeenSave(); seenSyncSoon(); }
 function paintTaskCount(){
   const V=tkVis(), n=V.filter(tkOpen).length;              // "(open/total)": 4/5 = 4 open out of 5
   $("#tkCnt").textContent = "("+(V.length ? nf(n)+"/"+nf(V.length) : "0")+")";
@@ -2462,7 +2462,7 @@ function inboxGet(){ try{ const a=JSON.parse(localStorage.getItem(inboxKey())||"
 function inboxPut(a){
   a.sort((x,y)=>String(y.at).localeCompare(String(x.at)));
   try{ localStorage.setItem(inboxKey(), JSON.stringify(a.slice(0,INBOX_MAX))); }catch(e){}
-  paintInbox();
+  paintInbox(); if(!inbQuiet) inboxSyncSoon();
 }
 function paintInbox(){
   const b=$("#inboxBtn"); if(!b) return;
@@ -2490,11 +2490,11 @@ function inboxCheck(){ if(TV) return;
 let inbTab="in";
 const inbDelKey=()=>inboxKey()+"-del";
 function inboxDelIds(){ try{ const a=JSON.parse(localStorage.getItem(inbDelKey())||"[]"); return Array.isArray(a) ? a : []; }catch(e){ return []; } }
-function inboxArchive(id, on){ const a=inboxGet(), x=a.find(m=>m.id===id); if(!x) return; x.arch=on; x.read=true; inboxPut(a); openInbox(); }
+function inboxArchive(id, on){ const a=inboxGet(), x=a.find(m=>m.id===id); if(!x) return; x.arch=on; x.archT=Date.now(); x.read=true; inboxPut(a); openInbox(); }
 function inboxDelete(ids){                       // final delete; remembered so the same message is not brought back
   const set=new Set(ids); inboxPut(inboxGet().filter(m=>!set.has(m.id)));
   try{ localStorage.setItem(inbDelKey(), JSON.stringify(inboxDelIds().concat(ids).slice(-400))); }catch(e){}
-  openInbox();
+  inboxSyncSoon(); openInbox();
 }
 // swipe a message to the right → it moves to the archive
 function inbSwipe(row, card, fn){
@@ -2552,7 +2552,7 @@ document.querySelectorAll("#dlgInbox [data-ib]").forEach(b=>b.onclick=()=>{ inbT
 $("#inbAll").onclick=()=>{
   const all=inboxGet();
   if(inbTab==="arch"){ const ids=all.filter(x=>x.arch).map(x=>x.id); if(ids.length && confirm("למחוק סופית "+ids.length+" הודעות מהארכיון?")) inboxDelete(ids); }
-  else { all.forEach(x=>{ if(!x.arch){ x.arch=true; x.read=true; } }); inboxPut(all); openInbox(); }
+  else { const t=Date.now(); all.forEach(x=>{ if(!x.arch){ x.arch=true; x.archT=t; x.read=true; } }); inboxPut(all); openInbox(); }
 };
 function goTask(tid){
   const pv=tid.startsWith("p:"), t=pv ? privTasks().find(x=>x.id===tid) : tasks.find(x=>x.id===tid); if(!t){ toast("המשימה כבר לא קיימת"); return; }
@@ -3836,7 +3836,7 @@ function haptic(){
 }
 document.addEventListener("click",ev=>{ if(ev.isTrusted && ev.target.closest && ev.target.closest("button,.btn,[role=tab],summary,.seg button,.dt-tile,.kpi,.tk-tag,input[type=checkbox],input[type=radio]") && !(hapSw && hapSw.contains(ev.target))) haptic(); },true);
 /* "שקיפות הרקע" (settings → ערכת צבעים): the light page behind the content turns see-through, showing the blue behind it.
-   0 = as before. Kept on this device. */
+   0 = as before. Follows my devices like the colours. */
 const GLASS_KEY="ogg-glass";
 function applyGlass(v){ v=Math.max(0,Math.min(80,+v||0)); const r=document.documentElement;
   r.style.setProperty("--glass", v+"%"); r.classList.toggle("glass", v>0);
@@ -4990,7 +4990,10 @@ setTimeout(relPaint,1500);
    function "remindTick" sends the push when the time comes (app closed too); with the app on screen a message says it here. */
 var REMS=null;                                    // (var + functions: the task list can draw before this part of the file has run)
 function remList(){ if(!REMS){ try{ const a=JSON.parse(localStorage.getItem("ogg-rems")||"[]"); REMS=Array.isArray(a)?a:[]; }catch(e){ REMS=[]; } } return REMS; }
-function remSave(){ try{ localStorage.setItem("ogg-rems",JSON.stringify(REMS)); }catch(e){} if(window.cloudSetRems) window.cloudSetRems(REMS); }
+// edit: what this change does to the list — applied to the cloud copy as it is now, so a device that has not heard yet of a
+// reminder set on another one can't wipe it (without one, or offline, the whole list is written as before)
+function remSave(edit){ try{ localStorage.setItem("ogg-rems",JSON.stringify(REMS)); }catch(e){}
+  if(edit && window.cloudRemEdit) window.cloudRemEdit(edit, REMS); else if(window.cloudSetRems) window.cloudSetRems(REMS); }
 window.remApply=list=>{ REMS=Array.isArray(list)?list.filter(r=>r && r.tid && r.at):[]; try{ localStorage.setItem("ogg-rems",JSON.stringify(REMS)); }catch(e){}
   if(typeof renderTasks==="function") renderTasks(); };
 function remOf(tid){ return remList().find(r=>r.tid===tid); }
@@ -5030,11 +5033,12 @@ function remSet(ms){
   if(!remFor || !(ms>Date.now())){ toast("בחר זמן עתידי"); return; }
   const t=remFor;
   const rp=$("#remRep").value;
-  REMS=remList().filter(x=>x.tid!==t.id).concat(Object.assign({id:newId(), tid:t.id, at:Math.round(ms), title:(t.priv?"🔒 ":t.no?"#"+t.no+" ":"")+(t.title||"משימה")}, rp?{rep:rp}:{}));
-  remSave(); $("#dlgRem").close(); renderTasks(); toast("🔔 תזכורת נקבעה ל"+remWhen(ms)+(rp?" · "+REP_TXT[rp]:""));
+  const rec=Object.assign({id:newId(), tid:t.id, at:Math.round(ms), title:(t.priv?"🔒 ":t.no?"#"+t.no+" ":"")+(t.title||"משימה")}, rp?{rep:rp}:{});
+  REMS=remList().filter(x=>x.tid!==t.id).concat(rec);
+  remSave(L=>L.filter(x=>x.tid!==t.id).concat(rec)); $("#dlgRem").close(); renderTasks(); toast("🔔 תזכורת נקבעה ל"+remWhen(ms)+(rp?" · "+REP_TXT[rp]:""));
 }
 $("#remSetAt").onclick=()=>{ const v=$("#remAt").value; if(!v){ $("#remAt").focus(); return; } remSet(new Date(v).getTime()); };
-$("#remOff").onclick=()=>{ if(!remFor) return; REMS=remList().filter(x=>x.tid!==remFor.id); remSave(); $("#dlgRem").close(); renderTasks(); toast("התזכורת בוטלה"); };
+$("#remOff").onclick=()=>{ if(!remFor) return; const tid=remFor.id; REMS=remList().filter(x=>x.tid!==tid); remSave(L=>L.filter(x=>x.tid!==tid)); $("#dlgRem").close(); renderTasks(); toast("התזכורת בוטלה"); };
 $("#remClose").onclick=()=>$("#dlgRem").close();
 // the time came: on screen — a message here; app in the background without push — a device notification; otherwise the push brings it
 function remTick(){
@@ -5046,8 +5050,8 @@ function remTick(){
     else if(window.notifOn("rem") && "Notification" in window && Notification.permission==="granted" && navigator.serviceWorker)
       navigator.serviceWorker.ready.then(g=>g.showNotification("🔔 תזכורת",{body:r.title, tag:"ogg-task-"+r.tid, icon:"icons/icon-notebook-192.png", badge:"icons/badge-96.png", lang:"he", dir:"rtl", data:{tid:r.tid}})).catch(()=>{});
   });
-  REMS=REMS.filter(r=>r.at>now || r.rep).map(r=>r.at>now ? r : Object.assign({},r,{at:remNextAt(r.at,r.rep,now)})).filter(r=>r.at>now);   // a repeating one moves on
-  remSave(); renderTasks();
+  const step=L=>L.filter(r=>r.at>now || r.rep).map(r=>r.at>now ? r : Object.assign({},r,{at:remNextAt(r.at,r.rep,now)})).filter(r=>r.at>now);   // a repeating one moves on
+  REMS=step(REMS); remSave(step); renderTasks();
 }
 setInterval(remTick,30e3);
 /* ===== settings → 🔔 התראות: what to be notified about — push to the phone and notifications on the device (the 📨 list keeps everything).
@@ -5177,3 +5181,102 @@ document.querySelectorAll("#fdKind button").forEach(b=>b.onclick=()=>{ fdKind=b.
   run();
 })();
 tkColWApply();
+
+/* ===== my devices in step (team log): the messages (📨 read / archive / delete), the "חדש" marks on events and tasks, and my
+   display settings follow the account — kept in private/<me> (only I read or write it). Both sides merge, never just overwrite:
+   a message read anywhere is read; the later archive change wins; deletes add up; per setting the later change wins — so a
+   device that was away can't undo what another one did. Text size, column widths and the phone/full view stay per device. */
+var inbQuiet=false, inbSyncT=null, seenSyncT=null, prefSyncT=null, syncQuiet=false;
+const INB_SYNC=150, K_EVSEEN="ogg-ev-seen-sync", K_PSYNC="ogg-prefs-sync", K_PT="ogg-prefs-t";
+const SYNC_PREFS=["ogg-theme","ogg-accent","ogg-glass","ogg-haptic","ogg-tk-view","ogg-tk-sort","ogg-tk-col","ogg-list-view",
+  "ogg-dash-range","ogg-dash-dept","ogg-cal-dept","ogg-lite-pie","ogg-badge"];
+function inboxSyncSoon(){ if(!window.cloudSyncPut) return; clearTimeout(inbSyncT);
+  inbSyncT=setTimeout(()=>window.cloudSyncPut("syncInbox", JSON.stringify({items:inboxGet().slice(0,INB_SYNC), del:inboxDelIds().slice(-300)})), 800); }
+function inboxFromCloud(js){
+  let R={}; try{ R=JSON.parse(js||"{}")||{}; }catch(e){ return; }
+  const RI=Array.isArray(R.items)?R.items:[], RD=Array.isArray(R.del)?R.del:[];
+  const del0=inboxDelIds(), del=new Set(del0), addDel=RD.filter(i=>!del.has(i));
+  if(addDel.length){ addDel.forEach(i=>del.add(i)); try{ localStorage.setItem(inbDelKey(), JSON.stringify([...del].slice(-400))); }catch(e){} }
+  const loc=inboxGet(), by=new Map(loc.map(x=>[x.id,x])), rIds=new Set(); let changed=addDel.length>0, mine=false, fresh=false;
+  RI.forEach(r=>{ if(!r || !r.id || del.has(r.id)) return; rIds.add(r.id); const l=by.get(r.id);
+    if(!l){ by.set(r.id, Object.assign({}, r)); changed=true; if(!r.read && !r.arch) fresh=true; return; }
+    if(r.read && !l.read){ l.read=true; changed=true; } else if(l.read && !r.read) mine=true;
+    if((r.archT||0)>(l.archT||0)){ if(!!l.arch!==!!r.arch) changed=true; l.arch=!!r.arch; l.archT=r.archT; }
+    else if((l.archT||0)>(r.archT||0)) mine=true; });
+  const out=[...by.values()].filter(x=>!del.has(x.id)); if(out.length!==loc.length) changed=true;
+  if(changed){ inbQuiet=true; inboxPut(out); inbQuiet=false;
+    if($("#dlgInbox").open) openInbox(); else if(fresh && Date.now()<inboxOpenUntil) inboxCheck(); }
+  // what I have that the cloud copy doesn't: send it back (only within what is sent, so the two settle)
+  const sent=inboxGet().slice(0,INB_SYNC), RDs=new Set(RD);
+  if(mine || sent.some(x=>!rIds.has(x.id)) || del0.slice(-100).some(i=>!RDs.has(i))) inboxSyncSoon();
+}
+// "חדש" on events: what I saw on one device is seen on all of them
+function evSeenGet(){ try{ const a=JSON.parse(localStorage.getItem(K_EVSEEN)||"[]"); return Array.isArray(a)?a:[]; }catch(e){ return []; } }
+window.evSeenHas=id=>evSeenGet().includes(id);
+function evSeenAdd(ids){ const a=evSeenGet(), h=new Set(a); ids.forEach(i=>{ if(!h.has(i)){ h.add(i); a.push(i); } });
+  try{ localStorage.setItem(K_EVSEEN, JSON.stringify(a.slice(-300))); }catch(e){} seenSyncSoon(); }
+function seenSyncSoon(){ if(!window.cloudSyncPut) return; clearTimeout(seenSyncT);
+  seenSyncT=setTimeout(()=>{ const S=tkSeenLoad(); window.cloudSyncPut("syncSeen", JSON.stringify({ev:evSeenGet(), tk:{since:S.since, ids:[...S.ids].slice(-400)}})); }, 800); }
+function seenFromCloud(js){
+  let R={}; try{ R=JSON.parse(js||"{}")||{}; }catch(e){ return; }
+  const ev=Array.isArray(R.ev)?R.ev:[], mineEv=evSeenGet(), hv=new Set(ev); let mine=mineEv.slice(-100).some(i=>!hv.has(i));
+  if(ev.length){ const a=mineEv, h=new Set(a); ev.forEach(i=>{ if(!h.has(i)){ h.add(i); a.push(i); } }); try{ localStorage.setItem(K_EVSEEN, JSON.stringify(a.slice(-300))); }catch(e){}
+    const n=UNSEEN.size; ev.forEach(i=>UNSEEN.delete(i)); if(UNSEEN.size!==n){ saveUnseen(); renderList(false); } }
+  const S=tkSeenLoad(), T=R.tk||{}, tids=Array.isArray(T.ids)?T.ids:[], ht=new Set(tids); let tch=false;
+  tids.forEach(i=>{ if(!S.ids.has(i)){ S.ids.add(i); tch=true; } });
+  if(T.since && String(T.since)>String(S.since)){ S.since=String(T.since); tch=true; } else if(String(S.since)>String(T.since||"")) mine=true;
+  if([...S.ids].slice(-100).some(i=>!ht.has(i))) mine=true;
+  if(tch){ tkSeenSave(); if(typeof renderTasks==="function") renderTasks(); }
+  if(mine) seenSyncSoon();
+}
+// settings: every change to one of SYNC_PREFS is stamped with its time (whichever way the app writes it)
+function prefSyncOn(){ try{ return localStorage.getItem(K_PSYNC)!=="0"; }catch(e){ return true; } }
+function prefT(){ try{ return JSON.parse(localStorage.getItem(K_PT)||"{}")||{}; }catch(e){ return {}; } }
+(()=>{ try{ const P=Storage.prototype, set=P.setItem, rm=P.removeItem;
+  const touch=(st,k)=>{ if(syncQuiet || st!==window.localStorage || !SYNC_PREFS.includes(k)) return;
+    const T=prefT(); T[k]=Date.now(); set.call(st, K_PT, JSON.stringify(T)); prefSyncSoon(); };
+  P.setItem=function(k,v){ set.call(this,k,v); touch(this,k); };
+  P.removeItem=function(k){ rm.call(this,k); touch(this,k); }; }catch(e){} })();
+function prefSyncSoon(){ if(!window.cloudSyncPut || !prefSyncOn()) return; clearTimeout(prefSyncT);
+  prefSyncT=setTimeout(()=>{ const T=prefT(), o={}; let stamp=false;
+    SYNC_PREFS.forEach(k=>{ let v=null; try{ v=localStorage.getItem(k); }catch(e){}
+      if(!T[k]){ if(v===null) return; T[k]=1; stamp=true; }      // set before syncing existed: the oldest possible change
+      o[k]={v, t:T[k]}; });
+    if(stamp){ syncQuiet=true; try{ localStorage.setItem(K_PT, JSON.stringify(T)); }catch(e){} syncQuiet=false; }
+    window.cloudSyncPut("syncPrefs", JSON.stringify(o)); }, 800); }
+function prefsFromCloud(js){
+  if(!prefSyncOn()) return;
+  let R={}; try{ R=JSON.parse(js||"{}")||{}; }catch(e){ return; }
+  const T=prefT(); let changed=false, mine=false;
+  SYNC_PREFS.forEach(k=>{ const r=R[k], lt=T[k]||0; let lv=null; try{ lv=localStorage.getItem(k); }catch(e){}
+    if(r && r.t>lt){ syncQuiet=true; try{ if(r.v===null) localStorage.removeItem(k); else localStorage.setItem(k, String(r.v)); }catch(e){} syncQuiet=false;
+      T[k]=r.t; if(lv!==r.v) changed=true; }
+    else if(lt>(r?r.t:0) || (!r && lv!==null)) mine=true; });
+  syncQuiet=true; try{ localStorage.setItem(K_PT, JSON.stringify(T)); }catch(e){} syncQuiet=false;
+  if(changed) prefsReapply();
+  if(mine) prefSyncSoon();
+}
+// a setting that came from my other device: put it on the screen now
+function prefsReapply(){
+  const g=k=>{ try{ return localStorage.getItem(k); }catch(e){ return null; } }, de=document.documentElement;
+  const th=g("ogg-theme"); if(th==="light" || th==="dark") de.setAttribute("data-theme",th); else de.removeAttribute("data-theme");
+  const ac=g("ogg-accent"); if(!ac || ac==="teal") de.removeAttribute("data-accent"); else de.setAttribute("data-accent",ac);
+  paintAccents(); paintThemeBtn(); applyGlass(g(GLASS_KEY));
+  if($("#hapOn")) $("#hapOn").checked=hapOn();
+  listView = g("ogg-list-view")==="rows" ? "rows" : "tiles"; applyListView();
+  tkLV = g("ogg-tk-view")==="rows" ? "rows" : "tiles"; paintTkLV();
+  tkSort = g("ogg-tk-sort")||"new"; $("#tkSort").value=tkSort;
+  try{ tkCol=JSON.parse(g("ogg-tk-col")||"null"); }catch(e){ tkCol=null; }
+  dRange = g("ogg-dash-range")||"365"; dDept = g("ogg-dash-dept")||""; calDept = g("ogg-cal-dept")||"";
+  badgeMode = g("ogg-badge")||"recent"; $("#badgeMode").value=badgeMode; updateBadge();
+  renderAll();
+}
+window.syncApply=(field, js)=>{
+  if(field==="syncInbox") inboxFromCloud(js); else if(field==="syncSeen") seenFromCloud(js); else if(field==="syncPrefs") prefsFromCloud(js);
+};
+if($("#psyncRow")) $("#psyncRow").hidden=!CLOUD_ON;
+if($("#psyncOn")){ $("#psyncOn").checked=prefSyncOn();
+  $("#psyncOn").onchange=e=>{ try{ localStorage.setItem(K_PSYNC, e.target.checked?"1":"0"); }catch(_){}
+    if(e.target.checked){ prefSyncSoon(); if(window.cloudSyncPull) window.cloudSyncPull(); toast("ההגדרות יהיו זהות בכל המכשירים שלך"); }
+    else toast("ההגדרות במכשיר הזה נפרדות משאר המכשירים"); }; }
+
