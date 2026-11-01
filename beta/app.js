@@ -1147,16 +1147,17 @@ function renderDash(){ renderDash0(); arrangeDash(); paintTicker(); paintBoard()
    or title: an open "אחזקות שבר" task or an open fault event → not working; anything else open → another problem; nothing → working.
    Closing the task brings the unit back by itself. */
 function unitsParse(txt){
-  // "name: units" per line; "|" starts a new row in the drawing (an empty one is a gap); a unit ending in "*" is an aspirator
+  // "name: units" per line; "|" starts a new row in the drawing (an empty one is a gap); a unit ending in "*" is an aspirator,
+  // in "+" an aerator with a white disc (its row is spaced evenly)
   const out=[];
   String(txt||"").split(/\n+/).forEach(line=>{ const m=line.match(/^\s*([^:]+?)\s*:\s*(.+)$/); if(!m) return;
     const rows=[], kind={};
     m[2].split("|").forEach(seg=>{ const row=[];
-      seg.split(/[,\s]+/).filter(Boolean).forEach(p=>{ const asp=/\*$/.test(p); p=p.replace(/\*+$/,""); if(!p) return;
+      seg.split(/[,\s]+/).filter(Boolean).forEach(p=>{ const asp=/\*$/.test(p), wht=/\+$/.test(p); p=p.replace(/[*+]+$/,""); if(!p) return;
         const r=p.match(/^(.*?)(\d+)-(?:\1)?(\d+)$/), ids=[];                 // P101-P110 or P101-110
         if(r && +r[3]>=+r[2] && +r[3]-+r[2]<200){ for(let n=+r[2]; n<=+r[3]; n++) ids.push(r[1]+String(n).padStart(r[2].length,"0")); }
         else ids.push(p);
-        ids.forEach(u=>{ row.push(u); if(asp) kind[u]="asp"; }); });
+        ids.forEach(u=>{ row.push(u); if(asp) kind[u]="asp"; else if(wht) kind[u]="wht"; }); });
       rows.push(row); });
     const units=[...new Set(rows.flat())];
     if(units.length) out.push({g:m[1], rows, units, kind}); });
@@ -1199,15 +1200,18 @@ function renderUnits(){
   const pick=(x,u)=>{ try{ localStorage.setItem("ogg-units-g",x.g); }catch(e){} unitSel = unitSel===u && x===g ? null : u; renderUnits(); };
   // the screen's top bar
   const bar=mk("div","sc-bar"); bar.appendChild(mk("h3",null,"מצב יחידות"));
-  if(downAll.length){ const al=mk("span","sc-alarm"); al.innerHTML=TRI; al.append(downAll.length+" לא בעבודה"); bar.appendChild(al); }
+  const mid=mk("div","sc-mid"); mid.appendChild(mk("span","sc-lbl","צג מחשב בקרה")); bar.appendChild(mid);
+  const rt=mk("div","sc-rt"); rt.appendChild(mk("span","sc-clock",new Date().toLocaleTimeString("he-IL",{hour12:false})));
+  if(downAll.length){ const al=mk("span","sc-alarm"); al.innerHTML=TRI; al.append(downAll.length+" לא בעבודה"); rt.appendChild(al); }
+  bar.appendChild(rt);
   // the basin: rows of units as drawn in the settings
   let rows=g.rows.length===1 && g.rows[0].length>7 ? g.rows[0].reduce((a,u,i)=>{ if(i%5===0) a.push([]); a[a.length-1].push(u); return a; },[]) : g.rows;
   const bw=mk("div","sc-bw"), outer=mk("div","sc-outer"), rim=mk("div","sc-rim"), pool=mk("div","sc-pool");
-  rows.forEach(r=>{ const row=mk("div","sc-row"+(r.length?"":" gap"));
+  rows.forEach(r=>{ const row=mk("div","sc-row"+(r.length?"":" gap")+(r.length && r.every(u=>g.kind[u]==="wht")?" even":""));
     r.forEach(u=>{ const I=info[u], asp=g.kind[u]==="asp", k=I.tk.length+I.ev.length, b=mk("button","sc-u st-"+I.st+(I.mode==="man" && I.st!=="down" && I.st!=="stop"?" man":"")+(unitSel===u?" on":"")); b.type="button";
       b.innerHTML = asp
         ? '<div class="sc-asp" aria-hidden="true"><i class="fl"></i><div class="am"><i class="mo"></i><i class="sh"></i><i class="stem"></i></div><i class="fl"></i></div>'
-        : '<div class="sc-aer"><div class="mo" aria-hidden="true"><i></i></div><div class="disc"><span aria-hidden="true">VFD</span>'+(I.st==="down"?WARN:"")+'</div><i class="sh" aria-hidden="true"></i></div>';
+        : '<div class="sc-aer'+(g.kind[u]==="wht"?" wht":"")+'"><div class="mo" aria-hidden="true"><i></i></div><div class="disc"><span aria-hidden="true">VFD</span>'+(I.st==="down"?WARN:"")+'</div><i class="sh" aria-hidden="true"></i></div>';
       b.appendChild(mk("span","sc-plate",(asp?"אספירטור ":"מאוורר שטח ")+u)); if(k) b.appendChild(mk("i","sc-n",String(k)));
       if(I.mode==="man" && I.st!=="down" && I.st!=="stop") b.appendChild(mk("i","sc-man","ידני"));
       b.setAttribute("aria-label",(asp?"אספירטור ":"מאוורר ")+u+" — "+UNIT_ST[I.st]+(I.mode==="man"?" · ידני":"")+(k?" · "+k+" פתוחים":"")); b.title=b.getAttribute("aria-label");
@@ -1254,6 +1258,7 @@ function renderUnits(){
   const most=Math.max(1,...rows.map(r=>r.length)), need=most*108+124;
   requestAnimationFrame(()=>{ const w=bw.clientWidth; const z=w && w<need ? w/need : 1; outer.style.width = z<1 ? need+"px" : ""; outer.style.zoom = z<1 ? String(z) : ""; });
 }
+setInterval(()=>{ const c=document.querySelector("#dUnits .sc-clock"); if(c && !document.hidden) c.textContent=new Date().toLocaleTimeString("he-IL",{hour12:false}); },1000);
 let unitsRT=null; addEventListener("resize",()=>{ clearTimeout(unitsRT); unitsRT=setTimeout(()=>{ if(!$("#viewDash").hidden) renderUnits(); },200); });
 function paintUnitsCfg(){ const c=$("#unitsCfg"); if(!c) return; c.hidden=!isManager();
   if(document.activeElement!==$("#unitsTxt")) $("#unitsTxt").value=lists._units||"";
@@ -2243,7 +2248,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.62", APP_DATE="01/11/2026";
+const APP_VER="3.63", APP_DATE="01/11/2026";
 $("#verChip").textContent = BETA && LITE_MQ.matches ? "בטא "+APP_VER : "v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
