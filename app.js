@@ -102,6 +102,7 @@ function load(){
   lists._core_ppl = Array.isArray(saved._core_ppl) ? saved._core_ppl : [];   // ⭐ core staff: always first, own colour
   lists._roles_ppl = saved._roles_ppl && typeof saved._roles_ppl==="object" ? saved._roles_ppl : {};   // person → role
   lists._dept_ppl = saved._dept_ppl && typeof saved._dept_ppl==="object" ? saved._dept_ppl : {};      // person → department
+  lists._units = typeof saved._units==="string" ? saved._units : "";                                    // the units board: "group: units" per line
 }
 /* serial numbers: every event and every task keeps a permanent number — #1 is the oldest
    (events by their date, tasks by when they were opened); a new one gets the next number.
@@ -129,7 +130,7 @@ function persist(){
   ensureNos();
   saveBig(LS, JSON.stringify(events)).then(ok=>{ if(!ok) toast("הדפדפן חסם שמירה מקומית"); });
   try{
-    const out={}; Object.keys(SEED).forEach(k=>{ out[k]=lists["_custom_"+k]; out["_hide_"+k]=lists["_hide_"+k]; }); out._core_ppl=lists._core_ppl||[]; out._roles_ppl=lists._roles_ppl||{}; out._dept_ppl=lists._dept_ppl||{};
+    const out={}; Object.keys(SEED).forEach(k=>{ out[k]=lists["_custom_"+k]; out["_hide_"+k]=lists["_hide_"+k]; }); out._core_ppl=lists._core_ppl||[]; out._roles_ppl=lists._roles_ppl||{}; out._dept_ppl=lists._dept_ppl||{}; out._units=lists._units||"";
     localStorage.setItem(LSL, JSON.stringify(out));
   }catch(e){ toast("הדפדפן חסם שמירה מקומית"); }
   // a linked file that is waiting for the browser's permission: ask now (we are inside a click)
@@ -914,7 +915,7 @@ function renderStats(){
   });
   $("#cnt").textContent = events.length? "("+open+"/"+events.length+")":"";   // open out of all, like the tasks tab
 }
-function renderAll(){ paintRows(); renderFilters(); renderList(); renderStats(); renderMgr(); if(!$("#viewDash").hidden) renderDash(); if(!$("#viewCal").hidden) renderCal(); updateBadge(); paintNewCount(); }
+function renderAll(){ if(typeof paintUnitsCfg==="function") paintUnitsCfg(); paintRows(); renderFilters(); renderList(); renderStats(); renderMgr(); if(!$("#viewDash").hidden) renderDash(); if(!$("#viewCal").hidden) renderCal(); updateBadge(); paintNewCount(); }
 $("#q").oninput=renderList; $("#fType").onchange=renderList; $("#fLoc").onchange=renderList;
 
 /* ================= dashboard ================= */
@@ -1139,7 +1140,72 @@ function dashTasks(cards, from){
       .concat(PRIOS.map(p=>["עדיפות "+p, open.filter(t=>prioOf(t)===p).length])), ["מדד","משימות"]);
   c.classList.add("wide"); cards.appendChild(c);
 }
-function renderDash(){ renderDash0(); arrangeDash(); paintTicker(); paintBoard(); paintBriefCard(); renderLitePie(); }
+function renderDash(){ renderDash0(); arrangeDash(); paintTicker(); paintBoard(); paintBriefCard(); renderUnits(); renderLitePie(); }
+/* ===== units board (dashboard): groups of units (e.g. a basin and its motors), set in settings → ניהול רשימות (the names are the
+   team's data, never in the code). A unit's state comes from what is open on it — its name in a task's or an event's equipment
+   or title: an open "אחזקות שבר" task or an open fault event → not working; anything else open → another problem; nothing → working.
+   Closing the task brings the unit back by itself. */
+function unitsParse(txt){
+  const out=[];
+  String(txt||"").split(/\n+/).forEach(line=>{ const m=line.match(/^\s*([^:]+?)\s*:\s*(.+)$/); if(!m) return;
+    const units=[];
+    m[2].split(/[,\s]+/).filter(Boolean).forEach(p=>{
+      const r=p.match(/^(.*?)(\d+)-(?:\1)?(\d+)$/);                       // P101-P110 or P101-110
+      if(r && +r[3]>=+r[2] && +r[3]-+r[2]<200){ for(let n=+r[2]; n<=+r[3]; n++) units.push(r[1]+String(n).padStart(r[2].length,"0")); }
+      else units.push(p); });
+    if(units.length) out.push({g:m[1], units:[...new Set(units)]}); });
+  return out;
+}
+const unitRe=id=>new RegExp("(^|[^A-Za-z0-9])"+id.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"(?![A-Za-z0-9])","i");
+function unitInfo(id){
+  const re=unitRe(id), on=x=>(x.eq||[]).some(v=>re.test(v)) || re.test(x.title||"");
+  const tk=tasks.filter(t=>tkOpen(t) && on(t)), ev=events.filter(e=>isOpen(e) && on(e));
+  const down=tk.some(t=>/אחזקות שבר/.test(t.type||"")) || ev.some(e=>(e.type||[]).some(x=>/תקלה/.test(x)));
+  return {id, tk, ev, st: down ? "down" : tk.length||ev.length ? "issue" : "ok"};
+}
+const UNIT_ST={ok:"בעבודה", down:"לא בעבודה", issue:"בעיה אחרת"};
+let unitSel=null;
+function renderUnits(){
+  const box=$("#dUnits"); if(!box) return; const G=unitsParse(lists._units); box.hidden=!G.length; box.textContent=""; if(!G.length) return;
+  let cur=""; try{ cur=localStorage.getItem("ogg-units-g")||""; }catch(e){} const g=G.find(x=>x.g===cur)||G[0];
+  const info={}; G.forEach(x=>x.units.forEach(u=>{ if(!info[u]) info[u]=unitInfo(u); }));
+  const head=mk("div","un-head"); head.appendChild(mk("h3",null,"מצב יחידות"));
+  const seg=mk("div","seg un-seg"); seg.setAttribute("role","group"); seg.setAttribute("aria-label","קבוצה");
+  G.forEach(x=>{ const ok=x.units.filter(u=>info[u].st!=="down").length, bad=x.units.some(u=>info[u].st==="down");
+    const b=mk("button",bad?"has-down":null); b.type="button"; b.setAttribute("aria-pressed",String(x===g));
+    b.append(x.g+" ", mk("b",null,ok+"/"+x.units.length)); b.title=ok+" מתוך "+x.units.length+" בעבודה";
+    b.onclick=()=>{ try{ localStorage.setItem("ogg-units-g",x.g); }catch(e){} unitSel=null; renderUnits(); }; seg.appendChild(b); });
+  head.appendChild(seg); box.appendChild(head);
+  const n={ok:0,down:0,issue:0}; g.units.forEach(u=>n[info[u].st]++);
+  const cnt=mk("div","un-cnt"); [["ok","בעבודה"],["down","לא בעבודה"],["issue","בעיה אחרת"]].forEach(([k,l])=>{ const c=mk("div","un-c un-"+k); c.append(mk("b",null,String(n[k])), mk("span",null,l)); cnt.appendChild(c); });
+  box.appendChild(cnt);
+  const grid=mk("div","un-grid");
+  g.units.forEach(u=>{ const I=info[u], b=mk("button","un-u un-"+I.st+(unitSel===u?" on":"")); b.type="button";
+    b.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="currentColor" opacity=".18"/><path fill="currentColor" d="M12 10.2a1.8 1.8 0 1 1 0 3.6 1.8 1.8 0 0 1 0-3.6zm.6-7.1c2.6.4 3.3 3.3 1.6 5.6l-.9-.4c-.4-.2-.9-.2-1.3-.1L11 4.3c-.2-.7.4-1.3 1.1-1.2h.5zm7.3 9.5c-.4 2.6-3.3 3.3-5.6 1.6l.4-.9c.2-.4.2-.9.1-1.3l3.9-1c.7-.2 1.3.4 1.2 1.1v.5zm-8.5 8.3c-2.6-.4-3.3-3.3-1.6-5.6l.9.4c.4.2.9.2 1.3.1l1 3.9c.2.7-.4 1.3-1.1 1.2h-.5zM4.1 11.4c.4-2.6 3.3-3.3 5.6-1.6l-.4.9c-.2.4-.2.9-.1 1.3l-3.9 1c-.7.2-1.3-.4-1.2-1.1v-.5z"/></svg>';
+    b.appendChild(mk("span","un-id",u)); const k=I.tk.length+I.ev.length; if(k) b.appendChild(mk("i","un-n",String(k)));
+    b.title=u+" — "+UNIT_ST[I.st]+(k?" · "+k+" פתוחים":""); b.setAttribute("aria-label",b.title); b.setAttribute("aria-pressed",String(unitSel===u));
+    b.onclick=()=>{ unitSel = unitSel===u ? null : u; renderUnits(); }; grid.appendChild(b); });
+  box.appendChild(grid);
+  if(unitSel && g.units.includes(unitSel)){ const I=info[unitSel], d=mk("div","un-det");
+    d.appendChild(mk("div","un-dt",unitSel+" · "+UNIT_ST[I.st]));
+    I.tk.forEach(t=>{ const r=mk("button","un-it"); r.type="button"; r.append(mk("span","sn",snOf(t)||"משימה"), mk("span",null,t.title||""), mk("span","un-ty",(t.type||"")+" · "+tkStat(t)));
+      r.onclick=()=>goTask(t.id); d.appendChild(r); });
+    I.ev.forEach(e=>{ const r=mk("button","un-it"); r.type="button"; r.append(mk("span","sn",snOf(e)||"אירוע"), mk("span",null,e.title||e.desc||""), mk("span","un-ty",(e.type||[]).join(" · ")||"אירוע"));
+      r.onclick=()=>{ show("List"); const a=document.querySelector('#viewList .ev[data-id="'+e.id+'"]');   // the event in the list
+        if(a){ a.classList.add("flash"); setTimeout(()=>a.classList.remove("flash"),2200); requestAnimationFrame(()=>a.scrollIntoView({block:"center"})); } }; d.appendChild(r); });
+    if(!I.tk.length && !I.ev.length) d.appendChild(mk("p","hint","אין משימות או אירועים פתוחים על היחידה."));
+    const nb=mk("button","btn mini","＋ משימה על "+unitSel); nb.type="button"; const uid=unitSel;
+    nb.onclick=()=>{ goTasks({}); openTaskForm(null); fillSelect($("#tkEq"), [...new Set(byUse("eq").concat(uid))], uid, "— בחר ציוד —", true);
+      $("#tkType").value="אחזקות שבר"; $("#tkType").dispatchEvent(new Event("change")); paintFormColors(); };
+    d.appendChild(nb); box.appendChild(d); }
+}
+function paintUnitsCfg(){ const c=$("#unitsCfg"); if(!c) return; c.hidden=!isManager();
+  if(document.activeElement!==$("#unitsTxt")) $("#unitsTxt").value=lists._units||"";
+  const G=unitsParse($("#unitsTxt").value); $("#unitsInfo").textContent = G.length ? G.map(x=>x.g+": "+x.units.length).join(" · ") : ""; }
+if($("#unitsSave")){ $("#unitsTxt").oninput=()=>{ const G=unitsParse($("#unitsTxt").value); $("#unitsInfo").textContent=G.map(x=>x.g+": "+x.units.length).join(" · "); };
+  $("#unitsSave").onclick=()=>{ if(!isManager()){ toast("רק מנהל יכול לשנות"); return; }
+    lists._units=$("#unitsTxt").value.trim(); persist(); renderAll(); paintUnitsCfg();
+    const G=unitsParse(lists._units); toast(G.length ? "נשמר — "+G.reduce((s,x)=>s+x.units.length,0)+" יחידות ב-"+G.length+" קבוצות" : "לוח היחידות הוסר מהדשבורד"); }; }
 /* phone dashboard: one pie, switched between views (kept on this device); a slice opens the tasks list filtered */
 const LP_VIEWS=[["type","קטגוריה"],["prio","עדיפות"],["dept","מחלקה"],["stat","סטטוס"],["ppl","אחראי"],["ev","אירועים לפי סוג"]];
 const LP_COL=["maint","flood","visit","power","fault","gen"];
@@ -2121,7 +2187,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.57", APP_DATE="01/11/2026";
+const APP_VER="3.58", APP_DATE="01/11/2026";
 $("#verChip").textContent = BETA && LITE_MQ.matches ? "בטא "+APP_VER : "v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
