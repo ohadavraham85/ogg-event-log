@@ -2121,7 +2121,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.56", APP_DATE="01/11/2026";
+const APP_VER="3.57", APP_DATE="01/11/2026";
 $("#verChip").textContent = BETA && LITE_MQ.matches ? "בטא "+APP_VER : "v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2581,7 +2581,7 @@ window.addEventListener("resize",()=>{ const d=$("#dlgInbox"); if(!d.open) retur
   const dock=!isLite() && innerWidth>=1100; if(dock===d.classList.contains("dock")) return;
   d._switch=true; d.close(); openInbox(); });
 document.addEventListener("keydown",e=>{ const d=$("#dlgInbox"); if(e.key==="Escape" && d.open && d.classList.contains("dock") && !document.querySelector("dialog[open]:not(#dlgInbox)")) d.close(); });
-$("#dlgInbox").addEventListener("close",()=>{ if($("#dlgInbox")._switch){ $("#dlgInbox")._switch=false; return; } document.documentElement.classList.remove("inb-dock"); const a=inboxGet(); if(a.some(x=>!x.read)){ a.forEach(x=>x.read=true); inboxPut(a); } });
+$("#dlgInbox").addEventListener("close",()=>{ if($("#dlgInbox")._switch){ $("#dlgInbox")._switch=false; return; } document.documentElement.classList.remove("inb-dock"); $("#dlgInbox").classList.remove("dock"); const a=inboxGet(); if(a.some(x=>!x.read)){ a.forEach(x=>x.read=true); inboxPut(a); } });
 $("#dlgWeek").addEventListener("close",()=>setTimeout(inboxCheck,300));
 document.addEventListener("visibilitychange",()=>{ if(!document.hidden){ inboxOpenUntil=Date.now()+20000; setTimeout(inboxCheck,1200); } });
 window.inboxAdd=inboxAdd; window.inboxCheck=inboxCheck; window.paintInbox=paintInbox;
