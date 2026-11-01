@@ -1166,7 +1166,17 @@ function unitInfo(id){
 const UNIT_ST={ok:"בעבודה", down:"לא בעבודה", issue:"בעיה אחרת"};
 let unitSel=null;
 function renderUnits(){
-  const box=$("#dUnits"); if(!box) return; const G=unitsParse(lists._units); box.hidden=!G.length; box.textContent=""; if(!G.length) return;
+  const box=$("#dUnits"); if(!box) return; const G=unitsParse(lists._units); box.textContent="";
+  if(!G.length){ box.hidden=!isManager() || isViewer();           // not set up yet: a manager sees how to set it up
+    if(box.hidden) return; box.appendChild(mk("div","un-head")).appendChild(mk("h3",null,"מצב יחידות"));
+    box.appendChild(mk("p","hint", isLite() ? "עוד לא הוגדרו יחידות. ההגדרה — מהמחשב: הגדרות ← ניהול רשימות ← לוח יחידות בדשבורד."
+      : "עוד לא הוגדרו יחידות. כותבים פעם אחת את הקבוצות והיחידות (למשל בריכה והמנועים בה), ומצב כל יחידה יוצג כאן לפי המשימות והאירועים הפתוחים עליה."));
+    if(!isLite()){ const b=mk("button","btn primary","הגדר יחידות"); b.type="button";
+      b.onclick=()=>{ sgCur="lists"; try{ localStorage.setItem("ogg-settings-topic","lists"); }catch(e){} show("Data"); paintSettings();
+        const c=$("#unitsCfg"); if(c){ c.scrollIntoView({block:"center"}); $("#unitsTxt").focus(); } };
+      box.appendChild(b); }
+    return; }
+  box.hidden=false;
   let cur=""; try{ cur=localStorage.getItem("ogg-units-g")||""; }catch(e){} const g=G.find(x=>x.g===cur)||G[0];
   const info={}; G.forEach(x=>x.units.forEach(u=>{ if(!info[u]) info[u]=unitInfo(u); }));
   const head=mk("div","un-head"); head.appendChild(mk("h3",null,"מצב יחידות"));
@@ -2187,7 +2197,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.58", APP_DATE="01/11/2026";
+const APP_VER="3.59", APP_DATE="01/11/2026";
 $("#verChip").textContent = BETA && LITE_MQ.matches ? "בטא "+APP_VER : "v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
