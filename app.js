@@ -103,6 +103,7 @@ function load(){
   lists._roles_ppl = saved._roles_ppl && typeof saved._roles_ppl==="object" ? saved._roles_ppl : {};   // person → role
   lists._dept_ppl = saved._dept_ppl && typeof saved._dept_ppl==="object" ? saved._dept_ppl : {};      // person → department
   lists._units = typeof saved._units==="string" ? saved._units : "";                                    // the units board: "group: units" per line
+  lists._umode = saved._umode && typeof saved._umode==="object" ? saved._umode : {};                     // unit → {m:"man"|"stop", by, at} set by hand
 }
 /* serial numbers: every event and every task keeps a permanent number — #1 is the oldest
    (events by their date, tasks by when they were opened); a new one gets the next number.
@@ -130,7 +131,7 @@ function persist(){
   ensureNos();
   saveBig(LS, JSON.stringify(events)).then(ok=>{ if(!ok) toast("הדפדפן חסם שמירה מקומית"); });
   try{
-    const out={}; Object.keys(SEED).forEach(k=>{ out[k]=lists["_custom_"+k]; out["_hide_"+k]=lists["_hide_"+k]; }); out._core_ppl=lists._core_ppl||[]; out._roles_ppl=lists._roles_ppl||{}; out._dept_ppl=lists._dept_ppl||{}; out._units=lists._units||"";
+    const out={}; Object.keys(SEED).forEach(k=>{ out[k]=lists["_custom_"+k]; out["_hide_"+k]=lists["_hide_"+k]; }); out._core_ppl=lists._core_ppl||[]; out._roles_ppl=lists._roles_ppl||{}; out._dept_ppl=lists._dept_ppl||{}; out._units=lists._units||""; out._umode=lists._umode||{};
     localStorage.setItem(LSL, JSON.stringify(out));
   }catch(e){ toast("הדפדפן חסם שמירה מקומית"); }
   // a linked file that is waiting for the browser's permission: ask now (we are inside a click)
@@ -1168,9 +1169,15 @@ function unitInfo(id){
   const re=unitRe(id), on=x=>(x.eq||[]).some(v=>re.test(v)) || re.test(x.title||"");
   const tk=tasks.filter(t=>tkOpen(t) && on(t)), ev=events.filter(e=>isOpen(e) && on(e));
   const down=tk.some(t=>/אחזקות שבר/.test(t.type||"")) || ev.some(e=>(e.type||[]).some(x=>/תקלה/.test(x)));
-  return {id, tk, ev, st: down ? "down" : tk.length||ev.length ? "issue" : "ok"};
+  const m=unitMode(id);
+  return {id, tk, ev, mode:m, st: down ? "down" : m==="stop" ? "stop" : tk.length||ev.length ? "issue" : "ok"};
 }
-const UNIT_ST={ok:"בעבודה", down:"לא בעבודה", issue:"בעיה אחרת"};
+const UNIT_ST={ok:"בעבודה", down:"לא בעבודה", issue:"בעיה אחרת", stop:"מושבת", man:"עובד בידני"};
+// set by hand on the unit (the team sees it): עובד בידני / מושבת; "אוטומטי" clears it. A fault from an open task still wins.
+const unitMode=u=>((lists._umode||{})[u]||{}).m || "auto";
+function unitSetMode(u, m){ if(isViewer()) return; lists._umode=Object.assign({}, lists._umode||{});
+  if(m==="auto") delete lists._umode[u]; else lists._umode[u]={m, by:reporter()||myName()||"", at:nowLocal()};
+  persist(); renderUnits(); toast(u+" — "+(m==="auto"?"אוטומטי":UNIT_ST[m])); }
 let unitSel=null;
 function renderUnits(){
   const box=$("#dUnits"); if(!box) return; const G=unitsParse(lists._units); box.textContent=""; box.classList.toggle("scada", !!G.length);
@@ -1197,23 +1204,29 @@ function renderUnits(){
   let rows=g.rows.length===1 && g.rows[0].length>7 ? g.rows[0].reduce((a,u,i)=>{ if(i%5===0) a.push([]); a[a.length-1].push(u); return a; },[]) : g.rows;
   const bw=mk("div","sc-bw"), outer=mk("div","sc-outer"), rim=mk("div","sc-rim"), pool=mk("div","sc-pool");
   rows.forEach(r=>{ const row=mk("div","sc-row"+(r.length?"":" gap"));
-    r.forEach(u=>{ const I=info[u], asp=g.kind[u]==="asp", k=I.tk.length+I.ev.length, b=mk("button","sc-u st-"+I.st+(unitSel===u?" on":"")); b.type="button";
+    r.forEach(u=>{ const I=info[u], asp=g.kind[u]==="asp", k=I.tk.length+I.ev.length, b=mk("button","sc-u st-"+I.st+(I.mode==="man" && I.st!=="down" && I.st!=="stop"?" man":"")+(unitSel===u?" on":"")); b.type="button";
       b.innerHTML = asp
         ? '<div class="sc-asp" aria-hidden="true"><i class="fl"></i><div class="am"><i class="mo"></i><i class="sh"></i><i class="stem"></i></div><i class="fl"></i></div>'
         : '<div class="sc-aer"><div class="mo" aria-hidden="true"><i></i></div><div class="disc"><span aria-hidden="true">VFD</span>'+(I.st==="down"?WARN:"")+'</div><i class="sh" aria-hidden="true"></i></div>';
-      b.appendChild(mk("span","sc-plate",u)); if(k) b.appendChild(mk("i","sc-n",String(k)));
-      b.setAttribute("aria-label",(asp?"אספירטור ":"מאוורר ")+u+" — "+UNIT_ST[I.st]+(k?" · "+k+" פתוחים":"")); b.title=b.getAttribute("aria-label");
+      b.appendChild(mk("span","sc-plate",(asp?"אספירטור ":"מאוורר שטח ")+u)); if(k) b.appendChild(mk("i","sc-n",String(k)));
+      if(I.mode==="man" && I.st!=="down" && I.st!=="stop") b.appendChild(mk("i","sc-man","ידני"));
+      b.setAttribute("aria-label",(asp?"אספירטור ":"מאוורר ")+u+" — "+UNIT_ST[I.st]+(I.mode==="man"?" · ידני":"")+(k?" · "+k+" פתוחים":"")); b.title=b.getAttribute("aria-label");
       b.setAttribute("aria-pressed",String(unitSel===u)); b.onclick=()=>pick(g,u); row.appendChild(b); });
     pool.appendChild(row); });
   rim.appendChild(pool); outer.appendChild(rim); bw.append(outer, mk("div","sc-title",g.g));
   // the side panel: counts, the picked unit, legend, faults in all groups
   const side=mk("aside","sc-side");
-  const n={ok:0,down:0,issue:0}; g.units.forEach(u=>n[info[u].st]++);
+  const n={ok:0,down:0,issue:0,stop:0,man:0}; g.units.forEach(u=>{ const I=info[u]; n[I.st]++; if(I.mode==="man" && I.st!=="down" && I.st!=="stop") n.man++; });
+  n.ok+=n.issue;                                                      // "בעבודה" counts every unit that runs (a problem or by hand too)
   const s1=mk("section","sc-sec"); s1.appendChild(mk("h4",null,"סטטוס — "+g.g)); const cn=mk("div","sc-cnt");
-  [["ok","בעבודה"],["down","לא בעבודה"],["issue","בעיה אחרת"]].forEach(([k,l])=>{ const c=mk("div","sc-c "+k); c.append(mk("span",null,l), mk("b",null,String(n[k]))); cn.appendChild(c); });
+  [["ok","בעבודה"],["man","מתוכם ידני"],["down","לא בעבודה"],["stop","מושבת"],["issue","בעיה אחרת"]].forEach(([k,l])=>{ const c=mk("div","sc-c "+k); c.append(mk("span",null,l), mk("b",null,String(n[k]))); cn.appendChild(c); });
   s1.appendChild(cn); side.appendChild(s1);
   if(unitSel && g.units.includes(unitSel)){ const I=info[unitSel], d=mk("section","sc-sec sc-sel");
-    const h=mk("div","sc-selh"); h.append(mk("h4",null,(g.kind[unitSel]==="asp"?"אספירטור ":"מאוורר ")+unitSel), mk("span","sc-pill "+I.st,UNIT_ST[I.st])); d.appendChild(h);
+    const h=mk("div","sc-selh"); h.append(mk("h4",null,(g.kind[unitSel]==="asp"?"אספירטור ":"מאוורר ")+unitSel), mk("span","sc-pill "+I.st,UNIT_ST[I.st]+(I.mode==="man" && I.st!=="stop"?" · ידני":""))); d.appendChild(h);
+    const M=(lists._umode||{})[unitSel], ms=mk("div","sc-mode"); ms.setAttribute("role","group"); ms.setAttribute("aria-label","מצב הפעלה");
+    [["auto","אוטומטי"],["man","עובד בידני"],["stop","מושבת"]].forEach(([k,l])=>{ const b=mk("button","m-"+k,l); b.type="button"; b.setAttribute("aria-pressed",String(I.mode===k));
+      b.disabled=isViewer(); const uu=unitSel; b.onclick=()=>{ if(I.mode!==k) unitSetMode(uu,k); }; ms.appendChild(b); });
+    d.appendChild(ms); if(M && M.by) d.appendChild(mk("p","sc-none",UNIT_ST[M.m]+" · "+M.by+(M.at?" · "+fmtWhen(M.at):"")));
     I.tk.forEach(t=>{ const r=mk("button","un-it"); r.type="button"; r.append(mk("span","sn",snOf(t)||"משימה"), mk("span",null,t.title||""), mk("span","un-ty",(t.type||"")+" · "+tkStat(t)));
       r.onclick=()=>goTask(t.id); d.appendChild(r); });
     I.ev.forEach(e=>{ const r=mk("button","un-it"); r.type="button"; r.append(mk("span","sn",snOf(e)||"אירוע"), mk("span",null,e.title||e.desc||""), mk("span","un-ty",(e.type||[]).join(" · ")||"אירוע"));
@@ -1224,7 +1237,7 @@ function renderUnits(){
     nb.onclick=()=>{ goTasks({}); openTaskForm(null); fillSelect($("#tkEq"), [...new Set(byUse("eq").concat(uid))], uid, "— בחר ציוד —", true);
       $("#tkType").value="אחזקות שבר"; $("#tkType").dispatchEvent(new Event("change")); paintFormColors(); };
     d.appendChild(nb); side.appendChild(d); }
-  const lg=mk("section","sc-sec sc-leg"); [["ok","בעבודה"],["down","לא בעבודה"],["issue","בעיה אחרת"]].forEach(([k,l])=>{ const x=mk("span"); x.append(mk("i",k), l); lg.appendChild(x); }); side.appendChild(lg);
+  const lg=mk("section","sc-sec sc-leg"); [["ok","בעבודה"],["man","ידני"],["down","לא בעבודה"],["stop","מושבת"],["issue","בעיה אחרת"]].forEach(([k,l])=>{ const x=mk("span"); x.append(mk("i",k), l); lg.appendChild(x); }); side.appendChild(lg);
   const al=mk("section","sc-sec sc-alarms"); al.appendChild(mk("h4",null,"תקלות פעילות — כל הקבוצות"));
   downAll.forEach(({u,g:x})=>{ const I=info[u], t=I.tk[0]||I.ev[0], r=mk("button","sc-al"); r.type="button"; r.innerHTML=TRI;
     r.append(mk("span",null,u+(t?" — "+(t.title||t.desc||""):"")), mk("small",null,x.g)); r.onclick=()=>{ unitSel=null; pick(x,u); }; al.appendChild(r); });
@@ -1233,7 +1246,7 @@ function renderUnits(){
   const body=mk("div","sc-body"); body.append(bw, side);
   // the groups as tabs at the bottom
   const tabs=mk("nav","sc-tabs"); tabs.setAttribute("aria-label","קבוצות");
-  G.forEach(x=>{ const ok=x.units.filter(u=>info[u].st!=="down").length, f=x.units.filter(u=>info[u].st==="down").length, b=mk("button"); b.type="button";
+  G.forEach(x=>{ const ok=x.units.filter(u=>info[u].st!=="down" && info[u].st!=="stop").length, f=x.units.filter(u=>info[u].st==="down").length, b=mk("button"); b.type="button";
     b.setAttribute("aria-current", x===g ? "page" : "false"); b.append(mk("span",null,x.g), mk("small",null,ok+"/"+x.units.length)); if(f) b.appendChild(mk("b",null,String(f)));
     b.onclick=()=>{ try{ localStorage.setItem("ogg-units-g",x.g); }catch(e){} unitSel=null; renderUnits(); }; tabs.appendChild(b); });
   box.append(bar, body, tabs);
@@ -2230,7 +2243,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.61", APP_DATE="01/11/2026";
+const APP_VER="3.62", APP_DATE="01/11/2026";
 $("#verChip").textContent = BETA && LITE_MQ.matches ? "בטא "+APP_VER : "v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){

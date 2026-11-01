@@ -2520,7 +2520,7 @@ html.inb-dock .fb-btn{left:416px}
   background:repeating-linear-gradient(135deg,rgba(255,255,255,.10) 0 3px,transparent 3px 9px),linear-gradient(180deg,#a3a9c6,#8a90b0);
   box-shadow:inset 0 0 0 2px #7a80a2,0 6px 16px rgba(30,30,60,.25)}
 .scada .sc-rim{padding:10px;border-radius:26px;background:linear-gradient(180deg,#e3e5f3,#c3c7df);box-shadow:inset 0 2px 0 #fff,inset 0 -2px 0 #9ea4c4}
-.scada .sc-pool{border-radius:18px;padding:16px 26px;display:flex;flex-direction:column;justify-content:space-between;gap:6px;min-height:360px;box-sizing:border-box;
+.scada .sc-pool{border-radius:18px;padding:16px 26px;display:flex;flex-direction:column;justify-content:space-between;gap:6px;min-height:440px;box-sizing:border-box;
   background:radial-gradient(circle at 20% 30%,rgba(255,240,215,.28) 0 2px,transparent 3px) 0 0/22px 18px,radial-gradient(circle at 70% 60%,rgba(90,55,25,.22) 0 3px,transparent 4px) 0 0/31px 27px,radial-gradient(ellipse at 50% 50%,#c39b6c 0%,#a97f52 70%,#94693f 100%);
   box-shadow:inset 0 0 30px rgba(60,35,10,.45)}
 .scada .sc-row{display:flex;justify-content:space-around;align-items:flex-end;gap:4px;min-height:100px}
@@ -2544,7 +2544,7 @@ html.inb-dock .fb-btn{left:416px}
 .scada .sc-asp .mo{width:28px;height:36px;border-radius:6px 6px 2px 2px}
 .scada .sc-asp .sh{width:49px;height:4px;margin-top:3px;border-radius:3px;background:linear-gradient(180deg,#e7e9f2,#8f95ad)}
 .scada .sc-asp .stem{width:6px;height:11px;background:#7c8299}
-.scada .sc-plate{padding:1px 7px;background:#c3c8de;border:1px solid #7d84a6;border-radius:4px;font-size:12px;font-weight:600;color:#1c2140;white-space:nowrap;direction:ltr}
+.scada .sc-plate{padding:1px 6px;background:#c3c8de;border:1px solid #7d84a6;border-radius:4px;font-size:10.5px;font-weight:600;color:#1c2140;white-space:nowrap}
 .scada .sc-n{position:absolute;top:0;left:2px;min-width:18px;height:18px;padding:0 5px;box-sizing:border-box;border-radius:9px;background:#c62828;color:#fff;font-style:normal;font-size:11px;font-weight:700;line-height:18px;z-index:3}
 .scada .st-issue .sc-n{background:#b85f00}
 /* motor colours: working green, not working red, another problem orange */
@@ -2605,3 +2605,19 @@ html.inb-dock .fb-btn{left:416px}
   .scada .sc-tabs button{min-width:0;font-size:14px;gap:5px;padding:0 6px;height:auto;min-height:44px;line-height:1.15}
 }
 #unitsTxt{width:100%;box-sizing:border-box;font-family:ui-monospace,monospace;font-size:14px;margin:6px 0 8px}
+/* set by hand: מושבת (black motor) and עובד בידני (a yellow "ידני" tag on a running unit) */
+.scada .st-stop .mo{background:repeating-linear-gradient(180deg,rgba(255,255,255,.08) 0 2px,transparent 2px 6px),linear-gradient(90deg,#0b0d12 0%,#343945 30%,#6b7180 46%,#343945 62%,#0b0d12 100%)}
+.scada .st-stop .sc-aer .mo i{background:#22252e}
+.scada .st-stop .fl{background:radial-gradient(ellipse at 40% 35%,#c9ccd6 0%,#7c8195 55%,#3c4050 100%)}
+.scada .st-stop .sc-plate{background:#4a4f5e;border-color:#22252e;color:#fff}
+.scada .sc-man{position:absolute;top:0;right:4px;padding:0 5px;height:17px;line-height:17px;border-radius:4px;background:#ffd84a;color:#3a3410;border:1px solid #b89a10;font-style:normal;font-size:10.5px;font-weight:800;z-index:3}
+.scada .sc-c.man{border-top-color:#d4a90a} .scada .sc-c.man b{color:#8a6d00}
+.scada .sc-c.stop{border-top-color:#4a4f5e} .scada .sc-c.stop b{color:#3a3f4e}
+.scada .sc-pill.stop{background:#4a4f5e}
+.scada .sc-leg i.man{background:#ffd84a;border:1px solid #b89a10;box-sizing:border-box} .scada .sc-leg i.stop{background:#2b2f3a}
+.scada .sc-mode{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.scada .sc-mode button{min-height:40px;border-radius:6px;border:1px solid #8d94bd;background:#fff;color:#1c2140;font:inherit;font-size:13px;font-weight:700;cursor:pointer;padding:2px 4px}
+.scada .sc-mode button[aria-pressed="true"].m-auto{background:#17752f;border-color:#0f5222;color:#fff}
+.scada .sc-mode button[aria-pressed="true"].m-man{background:#ffd84a;border-color:#b89a10;color:#3a3410}
+.scada .sc-mode button[aria-pressed="true"].m-stop{background:#4a4f5e;border-color:#22252e;color:#fff}
+.scada .sc-mode button:disabled{opacity:.6;cursor:default}

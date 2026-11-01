@@ -520,7 +520,7 @@
         .catch(()=>{ try{ const n=new Notification(title,opt); n.onclick=()=>{ window.focus(); showNew(); n.close(); }; }catch(e){} });
     }
   }
-  function listsJSON(){ const o={}; Object.keys(SEED).forEach(k=>{ o[k]=lists["_custom_"+k]; o["_hide_"+k]=lists["_hide_"+k]; }); o._core_ppl=lists._core_ppl||[]; o._roles_ppl=lists._roles_ppl||{}; o._dept_ppl=lists._dept_ppl||{}; o._units=lists._units||""; return JSON.stringify(o); }
+  function listsJSON(){ const o={}; Object.keys(SEED).forEach(k=>{ o[k]=lists["_custom_"+k]; o["_hide_"+k]=lists["_hide_"+k]; }); o._core_ppl=lists._core_ppl||[]; o._roles_ppl=lists._roles_ppl||{}; o._dept_ppl=lists._dept_ppl||{}; o._units=lists._units||""; o._umode=lists._umode||{}; return JSON.stringify(o); }
   function rebuildLists(){
     Object.keys(SEED).forEach(k=>{
       const custom=lists["_custom_"+k]||[], hidden=lists["_hide_"+k]||[];
@@ -540,9 +540,10 @@
     lists._dept_ppl=o._dept_ppl && typeof o._dept_ppl==="object" ? o._dept_ppl : {};
     // the units board: an older version of the app (still open on someone's device) writes the lists without "_units" at all —
     // that is not a removal (removing writes ""), so keep ours and put it back in the cloud
-    const keepUnits = !("_units" in o) && !!lists._units;
-    if(!keepUnits) lists._units=typeof o._units==="string" ? o._units : "";
-    listsSynced=js; try{ localStorage.setItem(LSL, keepUnits ? JSON.stringify(Object.assign({}, o, {_units:lists._units})) : js); }catch(e){}
+    const keepU = !("_units" in o) && !!lists._units, keepM = !("_umode" in o) && Object.keys(lists._umode||{}).length>0, keepUnits = keepU || keepM;
+    if(!keepU) lists._units=typeof o._units==="string" ? o._units : "";
+    if(!keepM) lists._umode=o._umode && typeof o._umode==="object" ? o._umode : {};
+    listsSynced=js; try{ localStorage.setItem(LSL, keepUnits ? JSON.stringify(Object.assign({}, o, {_units:lists._units, _umode:lists._umode})) : js); }catch(e){}
     rebuildLists(); renderAll();
     if(keepUnits && get(K_ROLE)!=="viewer") setTimeout(cloudPush, 1500);
   }
