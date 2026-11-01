@@ -2492,15 +2492,14 @@ html.lite #viewTasks .tk:not(.x):not(.zz) > .tk-by.tk-by{display:block!important
 #psyncRow{margin-top:12px}
 /* messages on a computer: a panel along the left side, beside the app — not a window over it */
 #dlgInbox.dock{position:fixed;inset:0 auto 0 0;margin:0;width:400px;max-width:400px;height:100dvh;max-height:100dvh;z-index:50;
-  border:0;border-right:1px solid var(--edge);border-radius:0;box-shadow:4px 0 22px rgba(6,12,17,.14);display:flex;flex-direction:column;overflow:hidden}
+  border:0;border-right:1px solid var(--edge);border-radius:0;box-shadow:4px 0 22px rgba(6,12,17,.14);flex-direction:column;overflow:hidden}
+#dlgInbox.dock[open]{display:flex}   /* only while open: "display" on a closed dialog would keep it on the screen */
 #dlgInbox.dock .inb-list{flex:1 1 auto;overflow:auto;min-height:0;grid-auto-rows:max-content;align-content:start;margin-inline:-4px;padding-inline:4px}
 #dlgInbox.dock > .row{flex:none;padding-top:10px;border-top:1px solid var(--edge)}
 html.inb-dock body{padding-left:400px}
 #dlgInbox #inbTitle:focus{outline:none}
 html.inb-dock .fb-btn{left:416px}
 /* ✕ on the messages window (top left) */
-#dlgInbox{position:relative}
-#dlgInbox.dock{position:fixed}
 .inb-close{position:absolute;top:12px;left:12px;width:36px;height:36px;border-radius:50%;border:1px solid var(--edge);background:var(--panel-2);
   color:var(--ink-2);font:inherit;font-size:16px;line-height:1;cursor:pointer;display:grid;place-items:center;z-index:2}
 .inb-close:hover{color:var(--ink);border-color:var(--ink-2)}
