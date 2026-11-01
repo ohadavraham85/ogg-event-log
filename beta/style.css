@@ -2684,3 +2684,7 @@ button.sc-hr{cursor:pointer}
 .scada .sc-x{width:40px;height:40px;border-radius:8px;border:1px solid #8d94bd;background:#eef0fa;color:#1c2140;font:inherit;font-size:18px;cursor:pointer}
 @media (max-width:760px){ .units-dlg{width:100vw;max-height:100dvh;height:100dvh;border-radius:0} .un-open{font-size:16px} }
 @media (max-width:760px){ .units-dlg .units-card.scada{display:flex;flex-direction:column} .units-dlg .sc-bar{order:0} .units-dlg .sc-tabs{order:1;border-top:0;border-bottom:2px solid #9aa0c4} .units-dlg .sc-body{order:2} }
+/* the groups' tabs right under the title bar */
+.scada .sc-tabs{border-top:0;border-bottom:2px solid #9aa0c4}
+.units-name{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-weight:600;margin:8px 0 4px}
+.units-name input{flex:1;min-width:180px}

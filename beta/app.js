@@ -1229,7 +1229,7 @@ function renderUnits(){
   let cur=""; try{ cur=localStorage.getItem("ogg-units-g")||""; }catch(e){} const g=G.find(x=>x.g===cur)||G[0];
   const WARN='<svg class="sc-warn" viewBox="0 0 30 27" role="img" aria-label="תקלה"><path d="M15 2L28 25H2z" fill="#e53935" stroke="#fff" stroke-width="2" stroke-linejoin="round"/><path d="M15 10v7M15 20v1.5" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/></svg>';
   const TRI='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l10 18H2z"/><path d="M12 10v5"/><path d="M12 18v.5"/></svg>';
-  const downAll=[]; G.forEach(x=>x.units.forEach(u=>{ if(info[u].st==="down" && !downAll.some(d=>d.u===u)) downAll.push({u, g:x}); }));
+  const downAll=g.units.filter(u=>info[u].st==="down").map(u=>({u, g}));   // the faults of the group on screen (the tabs show the others')
   const pick=(x,u)=>{ try{ localStorage.setItem("ogg-units-g",x.g); }catch(e){} unitSel = unitSel===u && x===g ? null : u; renderUnits(); };
   // the screen's top bar
   const bar=mk("div","sc-bar"); bar.appendChild(mk("h3",null,unitsTitle()));
@@ -1289,9 +1289,9 @@ function renderUnits(){
       $("#tkType").value="אחזקות שבר"; $("#tkType").dispatchEvent(new Event("change")); paintFormColors(); };
     d.appendChild(nb); side.appendChild(d); }
   const lg=mk("section","sc-sec sc-leg"); [["ok","בעבודה"],["man","ידני"],["down","לא בעבודה"],["stop","מושבת"],["issue","בעיה אחרת"]].forEach(([k,l])=>{ const x=mk("span"); x.append(mk("i",k), l); lg.appendChild(x); }); side.appendChild(lg);
-  const al=mk("section","sc-sec sc-alarms"); al.appendChild(mk("h4",null,"תקלות פעילות — כל הקבוצות"));
+  const al=mk("section","sc-sec sc-alarms"); al.appendChild(mk("h4",null,"תקלות פעילות — "+g.g));
   downAll.forEach(({u,g:x})=>{ const I=info[u], t=I.tk[0]||I.ev[0], r=mk("button","sc-al"); r.type="button"; r.innerHTML=TRI;
-    r.append(mk("span",null,u+(t?" — "+(t.title||t.desc||""):"")), mk("small",null,x.g)); r.onclick=()=>{ unitSel=null; pick(x,u); }; al.appendChild(r); });
+    r.append(mk("span",null,u+(t?" — "+(t.title||t.desc||""):""))); r.onclick=()=>{ unitSel=null; pick(x,u); }; al.appendChild(r); });
   if(!downAll.length) al.appendChild(mk("p","sc-ok","אין תקלות פעילות"));
   side.appendChild(al);
   const body=mk("div","sc-body"); body.append(bw, side);
@@ -1300,18 +1300,20 @@ function renderUnits(){
   G.forEach(x=>{ const ok=x.units.filter(u=>info[u].st!=="down" && info[u].st!=="stop").length, f=x.units.filter(u=>info[u].st==="down").length, b=mk("button"); b.type="button";
     b.setAttribute("aria-current", x===g ? "page" : "false"); b.append(mk("span",null,x.g), mk("small",null,ok+"/"+x.units.length)); if(f) b.appendChild(mk("b",null,String(f)));
     b.onclick=()=>{ try{ localStorage.setItem("ogg-units-g",x.g); }catch(e){} unitSel=null; renderUnits(); }; tabs.appendChild(b); });
-  box.append(bar, body, tabs);
+  box.append(bar, tabs, body);                                    // the groups right under the title
   // a phone (or a narrow card): the basin shrinks to fit, the drawing stays the same
   const most=Math.max(1,...rows.map(r=>r.length)), need=most*108+124;
   requestAnimationFrame(()=>{ const w=bw.clientWidth; const z=w && w<need ? w/need : 1; outer.style.width = z<1 ? need+"px" : ""; outer.style.zoom = z<1 ? String(z) : ""; });
 }
 let unitsRT=null; addEventListener("resize",()=>{ clearTimeout(unitsRT); unitsRT=setTimeout(()=>{ if($("#dlgUnits") && $("#dlgUnits").open) renderUnits(); },200); });
 function paintUnitsCfg(){ const c=$("#unitsCfg"); if(!c) return; c.hidden=!isManager();
-  if(document.activeElement!==$("#unitsTxt")) $("#unitsTxt").value=lists._units||"";
+  if(document.activeElement!==$("#unitsTxt")) $("#unitsTxt").value=String(lists._units||"").split("\n").filter(l=>!/^\s*כותרת\s*:/.test(l)).join("\n");
+  if(document.activeElement!==$("#unitsName")){ const m=String(lists._units||"").match(/^\s*כותרת\s*:\s*(.+)$/m); $("#unitsName").value=m?m[1].trim():""; }
   const G=unitsParse($("#unitsTxt").value); $("#unitsInfo").textContent = G.length ? G.map(x=>x.g+": "+x.units.length).join(" · ") : ""; }
 if($("#unitsSave")){ $("#unitsTxt").oninput=()=>{ const G=unitsParse($("#unitsTxt").value); $("#unitsInfo").textContent=G.map(x=>x.g+": "+x.units.length).join(" · "); };
   $("#unitsSave").onclick=()=>{ if(!isManager()){ toast("רק מנהל יכול לשנות"); return; }
-    lists._units=$("#unitsTxt").value.trim(); persist(); renderAll(); paintUnitsCfg();
+    const nm=$("#unitsName").value.trim(), body=$("#unitsTxt").value.split("\n").filter(l=>!/^\s*כותרת\s*:/.test(l)).join("\n").trim();
+    lists._units=(nm && body ? "כותרת: "+nm+"\n" : "")+body; persist(); renderAll(); paintUnitsCfg();
     const G=unitsParse(lists._units); toast(G.length ? "נשמר — "+G.reduce((s,x)=>s+x.units.length,0)+" יחידות ב-"+G.length+" קבוצות" : "לוח היחידות הוסר מהדשבורד"); }; }
 /* phone dashboard: one pie, switched between views (kept on this device); a slice opens the tasks list filtered */
 const LP_VIEWS=[["type","קטגוריה"],["prio","עדיפות"],["dept","מחלקה"],["stat","סטטוס"],["ppl","אחראי"],["ev","אירועים לפי סוג"]];
@@ -1734,6 +1736,7 @@ let sgCur="lists"; try{ sgCur=localStorage.getItem("ogg-settings-topic")||"lists
    A regular member sees "צוות וחשבון" (own account) and "כללי"; lists management and files/backup are for admins. */
 function isManager(){ if(!CLOUD_ON) return true; try{ return localStorage.getItem("ogg-cloud-role")==="admin"; }catch(e){ return false; } }
 function paintSettings(){
+  if(typeof paintUnitsCfg==="function") paintUnitsCfg();          // the units board fields show what is saved
   const team=!!$("#cloudCard"), mgr=isManager();
   $("#sgNav [data-sg=team]").hidden=!team; $("#sgNav [data-sg=notif]").hidden=!team || isViewer();
   if(sgCur==="notif" && (!team || isViewer())) sgCur="general";
@@ -2294,7 +2297,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.66", APP_DATE="01/11/2026";
+const APP_VER="3.67", APP_DATE="01/11/2026";
 $("#verChip").textContent = BETA && LITE_MQ.matches ? "בטא "+APP_VER : "v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
