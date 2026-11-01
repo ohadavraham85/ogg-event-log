@@ -1179,11 +1179,23 @@ function unitInfo(id){
   const m=unitMode(id);
   return {id, tk, ev, mode:m, st: down ? "down" : m==="stop" ? "stop" : tk.length||ev.length ? "issue" : "ok"};
 }
-const UNIT_ST={ok:"בעבודה", down:"לא בעבודה", issue:"בעיה אחרת", stop:"מושבת", man:"עובד בידני"};
+const UNIT_ST={ok:"בעבודה", down:"לא בעבודה", issue:"בעיה אחרת", stop:"מושבת", man:"עובד בידני", auto:"אוטומטי"};
 // set by hand on the unit (the team sees it): עובד בידני / מושבת; "אוטומטי" clears it. A fault from an open task still wins.
 const unitMode=u=>((lists._umode||{})[u]||{}).m || "auto";
+// everything that ever happened on a unit: its tasks and events (open and closed) and the hand-set mode changes, newest first
+function unitHist(u){
+  const re=unitRe(u), on=x=>(x.eq||[]).some(v=>re.test(v)) || re.test(x.title||""), out=[];
+  tasks.filter(t=>!t.priv && on(t)).forEach(t=>out.push({at:String(t.created||t.start||""), k:"משימה", n:snOf(t), t:t.title||"", type:t.type||"",
+    st: tkOpen(t) ? tkStat(t) : "הושלמה"+(t.doneAt?" "+dmy(String(t.doneAt).slice(0,10)):""), open:tkOpen(t), go:()=>goTask(t.id)}));
+  events.filter(on).forEach(e=>out.push({at:String(e.when||""), k:"אירוע", n:snOf(e), t:e.title||e.desc||"", type:(e.type||[]).join(" · "),
+    st: isOpen(e) ? "פתוח" : "נסגר"+(e.closedAt?" "+dmy(String(e.closedAt).slice(0,10)):""), open:isOpen(e), go:()=>{ show("List");
+      const a=document.querySelector('#viewList .ev[data-id="'+e.id+'"]'); if(a){ a.classList.add("flash"); setTimeout(()=>a.classList.remove("flash"),2200); requestAnimationFrame(()=>a.scrollIntoView({block:"center"})); } }}));
+  const M=(lists._umode||{})[u]; if(M) (M.h||[]).concat(M.m?[M]:[]).forEach(x=>{ if(x && x.at) out.push({at:String(x.at), k:"מצב", n:"", t:UNIT_ST[x.m]||x.m, type:x.by||"", st:"", open:false}); });
+  return out.sort((a,b)=>b.at.localeCompare(a.at));
+}
 function unitSetMode(u, m){ if(isViewer()) return; lists._umode=Object.assign({}, lists._umode||{});
-  if(m==="auto") delete lists._umode[u]; else lists._umode[u]={m, by:reporter()||myName()||"", at:nowLocal()};
+  const was=lists._umode[u]||{}, h=(was.h||[]).concat(was.m ? [{m:was.m, by:was.by||"", at:was.at||""}] : []).slice(-30);   // the earlier ones: the unit's history
+  lists._umode[u]={m, by:reporter()||myName()||"", at:nowLocal(), h};
   persist(); renderUnits(); toast(u+" — "+(m==="auto"?"אוטומטי":UNIT_ST[m])); }
 let unitSel=null;
 function renderUnits(){
@@ -1217,7 +1229,7 @@ function renderUnits(){
     r.forEach(u=>{ const I=info[u], asp=g.kind[u]==="asp", k=I.tk.length+I.ev.length, b=mk("button","sc-u st-"+I.st+(I.mode==="man" && I.st!=="down" && I.st!=="stop"?" man":"")+(unitSel===u?" on":"")); b.type="button";
       b.innerHTML = asp
         ? '<div class="sc-asp" aria-hidden="true"><i class="fl"></i><div class="am"><i class="mo"></i><i class="sh"></i><i class="stem"></i></div><i class="fl"></i></div>'
-        : '<div class="sc-aer'+(g.kind[u]==="wht"?" wht":"")+'"><div class="mo" aria-hidden="true"><i></i></div><div class="disc"><span aria-hidden="true">VFD</span>'+(I.st==="down"?WARN:"")+'</div><i class="sh" aria-hidden="true"></i></div>';
+        : '<div class="sc-aer'+(g.kind[u]==="wht"?" wht":"")+'"><div class="mo" aria-hidden="true"><i></i></div><div class="disc"><span aria-hidden="true">'+(g.kind[u]==="wht"?"ST":"VFD")+'</span>'+(I.st==="down"?WARN:"")+'</div><i class="sh" aria-hidden="true"></i></div>';
       b.appendChild(mk("span","sc-plate",(asp?"אספירטור ":"מאוורר שטח ")+u)); if(k) b.appendChild(mk("i","sc-n",String(k)));
       if(I.mode==="man" && I.st!=="down" && I.st!=="stop") b.appendChild(mk("i","sc-man","ידני"));
       b.setAttribute("aria-label",(asp?"אספירטור ":"מאוורר ")+u+" — "+UNIT_ST[I.st]+(I.mode==="man"?" · ידני":"")+(k?" · "+k+" פתוחים":"")); b.title=b.getAttribute("aria-label");
@@ -1248,6 +1260,14 @@ function renderUnits(){
       r.onclick=()=>{ show("List"); const a=document.querySelector('#viewList .ev[data-id="'+e.id+'"]');   // the event in the list
         if(a){ a.classList.add("flash"); setTimeout(()=>a.classList.remove("flash"),2200); requestAnimationFrame(()=>a.scrollIntoView({block:"center"})); } }; d.appendChild(r); });
     if(!I.tk.length && !I.ev.length) d.appendChild(mk("p","sc-none","אין משימות או אירועים פתוחים על היחידה."));
+    // the unit's history
+    const H=unitHist(unitSel), hs=mk("div","sc-hist"); hs.appendChild(mk("h5",null,"היסטוריה"+(H.length?" ("+H.length+")":"")));
+    if(!H.length) hs.appendChild(mk("p","sc-none","עוד אין רישומים על היחידה."));
+    H.forEach(x=>{ const r=mk(x.go?"button":"div","sc-hr"+(x.open?" open":"")+(x.k==="מצב"?" mode":"")); if(x.go){ r.type="button"; r.onclick=x.go; }
+      r.append(mk("span","sc-hd",x.at ? (d=>d.slice(0,6)+d.slice(8))(dmy(x.at.slice(0,10))) : ""), mk("span","sc-hk",x.k+(x.n?" "+x.n:"")), mk("span","sc-ht",x.t),
+        mk("span","sc-hs",[x.type,x.st].filter(Boolean).join(" · ")));
+      hs.appendChild(r); });
+    d.appendChild(hs);
     const nb=mk("button","sc-new","＋ משימה על "+unitSel); nb.type="button"; const uid=unitSel;
     nb.onclick=()=>{ goTasks({}); openTaskForm(null); fillSelect($("#tkEq"), [...new Set(byUse("eq").concat(uid))], uid, "— בחר ציוד —", true);
       $("#tkType").value="אחזקות שבר"; $("#tkType").dispatchEvent(new Event("change")); paintFormColors(); };
@@ -2259,7 +2279,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.64", APP_DATE="01/11/2026";
+const APP_VER="3.65", APP_DATE="01/11/2026";
 $("#verChip").textContent = BETA && LITE_MQ.matches ? "בטא "+APP_VER : "v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
