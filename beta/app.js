@@ -1150,9 +1150,15 @@ function unitsParse(txt){
   // "name: units" per line; "|" starts a new row in the drawing (an empty one is a gap); a unit ending in "*" is an aspirator,
   // in "+" an aerator with a white disc (its row is spaced evenly)
   const out=[];
+  // after the units, "; כניסה: ימין למעלה (שם)" / "; יציאה: שמאל אמצע" draws a pipe in or out of the basin: a side
+  // (ימין / שמאל / למעלה / למטה) and where along it (למעלה / אמצע / למטה, or ימין / אמצע / שמאל), and an optional name
   String(txt||"").split(/\n+/).forEach(line=>{ const m=line.match(/^\s*([^:]+?)\s*:\s*(.+)$/); if(!m) return;
-    const rows=[], kind={};
-    m[2].split("|").forEach(seg=>{ const row=[];
+    const rows=[], kind={}, pipes=[], parts=m[2].split(";");
+    parts.slice(1).forEach(x=>{ const q=x.trim().match(/^(כניסה|יציאה)\s*:?\s*(.*)$/); if(!q) return;
+      const nm=(q[2].match(/\(([^)]*)\)/)||[])[1]||"", w=q[2].replace(/\([^)]*\)/,"").split(/\s+/).filter(Boolean);
+      const side={"ימין":"r","שמאל":"l","למעלה":"t","למטה":"b"}[w[0]]||(q[1]==="כניסה"?"r":"l");
+      const at={"למעלה":18,"ימין":82,"אמצע":50,"למטה":82,"שמאל":18}[w[1]]; pipes.push({dir:q[1]==="כניסה"?"in":"out", side, at:at===undefined?50:at, name:nm.trim()}); });
+    parts[0].split("|").forEach(seg=>{ const row=[];
       seg.split(/[,\s]+/).filter(Boolean).forEach(p=>{ const asp=/\*$/.test(p), wht=/\+$/.test(p); p=p.replace(/[*+]+$/,""); if(!p) return;
         const r=p.match(/^(.*?)(\d+)-(?:\1)?(\d+)$/), ids=[];                 // P101-P110 or P101-110
         if(r && +r[3]>=+r[2] && +r[3]-+r[2]<200){ for(let n=+r[2]; n<=+r[3]; n++) ids.push(r[1]+String(n).padStart(r[2].length,"0")); }
@@ -1160,7 +1166,7 @@ function unitsParse(txt){
         ids.forEach(u=>{ row.push(u); if(asp) kind[u]="asp"; else if(wht) kind[u]="wht"; }); });
       rows.push(row); });
     const units=[...new Set(rows.flat())];
-    if(units.length) out.push({g:m[1], rows, units, kind}); });
+    if(units.length) out.push({g:m[1], rows, units, kind, pipes}); });
   return out;
 }
 // "B105" also finds "B-105", "B 105", "b105"; not "B1050" or "AB105"
@@ -1217,7 +1223,12 @@ function renderUnits(){
       b.setAttribute("aria-label",(asp?"אספירטור ":"מאוורר ")+u+" — "+UNIT_ST[I.st]+(I.mode==="man"?" · ידני":"")+(k?" · "+k+" פתוחים":"")); b.title=b.getAttribute("aria-label");
       b.setAttribute("aria-pressed",String(unitSel===u)); b.onclick=()=>pick(g,u); row.appendChild(b); });
     pool.appendChild(row); });
-  rim.appendChild(pool); outer.appendChild(rim); bw.append(outer, mk("div","sc-title",g.g));
+  rim.appendChild(pool); outer.appendChild(rim);
+  (g.pipes||[]).forEach(pp=>{ const v=pp.side==="t"||pp.side==="b", e=mk("div","sc-pipe "+pp.dir+" s-"+pp.side);
+    e.style[v?"left":"top"]=pp.at+"%"; e.appendChild(mk("i","sc-flow"));
+    e.appendChild(mk("span","sc-ptag",(pp.dir==="in"?"כניסה":"יציאה")+(pp.name?" · "+pp.name:"")));
+    e.setAttribute("aria-label",(pp.dir==="in"?"צינור כניסה":"צינור יציאה")+(pp.name?" — "+pp.name:"")); e.setAttribute("role","img"); outer.appendChild(e); });
+  bw.append(outer, mk("div","sc-title",g.g));
   // the side panel: counts, the picked unit, legend, faults in all groups
   const side=mk("aside","sc-side");
   const n={ok:0,down:0,issue:0,stop:0,man:0}; g.units.forEach(u=>{ const I=info[u]; n[I.st]++; if(I.mode==="man" && I.st!=="down" && I.st!=="stop") n.man++; });
@@ -2248,7 +2259,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.63", APP_DATE="01/11/2026";
+const APP_VER="3.64", APP_DATE="01/11/2026";
 $("#verChip").textContent = BETA && LITE_MQ.matches ? "בטא "+APP_VER : "v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){

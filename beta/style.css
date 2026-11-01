@@ -2631,3 +2631,27 @@ html.inb-dock .fb-btn{left:416px}
 .scada .sc-rt{display:flex;align-items:center;gap:8px}
 .scada .sc-clock{padding:5px 10px;background:#1c2140;color:#8ff0a4;border-radius:4px;font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:15px;font-weight:600;letter-spacing:1px;direction:ltr}
 @media (max-width:760px){ .scada .sc-mid{display:none} .scada .sc-bar h3{flex:1} }
+/* pipes in and out of the basin: a steel pipe through the wall, the flow running along it (in: towards the basin) */
+.scada .sc-outer{position:relative}
+.scada .sc-pipe{position:absolute;z-index:4;pointer-events:none;--len:78px;--th:20px}
+.scada .sc-pipe.s-r,.scada .sc-pipe.s-l{width:var(--len);height:var(--th);transform:translateY(-50%)}
+.scada .sc-pipe.s-t,.scada .sc-pipe.s-b{height:var(--len);width:var(--th);transform:translateX(-50%)}
+.scada .sc-pipe.s-r{right:-14px} .scada .sc-pipe.s-l{left:-14px} .scada .sc-pipe.s-t{top:-14px} .scada .sc-pipe.s-b{bottom:-14px}
+.scada .sc-pipe.s-r,.scada .sc-pipe.s-l{background:linear-gradient(180deg,#5d6372 0%,#c9cdd8 30%,#f2f4f8 45%,#9aa0ae 70%,#4a4f5c 100%);border-radius:3px;box-shadow:0 2px 4px rgba(0,0,0,.35)}
+.scada .sc-pipe.s-t,.scada .sc-pipe.s-b{background:linear-gradient(90deg,#5d6372 0%,#c9cdd8 30%,#f2f4f8 45%,#9aa0ae 70%,#4a4f5c 100%);border-radius:3px;box-shadow:0 2px 4px rgba(0,0,0,.35)}
+.scada .sc-pipe::before{content:"";position:absolute;background:#3b404c;border-radius:2px}
+.scada .sc-pipe.s-r::before{right:12px;top:-4px;width:6px;height:calc(var(--th) + 8px)} .scada .sc-pipe.s-l::before{left:12px;top:-4px;width:6px;height:calc(var(--th) + 8px)}
+.scada .sc-pipe.s-t::before{top:12px;left:-4px;height:6px;width:calc(var(--th) + 8px)} .scada .sc-pipe.s-b::before{bottom:12px;left:-4px;height:6px;width:calc(var(--th) + 8px)}
+.scada .sc-flow{position:absolute;inset:6px 4px;border-radius:2px}
+.scada .s-t .sc-flow,.scada .s-b .sc-flow{inset:4px 6px}
+.scada .in .sc-flow{--fc:#8a5a2b} .scada .out .sc-flow{--fc:#1e88e5}
+.scada .s-r .sc-flow,.scada .s-l .sc-flow{background:repeating-linear-gradient(90deg,var(--fc) 0 8px,transparent 8px 14px);background-size:14px 100%}
+.scada .s-t .sc-flow,.scada .s-b .sc-flow{background:repeating-linear-gradient(180deg,var(--fc) 0 8px,transparent 8px 14px);background-size:100% 14px}
+.scada .s-r.in .sc-flow,.scada .s-l.out .sc-flow{animation:pfL 1s linear infinite} .scada .s-l.in .sc-flow,.scada .s-r.out .sc-flow{animation:pfR 1s linear infinite}
+.scada .s-t.in .sc-flow,.scada .s-b.out .sc-flow{animation:pfD 1s linear infinite} .scada .s-b.in .sc-flow,.scada .s-t.out .sc-flow{animation:pfU 1s linear infinite}
+@keyframes pfL{to{background-position:-14px 0}} @keyframes pfR{to{background-position:14px 0}} @keyframes pfD{to{background-position:0 14px}} @keyframes pfU{to{background-position:0 -14px}}
+@media (prefers-reduced-motion:reduce){.scada .sc-flow{animation:none!important}}
+.scada .sc-ptag{position:absolute;white-space:nowrap;padding:1px 7px;border-radius:4px;font-size:11px;font-weight:700;border:1px solid;font-style:normal}
+.scada .in .sc-ptag{background:#f3e3cf;border-color:#8a5a2b;color:#4a2e12} .scada .out .sc-ptag{background:#dcecfb;border-color:#1e6fc0;color:#0d3a66}
+.scada .s-r .sc-ptag{right:calc(100% + 4px);top:50%;transform:translateY(-50%)} .scada .s-l .sc-ptag{left:calc(100% + 4px);top:50%;transform:translateY(-50%)}
+.scada .s-t .sc-ptag{top:calc(100% + 4px);left:50%;transform:translateX(-50%)} .scada .s-b .sc-ptag{bottom:calc(100% + 4px);left:50%;transform:translateX(-50%)}
