@@ -2655,3 +2655,14 @@ html.inb-dock .fb-btn{left:416px}
 .scada .in .sc-ptag{background:#f3e3cf;border-color:#8a5a2b;color:#4a2e12} .scada .out .sc-ptag{background:#dcecfb;border-color:#1e6fc0;color:#0d3a66}
 .scada .s-r .sc-ptag{right:calc(100% + 4px);top:50%;transform:translateY(-50%)} .scada .s-l .sc-ptag{left:calc(100% + 4px);top:50%;transform:translateY(-50%)}
 .scada .s-t .sc-ptag{top:calc(100% + 4px);left:50%;transform:translateX(-50%)} .scada .s-b .sc-ptag{bottom:calc(100% + 4px);left:50%;transform:translateX(-50%)}
+/* a unit's history (side panel) */
+.scada .sc-hist{display:grid;gap:4px;margin-top:4px;max-height:280px;overflow:auto;padding-inline-end:2px}
+.scada .sc-hist h5{margin:2px 0;font-size:14px;color:#2b3160}
+.scada .sc-hr{display:grid;grid-template-columns:auto 1fr;gap:0 8px;text-align:start;font:inherit;font-size:13px;color:#1c2140;background:#fff;border:1px solid #c5c9df;border-inline-start:4px solid #8d94bd;border-radius:6px;padding:5px 8px}
+button.sc-hr{cursor:pointer}
+.scada .sc-hr.open{border-inline-start-color:#c62828}
+.scada .sc-hr.mode{border-inline-start-color:#d4a90a;background:#fffbea}
+.scada .sc-hd{font-size:12px;color:#4a5078;direction:ltr;grid-row:span 3;align-self:center}
+.scada .sc-hk{font-size:11px;font-weight:700;color:#4a5078}
+.scada .sc-ht{grid-column:2;font-weight:600}
+.scada .sc-hs{grid-column:2;font-size:12px;color:#4a5078}
