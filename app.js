@@ -1152,7 +1152,7 @@ function unitsParse(txt){
   const out=[];
   // after the units, "; כניסה: ימין למעלה (שם)" / "; יציאה: שמאל אמצע" draws a pipe in or out of the basin: a side
   // (ימין / שמאל / למעלה / למטה) and where along it (למעלה / אמצע / למטה, or ימין / אמצע / שמאל), and an optional name
-  String(txt||"").split(/\n+/).forEach(line=>{ const m=line.match(/^\s*([^:]+?)\s*:\s*(.+)$/); if(!m) return;
+  String(txt||"").split(/\n+/).forEach(line=>{ const m=line.match(/^\s*([^:]+?)\s*:\s*(.+)$/); if(!m || m[1]==="כותרת") return;
     const rows=[], kind={}, pipes=[], parts=m[2].split(";");
     parts.slice(1).forEach(x=>{ const q=x.trim().match(/^(כניסה|יציאה)\s*:?\s*(.*)$/); if(!q) return;
       const nm=(q[2].match(/\(([^)]*)\)/)||[])[1]||"", w=q[2].replace(/\([^)]*\)/,"").split(/\s+/).filter(Boolean);
@@ -1198,8 +1198,11 @@ function unitSetMode(u, m){ if(isViewer()) return; lists._umode=Object.assign({}
   lists._umode[u]={m, by:reporter()||myName()||"", at:nowLocal(), h};
   persist(); renderUnits(); toast(u+" — "+(m==="auto"?"אוטומטי":UNIT_ST[m])); }
 let unitSel=null;
+// "כותרת: …" in the settings names the button and the window
+const unitsTitle=()=>{ const m=String(lists._units||"").match(/^\s*כותרת\s*:\s*(.+)$/m); return m ? m[1].trim() : "סטטוס יחידות"; };
 function renderUnits(){
-  const box=$("#dUnits"); if(!box) return; const G=unitsParse(lists._units); box.textContent=""; box.classList.toggle("scada", !!G.length);
+  const card=$("#dUnits"); if(!card) return; const G=unitsParse(lists._units); card.textContent="";
+  let box=card;
   if(!G.length){ box.hidden=!isManager() || isViewer();           // not set up yet: a manager sees how to set it up
     if(box.hidden) return; box.appendChild(mk("div","un-head")).appendChild(mk("h3",null,"מצב יחידות"));
     box.appendChild(mk("p","hint", isLite() ? "עוד לא הוגדרו יחידות. ההגדרה — מהמחשב: הגדרות ← ניהול רשימות ← לוח יחידות בדשבורד."
@@ -1209,18 +1212,31 @@ function renderUnits(){
         const c=$("#unitsCfg"); if(c){ c.scrollIntoView({block:"center"}); $("#unitsTxt").focus(); } };
       box.appendChild(b); }
     return; }
-  box.hidden=false;
-  let cur=""; try{ cur=localStorage.getItem("ogg-units-g")||""; }catch(e){} const g=G.find(x=>x.g===cur)||G[0];
+  card.hidden=false;
   const info={}; G.forEach(x=>x.units.forEach(u=>{ if(!info[u]) info[u]=unitInfo(u); }));
+  // the dashboard: one long button with the summary; it opens the control screen
+  { const b=mk("button","un-open"); b.type="button";
+    b.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path fill="currentColor" d="M12 10.3a1.7 1.7 0 1 1 0 3.4 1.7 1.7 0 0 1 0-3.4zm.5-6c2.4.4 3 3 1.5 5.1l-.9-.4c-.4-.2-.8-.2-1.2-.1l-.9-3.7c-.2-.6.4-1.1 1-1h.5zm6.7 8.7c-.4 2.4-3 3-5.1 1.5l.4-.9c.2-.4.2-.8.1-1.2l3.7-.9c.6-.2 1.1.4 1 1v.5zm-7.7 6.7c-2.4-.4-3-3-1.5-5.1l.9.4c.4.2.8.2 1.2.1l.9 3.7c.2.6-.4 1.1-1 1h-.5zM4.8 11c.4-2.4 3-3 5.1-1.5l-.4.9c-.2.4-.2.8-.1 1.2l-3.7.9c-.6.2-1.1-.4-1-1V11z"/></svg>';
+    b.appendChild(mk("span","un-ot",unitsTitle())); const sm=mk("span","un-os");
+    G.forEach(x=>{ const ok=x.units.filter(u=>info[u].st!=="down" && info[u].st!=="stop").length, f=x.units.some(u=>info[u].st==="down");
+      const c=mk("span","un-oc"+(f?" bad":"")); c.append(mk("b",null,x.g.split(/\s+/).pop()), " "+ok+"/"+x.units.length); sm.appendChild(c); });
+    const down=new Set(); G.forEach(x=>x.units.forEach(u=>{ if(info[u].st==="down") down.add(u); }));
+    if(down.size) sm.appendChild(mk("span","un-oa","⚠ "+down.size+" לא בעבודה"));
+    b.appendChild(sm); b.onclick=()=>{ const d=$("#dlgUnits"); if(!d.open) d.showModal(); renderUnits(); }; card.appendChild(b); }
+  const dlg=$("#dlgUnits"); if(!dlg || !dlg.open) return;
+  box=$("#uScada"); box.textContent="";
+  const leave=fn=>()=>{ dlg.close(); fn(); };                    // from the screen to a task or an event: the window closes first
+  let cur=""; try{ cur=localStorage.getItem("ogg-units-g")||""; }catch(e){} const g=G.find(x=>x.g===cur)||G[0];
   const WARN='<svg class="sc-warn" viewBox="0 0 30 27" role="img" aria-label="תקלה"><path d="M15 2L28 25H2z" fill="#e53935" stroke="#fff" stroke-width="2" stroke-linejoin="round"/><path d="M15 10v7M15 20v1.5" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/></svg>';
   const TRI='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l10 18H2z"/><path d="M12 10v5"/><path d="M12 18v.5"/></svg>';
   const downAll=[]; G.forEach(x=>x.units.forEach(u=>{ if(info[u].st==="down" && !downAll.some(d=>d.u===u)) downAll.push({u, g:x}); }));
   const pick=(x,u)=>{ try{ localStorage.setItem("ogg-units-g",x.g); }catch(e){} unitSel = unitSel===u && x===g ? null : u; renderUnits(); };
   // the screen's top bar
-  const bar=mk("div","sc-bar"); bar.appendChild(mk("h3",null,"מצב יחידות"));
+  const bar=mk("div","sc-bar"); bar.appendChild(mk("h3",null,unitsTitle()));
   const mid=mk("div","sc-mid"); mid.appendChild(mk("span","sc-lbl","צג מחשב בקרה")); bar.appendChild(mid);
-  const rt=mk("div","sc-rt"); rt.appendChild(mk("span","sc-clock",new Date().toLocaleTimeString("he-IL",{hour12:false})));
+  const rt=mk("div","sc-rt");
   if(downAll.length){ const al=mk("span","sc-alarm"); al.innerHTML=TRI; al.append(downAll.length+" לא בעבודה"); rt.appendChild(al); }
+  const xb=mk("button","sc-x","✕"); xb.type="button"; xb.setAttribute("aria-label","סגור"); xb.title="סגור"; xb.onclick=()=>dlg.close(); rt.appendChild(xb);
   bar.appendChild(rt);
   // the basin: rows of units as drawn in the settings
   let rows=g.rows.length===1 && g.rows[0].length>7 ? g.rows[0].reduce((a,u,i)=>{ if(i%5===0) a.push([]); a[a.length-1].push(u); return a; },[]) : g.rows;
@@ -1255,21 +1271,21 @@ function renderUnits(){
       b.disabled=isViewer(); const uu=unitSel; b.onclick=()=>{ if(I.mode!==k) unitSetMode(uu,k); }; ms.appendChild(b); });
     d.appendChild(ms); if(M && M.by) d.appendChild(mk("p","sc-none",UNIT_ST[M.m]+" · "+M.by+(M.at?" · "+fmtWhen(M.at):"")));
     I.tk.forEach(t=>{ const r=mk("button","un-it"); r.type="button"; r.append(mk("span","sn",snOf(t)||"משימה"), mk("span",null,t.title||""), mk("span","un-ty",(t.type||"")+" · "+tkStat(t)));
-      r.onclick=()=>goTask(t.id); d.appendChild(r); });
+      r.onclick=leave(()=>goTask(t.id)); d.appendChild(r); });
     I.ev.forEach(e=>{ const r=mk("button","un-it"); r.type="button"; r.append(mk("span","sn",snOf(e)||"אירוע"), mk("span",null,e.title||e.desc||""), mk("span","un-ty",(e.type||[]).join(" · ")||"אירוע"));
-      r.onclick=()=>{ show("List"); const a=document.querySelector('#viewList .ev[data-id="'+e.id+'"]');   // the event in the list
+      r.onclick=()=>{ dlg.close(); show("List"); const a=document.querySelector('#viewList .ev[data-id="'+e.id+'"]');   // the event in the list
         if(a){ a.classList.add("flash"); setTimeout(()=>a.classList.remove("flash"),2200); requestAnimationFrame(()=>a.scrollIntoView({block:"center"})); } }; d.appendChild(r); });
     if(!I.tk.length && !I.ev.length) d.appendChild(mk("p","sc-none","אין משימות או אירועים פתוחים על היחידה."));
     // the unit's history
     const H=unitHist(unitSel), hs=mk("div","sc-hist"); hs.appendChild(mk("h5",null,"היסטוריה"+(H.length?" ("+H.length+")":"")));
     if(!H.length) hs.appendChild(mk("p","sc-none","עוד אין רישומים על היחידה."));
-    H.forEach(x=>{ const r=mk(x.go?"button":"div","sc-hr"+(x.open?" open":"")+(x.k==="מצב"?" mode":"")); if(x.go){ r.type="button"; r.onclick=x.go; }
+    H.forEach(x=>{ const r=mk(x.go?"button":"div","sc-hr"+(x.open?" open":"")+(x.k==="מצב"?" mode":"")); if(x.go){ r.type="button"; r.onclick=leave(x.go); }
       r.append(mk("span","sc-hd",x.at ? (d=>d.slice(0,6)+d.slice(8))(dmy(x.at.slice(0,10))) : ""), mk("span","sc-hk",x.k+(x.n?" "+x.n:"")), mk("span","sc-ht",x.t),
         mk("span","sc-hs",[x.type,x.st].filter(Boolean).join(" · ")));
       hs.appendChild(r); });
     d.appendChild(hs);
     const nb=mk("button","sc-new","＋ משימה על "+unitSel); nb.type="button"; const uid=unitSel;
-    nb.onclick=()=>{ goTasks({}); openTaskForm(null); fillSelect($("#tkEq"), [...new Set(byUse("eq").concat(uid))], uid, "— בחר ציוד —", true);
+    nb.onclick=()=>{ dlg.close(); goTasks({}); openTaskForm(null); fillSelect($("#tkEq"), [...new Set(byUse("eq").concat(uid))], uid, "— בחר ציוד —", true);
       $("#tkType").value="אחזקות שבר"; $("#tkType").dispatchEvent(new Event("change")); paintFormColors(); };
     d.appendChild(nb); side.appendChild(d); }
   const lg=mk("section","sc-sec sc-leg"); [["ok","בעבודה"],["man","ידני"],["down","לא בעבודה"],["stop","מושבת"],["issue","בעיה אחרת"]].forEach(([k,l])=>{ const x=mk("span"); x.append(mk("i",k), l); lg.appendChild(x); }); side.appendChild(lg);
@@ -1289,8 +1305,7 @@ function renderUnits(){
   const most=Math.max(1,...rows.map(r=>r.length)), need=most*108+124;
   requestAnimationFrame(()=>{ const w=bw.clientWidth; const z=w && w<need ? w/need : 1; outer.style.width = z<1 ? need+"px" : ""; outer.style.zoom = z<1 ? String(z) : ""; });
 }
-setInterval(()=>{ const c=document.querySelector("#dUnits .sc-clock"); if(c && !document.hidden) c.textContent=new Date().toLocaleTimeString("he-IL",{hour12:false}); },1000);
-let unitsRT=null; addEventListener("resize",()=>{ clearTimeout(unitsRT); unitsRT=setTimeout(()=>{ if(!$("#viewDash").hidden) renderUnits(); },200); });
+let unitsRT=null; addEventListener("resize",()=>{ clearTimeout(unitsRT); unitsRT=setTimeout(()=>{ if($("#dlgUnits") && $("#dlgUnits").open) renderUnits(); },200); });
 function paintUnitsCfg(){ const c=$("#unitsCfg"); if(!c) return; c.hidden=!isManager();
   if(document.activeElement!==$("#unitsTxt")) $("#unitsTxt").value=lists._units||"";
   const G=unitsParse($("#unitsTxt").value); $("#unitsInfo").textContent = G.length ? G.map(x=>x.g+": "+x.units.length).join(" · ") : ""; }
@@ -2279,7 +2294,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.65", APP_DATE="01/11/2026";
+const APP_VER="3.66", APP_DATE="01/11/2026";
 $("#verChip").textContent = BETA && LITE_MQ.matches ? "בטא "+APP_VER : "v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
