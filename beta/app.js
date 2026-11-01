@@ -2121,7 +2121,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.54", APP_DATE="29/10/2026";
+const APP_VER="3.55", APP_DATE="01/11/2026";
 $("#verChip").textContent = BETA && LITE_MQ.matches ? "בטא "+APP_VER : "v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2193,7 +2193,7 @@ let lastTyping=0;
 document.addEventListener("input",()=>{ lastTyping=Date.now(); },true);
 function quietNow(){
   if(Date.now()-lastTyping<2*60e3) return false;
-  if(document.querySelector("dialog[open]")) return false;
+  if(document.querySelector("dialog[open]:not(.dock)")) return false;
   const a=document.activeElement; if(a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && a.type!=="checkbox") return false;
   if(!$("#viewNew").hidden) return false;                      // recording / editing an event
   const tf=$("#tfPanel"); if(tf && !tf.hidden) return false;    // the task form is open
@@ -2484,7 +2484,7 @@ function inboxAdd(items, toasted){
 function inboxCheck(){ if(TV) return;
   if(!CLOUD_ON || !inboxGet().some(x=>!x.read && !x.arch)) return;
   const sp=$("#splash"); if(sp && !sp.hidden) return;                 // after the opening screen
-  if(document.querySelector("dialog[open]")) return;                  // the weekly window etc. first (retried when it closes)
+  if(document.querySelector("dialog[open]:not(.dock)")) return;       // the weekly window etc. first (retried when it closes)
   openInbox();
 }
 let inbTab="in";
@@ -2531,7 +2531,9 @@ function openInbox(){
     r.appendChild(mk("span","inb-i",INBOX_ICON[x.kind]||"•"));
     const body=mk("span","inb-b"); body.appendChild(mk("b","inb-t",x.title||"(ללא כותרת)")); body.appendChild(mk("span","inb-x",x.text||""));
     body.appendChild(mk("span","inb-m",[x.by,fmtWhen(x.at)].filter(Boolean).join(" · "))); r.appendChild(body);
-    r.onclick=()=>{ if(r.dataset.swiped) return; d.close(); if(x.reply){ } else if(x.fb){ if(window.openFeedback) window.openFeedback(x.fb); } else goTask(x.tid); };
+    r.onclick=()=>{ if(r.dataset.swiped) return;
+      if(d.classList.contains("dock")){ x.read=true; inboxPut(all); openInbox(); } else d.close();   // side panel: stays open, this one is read
+      if(x.reply){ } else if(x.fb){ if(window.openFeedback) window.openFeedback(x.fb); } else goTask(x.tid); };
     row.appendChild(r);
     if(inArch){
       const act=mk("div","inb-act");
@@ -2546,7 +2548,10 @@ function openInbox(){
     }
     box.appendChild(row);
   });
-  if(!d.open) d.showModal();
+  if(!d.open){
+    // computer: a panel on the left beside the app (the screen stays usable, it moves aside); phone: over the screen as before
+    const dock=!isLite() && innerWidth>=1100; d.classList.toggle("dock",dock); document.documentElement.classList.toggle("inb-dock",dock);
+    if(dock) d.show(); else d.showModal(); }
 }
 document.querySelectorAll("#dlgInbox [data-ib]").forEach(b=>b.onclick=()=>{ inbTab=b.dataset.ib; openInbox(); });
 $("#inbAll").onclick=()=>{
@@ -2567,7 +2572,8 @@ function goTask(tid){
 }
 $("#inboxBtn").onclick=()=>{ inbTab="in"; openInbox(); };
 $("#inbClose").onclick=()=>$("#dlgInbox").close();
-$("#dlgInbox").addEventListener("close",()=>{ const a=inboxGet(); if(a.some(x=>!x.read)){ a.forEach(x=>x.read=true); inboxPut(a); } });
+document.addEventListener("keydown",e=>{ const d=$("#dlgInbox"); if(e.key==="Escape" && d.open && d.classList.contains("dock") && !document.querySelector("dialog[open]:not(#dlgInbox)")) d.close(); });
+$("#dlgInbox").addEventListener("close",()=>{ document.documentElement.classList.remove("inb-dock"); const a=inboxGet(); if(a.some(x=>!x.read)){ a.forEach(x=>x.read=true); inboxPut(a); } });
 $("#dlgWeek").addEventListener("close",()=>setTimeout(inboxCheck,300));
 document.addEventListener("visibilitychange",()=>{ if(!document.hidden){ inboxOpenUntil=Date.now()+20000; setTimeout(inboxCheck,1200); } });
 window.inboxAdd=inboxAdd; window.inboxCheck=inboxCheck; window.paintInbox=paintInbox;
@@ -2968,7 +2974,7 @@ $("#tkExp").onclick=()=>exportTasksCsv(tkLastRows);
 function tkText(t){ return [snOf(t),t.title,t.desc,t.act,t.type,t.prio,(t.ppl||[]).join(" "),(t.loc||[]).join(" "),(t.eq||[]).join(" "),(t.depts||[]).join(" "),
   (t.log||[]).map(l=>(l.by||"")+" "+(l.text||"")).join(" "),(t.check||[]).filter(x=>x&&!x.del).map(x=>x.text).join(" "),(t.files||[]).filter(x=>x&&!x.del).map(x=>x.name).join(" ")].join(" ").toLowerCase(); }
 function renderTasks(){
-  reconcileTaskEvents();
+  reconcileTaskEvents(); if(typeof remAutoSoon==="function") remAutoSoon();
   const ae=document.activeElement; tkFocus = ae && ae.dataset && ae.dataset.draft || null;   // typing in a task's message box
   paintTaskCount(); renderTkFilters(); paintMe();
   if(!$("#viewDash").hidden && typeof renderDash==="function") setTimeout(renderDash,0);   // keep the tasks card current
@@ -3936,7 +3942,7 @@ function tourAuto(){ if(TV) return;                           // the first time 
   try{ if(localStorage.getItem(TOUR_KEY)) return; }catch(e){ return; }
   let n=0; const t=setInterval(()=>{ n++;
     try{ if(TV || localStorage.getItem(TOUR_KEY)){ clearInterval(t); return; } }catch(e){}   // marked done meanwhile / became the office screen
-    const sp=$("#splash"), busy=(sp && !sp.hidden) || document.querySelector("dialog[open]");
+    const sp=$("#splash"), busy=(sp && !sp.hidden) || document.querySelector("dialog[open]:not(.dock)");
     if(!busy){ clearInterval(t); tourStart(); } else if(n>120) clearInterval(t); },1000);
 }
 function openFlow(which){
@@ -5038,7 +5044,7 @@ function remSet(ms){
   remSave(L=>L.filter(x=>x.tid!==t.id).concat(rec)); $("#dlgRem").close(); renderTasks(); toast("🔔 תזכורת נקבעה ל"+remWhen(ms)+(rp?" · "+REP_TXT[rp]:""));
 }
 $("#remSetAt").onclick=()=>{ const v=$("#remAt").value; if(!v){ $("#remAt").focus(); return; } remSet(new Date(v).getTime()); };
-$("#remOff").onclick=()=>{ if(!remFor) return; const tid=remFor.id; REMS=remList().filter(x=>x.tid!==tid); remSave(L=>L.filter(x=>x.tid!==tid)); $("#dlgRem").close(); renderTasks(); toast("התזכורת בוטלה"); };
+$("#remOff").onclick=()=>{ if(!remFor) return; const tid=remFor.id; remSkip(remFor); REMS=remList().filter(x=>x.tid!==tid); remSave(L=>L.filter(x=>x.tid!==tid)); $("#dlgRem").close(); renderTasks(); toast("התזכורת בוטלה"); };
 $("#remClose").onclick=()=>$("#dlgRem").close();
 // the time came: on screen — a message here; app in the background without push — a device notification; otherwise the push brings it
 function remTick(){
@@ -5054,6 +5060,35 @@ function remTick(){
   REMS=step(REMS); remSave(step); renderTasks();
 }
 setInterval(remTick,30e3);
+/* the default reminder: every open task of mine (assigned to me, opened by me, or personal) with a due date gets 🔔 at 07:00 on
+   that day ("auto"). It moves with the due date and goes when the task is done or the date is removed. A reminder I set
+   myself is never touched; one I cancel stays cancelled for that date (a new date brings it back). */
+const REM_AT_H=7, K_REMSKIP="ogg-rem-skip";
+function remSkipGet(){ try{ return JSON.parse(localStorage.getItem(K_REMSKIP)||"{}")||{}; }catch(e){ return {}; } }
+function remSkip(t){ const r=remOf(t.id); if(!r || !r.auto) return; const S=remSkipGet(); S[t.id]=t.due||"";
+  const keys=Object.keys(S); keys.slice(0,Math.max(0,keys.length-300)).forEach(k=>delete S[k]);
+  try{ localStorage.setItem(K_REMSKIP, JSON.stringify(S)); }catch(e){} }
+function remAutoWant(){
+  const S=remSkipGet(), now=Date.now(), want={};
+  const add=t=>{ if(S[t.id]!==undefined && S[t.id]===(t.due||"")) return;             // cancelled for this date
+    const at = tkOpen(t) && t.due ? new Date(t.due+"T"+String(REM_AT_H).padStart(2,"0")+":00").getTime() : 0;
+    want[t.id] = at>now ? {at, title:(t.priv?"🔒 ":t.no?"#"+t.no+" ":"")+(t.title||"משימה")} : null; };
+  tasks.forEach(t=>{ if(isMine(t) || openedByMe(t)) add(t); });
+  try{ privTasks().forEach(add); }catch(e){}
+  return want;
+}
+function remAutoEdit(want){ return L=>{ let out=L.slice();
+  Object.keys(want).forEach(tid=>{ const w=want[tid], i=out.findIndex(r=>r.tid===tid), r=i>=0?out[i]:null;
+    if(!w){ if(r && r.auto) out.splice(i,1); return; }
+    if(!r) out.push({id:newId(), tid, at:w.at, title:w.title, auto:1});
+    else if(r.auto && (r.at!==w.at || r.title!==w.title)) out[i]=Object.assign({}, r, {at:w.at, title:w.title}); });
+  return out; }; }
+var remAutoT=null;                  // var: renderTasks can run before this part of the file
+function remAutoSoon(){ clearTimeout(remAutoT); remAutoT=setTimeout(()=>{
+  if(CLOUD_ON && !(window.cloudMe && window.cloudMe())) return;            // team log: wait until signed in
+  const edit=remAutoEdit(remAutoWant()), before=JSON.stringify(remList().map(r=>[r.tid,r.at,r.title]));
+  const next=edit(remList()); if(JSON.stringify(next.map(r=>[r.tid,r.at,r.title]))===before) return;
+  REMS=next; remSave(edit); renderTasks(); }, 2500); }
 /* ===== settings → 🔔 התראות: what to be notified about — push to the phone and notifications on the device (the 📨 list keeps everything).
    Saved here and on meta/me-<me>.notifOff (the cloud functions read it), so it holds on every device of the account. */
 var NOTIF_KINDS=[["assign","משימה חדשה או שהוקצתה לי"],["update","עדכון שנכתב במשימה"],["status","שינוי סטטוס וסיום משימה"],
@@ -5189,7 +5224,7 @@ tkColWApply();
 var inbQuiet=false, inbSyncT=null, seenSyncT=null, prefSyncT=null, syncQuiet=false;
 const INB_SYNC=150, K_EVSEEN="ogg-ev-seen-sync", K_PSYNC="ogg-prefs-sync", K_PT="ogg-prefs-t";
 const SYNC_PREFS=["ogg-theme","ogg-accent","ogg-glass","ogg-haptic","ogg-tk-view","ogg-tk-sort","ogg-tk-col","ogg-list-view",
-  "ogg-dash-range","ogg-dash-dept","ogg-cal-dept","ogg-lite-pie","ogg-badge"];
+  "ogg-dash-range","ogg-dash-dept","ogg-cal-dept","ogg-lite-pie","ogg-badge","ogg-rem-skip"];
 function inboxSyncSoon(){ if(!window.cloudSyncPut) return; clearTimeout(inbSyncT);
   inbSyncT=setTimeout(()=>window.cloudSyncPut("syncInbox", JSON.stringify({items:inboxGet().slice(0,INB_SYNC), del:inboxDelIds().slice(-300)})), 800); }
 function inboxFromCloud(js){
