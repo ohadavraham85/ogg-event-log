@@ -1146,14 +1146,19 @@ function renderDash(){ renderDash0(); arrangeDash(); paintTicker(); paintBoard()
    or title: an open "אחזקות שבר" task or an open fault event → not working; anything else open → another problem; nothing → working.
    Closing the task brings the unit back by itself. */
 function unitsParse(txt){
+  // "name: units" per line; "|" starts a new row in the drawing (an empty one is a gap); a unit ending in "*" is an aspirator
   const out=[];
   String(txt||"").split(/\n+/).forEach(line=>{ const m=line.match(/^\s*([^:]+?)\s*:\s*(.+)$/); if(!m) return;
-    const units=[];
-    m[2].split(/[,\s]+/).filter(Boolean).forEach(p=>{
-      const r=p.match(/^(.*?)(\d+)-(?:\1)?(\d+)$/);                       // P101-P110 or P101-110
-      if(r && +r[3]>=+r[2] && +r[3]-+r[2]<200){ for(let n=+r[2]; n<=+r[3]; n++) units.push(r[1]+String(n).padStart(r[2].length,"0")); }
-      else units.push(p); });
-    if(units.length) out.push({g:m[1], units:[...new Set(units)]}); });
+    const rows=[], kind={};
+    m[2].split("|").forEach(seg=>{ const row=[];
+      seg.split(/[,\s]+/).filter(Boolean).forEach(p=>{ const asp=/\*$/.test(p); p=p.replace(/\*+$/,""); if(!p) return;
+        const r=p.match(/^(.*?)(\d+)-(?:\1)?(\d+)$/), ids=[];                 // P101-P110 or P101-110
+        if(r && +r[3]>=+r[2] && +r[3]-+r[2]<200){ for(let n=+r[2]; n<=+r[3]; n++) ids.push(r[1]+String(n).padStart(r[2].length,"0")); }
+        else ids.push(p);
+        ids.forEach(u=>{ row.push(u); if(asp) kind[u]="asp"; }); });
+      rows.push(row); });
+    const units=[...new Set(rows.flat())];
+    if(units.length) out.push({g:m[1], rows, units, kind}); });
   return out;
 }
 // "B105" also finds "B-105", "B 105", "b105"; not "B1050" or "AB105"
@@ -1168,7 +1173,7 @@ function unitInfo(id){
 const UNIT_ST={ok:"בעבודה", down:"לא בעבודה", issue:"בעיה אחרת"};
 let unitSel=null;
 function renderUnits(){
-  const box=$("#dUnits"); if(!box) return; const G=unitsParse(lists._units); box.textContent="";
+  const box=$("#dUnits"); if(!box) return; const G=unitsParse(lists._units); box.textContent=""; box.classList.toggle("scada", !!G.length);
   if(!G.length){ box.hidden=!isManager() || isViewer();           // not set up yet: a manager sees how to set it up
     if(box.hidden) return; box.appendChild(mk("div","un-head")).appendChild(mk("h3",null,"מצב יחידות"));
     box.appendChild(mk("p","hint", isLite() ? "עוד לא הוגדרו יחידות. ההגדרה — מהמחשב: הגדרות ← ניהול רשימות ← לוח יחידות בדשבורד."
@@ -1181,36 +1186,62 @@ function renderUnits(){
   box.hidden=false;
   let cur=""; try{ cur=localStorage.getItem("ogg-units-g")||""; }catch(e){} const g=G.find(x=>x.g===cur)||G[0];
   const info={}; G.forEach(x=>x.units.forEach(u=>{ if(!info[u]) info[u]=unitInfo(u); }));
-  const head=mk("div","un-head"); head.appendChild(mk("h3",null,"מצב יחידות"));
-  const seg=mk("div","seg un-seg"); seg.setAttribute("role","group"); seg.setAttribute("aria-label","קבוצה");
-  G.forEach(x=>{ const ok=x.units.filter(u=>info[u].st!=="down").length, bad=x.units.some(u=>info[u].st==="down");
-    const b=mk("button",bad?"has-down":null); b.type="button"; b.setAttribute("aria-pressed",String(x===g));
-    b.append(x.g+" ", mk("b",null,ok+"/"+x.units.length)); b.title=ok+" מתוך "+x.units.length+" בעבודה";
-    b.onclick=()=>{ try{ localStorage.setItem("ogg-units-g",x.g); }catch(e){} unitSel=null; renderUnits(); }; seg.appendChild(b); });
-  head.appendChild(seg); box.appendChild(head);
+  const WARN='<svg class="sc-warn" viewBox="0 0 30 27" role="img" aria-label="תקלה"><path d="M15 2L28 25H2z" fill="#e53935" stroke="#fff" stroke-width="2" stroke-linejoin="round"/><path d="M15 10v7M15 20v1.5" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/></svg>';
+  const TRI='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l10 18H2z"/><path d="M12 10v5"/><path d="M12 18v.5"/></svg>';
+  const downAll=[]; G.forEach(x=>x.units.forEach(u=>{ if(info[u].st==="down" && !downAll.some(d=>d.u===u)) downAll.push({u, g:x}); }));
+  const pick=(x,u)=>{ try{ localStorage.setItem("ogg-units-g",x.g); }catch(e){} unitSel = unitSel===u && x===g ? null : u; renderUnits(); };
+  // the screen's top bar
+  const bar=mk("div","sc-bar"); bar.appendChild(mk("h3",null,"מצב יחידות"));
+  if(downAll.length){ const al=mk("span","sc-alarm"); al.innerHTML=TRI; al.append(downAll.length+" לא בעבודה"); bar.appendChild(al); }
+  // the basin: rows of units as drawn in the settings
+  let rows=g.rows.length===1 && g.rows[0].length>7 ? g.rows[0].reduce((a,u,i)=>{ if(i%5===0) a.push([]); a[a.length-1].push(u); return a; },[]) : g.rows;
+  const bw=mk("div","sc-bw"), outer=mk("div","sc-outer"), rim=mk("div","sc-rim"), pool=mk("div","sc-pool");
+  rows.forEach(r=>{ const row=mk("div","sc-row"+(r.length?"":" gap"));
+    r.forEach(u=>{ const I=info[u], asp=g.kind[u]==="asp", k=I.tk.length+I.ev.length, b=mk("button","sc-u st-"+I.st+(unitSel===u?" on":"")); b.type="button";
+      b.innerHTML = asp
+        ? '<div class="sc-asp" aria-hidden="true"><i class="fl"></i><div class="am"><i class="mo"></i><i class="sh"></i><i class="stem"></i></div><i class="fl"></i></div>'
+        : '<div class="sc-aer"><div class="mo" aria-hidden="true"><i></i></div><div class="disc"><span aria-hidden="true">VFD</span>'+(I.st==="down"?WARN:"")+'</div><i class="sh" aria-hidden="true"></i></div>';
+      b.appendChild(mk("span","sc-plate",u)); if(k) b.appendChild(mk("i","sc-n",String(k)));
+      b.setAttribute("aria-label",(asp?"אספירטור ":"מאוורר ")+u+" — "+UNIT_ST[I.st]+(k?" · "+k+" פתוחים":"")); b.title=b.getAttribute("aria-label");
+      b.setAttribute("aria-pressed",String(unitSel===u)); b.onclick=()=>pick(g,u); row.appendChild(b); });
+    pool.appendChild(row); });
+  rim.appendChild(pool); outer.appendChild(rim); bw.append(outer, mk("div","sc-title",g.g));
+  // the side panel: counts, the picked unit, legend, faults in all groups
+  const side=mk("aside","sc-side");
   const n={ok:0,down:0,issue:0}; g.units.forEach(u=>n[info[u].st]++);
-  const cnt=mk("div","un-cnt"); [["ok","בעבודה"],["down","לא בעבודה"],["issue","בעיה אחרת"]].forEach(([k,l])=>{ const c=mk("div","un-c un-"+k); c.append(mk("b",null,String(n[k])), mk("span",null,l)); cnt.appendChild(c); });
-  box.appendChild(cnt);
-  const grid=mk("div","un-grid");
-  g.units.forEach(u=>{ const I=info[u], b=mk("button","un-u un-"+I.st+(unitSel===u?" on":"")); b.type="button";
-    b.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="currentColor" opacity=".18"/><path fill="currentColor" d="M12 10.2a1.8 1.8 0 1 1 0 3.6 1.8 1.8 0 0 1 0-3.6zm.6-7.1c2.6.4 3.3 3.3 1.6 5.6l-.9-.4c-.4-.2-.9-.2-1.3-.1L11 4.3c-.2-.7.4-1.3 1.1-1.2h.5zm7.3 9.5c-.4 2.6-3.3 3.3-5.6 1.6l.4-.9c.2-.4.2-.9.1-1.3l3.9-1c.7-.2 1.3.4 1.2 1.1v.5zm-8.5 8.3c-2.6-.4-3.3-3.3-1.6-5.6l.9.4c.4.2.9.2 1.3.1l1 3.9c.2.7-.4 1.3-1.1 1.2h-.5zM4.1 11.4c.4-2.6 3.3-3.3 5.6-1.6l-.4.9c-.2.4-.2.9-.1 1.3l-3.9 1c-.7.2-1.3-.4-1.2-1.1v-.5z"/></svg>';
-    b.appendChild(mk("span","un-id",u)); const k=I.tk.length+I.ev.length; if(k) b.appendChild(mk("i","un-n",String(k)));
-    b.title=u+" — "+UNIT_ST[I.st]+(k?" · "+k+" פתוחים":""); b.setAttribute("aria-label",b.title); b.setAttribute("aria-pressed",String(unitSel===u));
-    b.onclick=()=>{ unitSel = unitSel===u ? null : u; renderUnits(); }; grid.appendChild(b); });
-  box.appendChild(grid);
-  if(unitSel && g.units.includes(unitSel)){ const I=info[unitSel], d=mk("div","un-det");
-    d.appendChild(mk("div","un-dt",unitSel+" · "+UNIT_ST[I.st]));
+  const s1=mk("section","sc-sec"); s1.appendChild(mk("h4",null,"סטטוס — "+g.g)); const cn=mk("div","sc-cnt");
+  [["ok","בעבודה"],["down","לא בעבודה"],["issue","בעיה אחרת"]].forEach(([k,l])=>{ const c=mk("div","sc-c "+k); c.append(mk("span",null,l), mk("b",null,String(n[k]))); cn.appendChild(c); });
+  s1.appendChild(cn); side.appendChild(s1);
+  if(unitSel && g.units.includes(unitSel)){ const I=info[unitSel], d=mk("section","sc-sec sc-sel");
+    const h=mk("div","sc-selh"); h.append(mk("h4",null,(g.kind[unitSel]==="asp"?"אספירטור ":"מאוורר ")+unitSel), mk("span","sc-pill "+I.st,UNIT_ST[I.st])); d.appendChild(h);
     I.tk.forEach(t=>{ const r=mk("button","un-it"); r.type="button"; r.append(mk("span","sn",snOf(t)||"משימה"), mk("span",null,t.title||""), mk("span","un-ty",(t.type||"")+" · "+tkStat(t)));
       r.onclick=()=>goTask(t.id); d.appendChild(r); });
     I.ev.forEach(e=>{ const r=mk("button","un-it"); r.type="button"; r.append(mk("span","sn",snOf(e)||"אירוע"), mk("span",null,e.title||e.desc||""), mk("span","un-ty",(e.type||[]).join(" · ")||"אירוע"));
       r.onclick=()=>{ show("List"); const a=document.querySelector('#viewList .ev[data-id="'+e.id+'"]');   // the event in the list
         if(a){ a.classList.add("flash"); setTimeout(()=>a.classList.remove("flash"),2200); requestAnimationFrame(()=>a.scrollIntoView({block:"center"})); } }; d.appendChild(r); });
-    if(!I.tk.length && !I.ev.length) d.appendChild(mk("p","hint","אין משימות או אירועים פתוחים על היחידה."));
-    const nb=mk("button","btn mini","＋ משימה על "+unitSel); nb.type="button"; const uid=unitSel;
+    if(!I.tk.length && !I.ev.length) d.appendChild(mk("p","sc-none","אין משימות או אירועים פתוחים על היחידה."));
+    const nb=mk("button","sc-new","＋ משימה על "+unitSel); nb.type="button"; const uid=unitSel;
     nb.onclick=()=>{ goTasks({}); openTaskForm(null); fillSelect($("#tkEq"), [...new Set(byUse("eq").concat(uid))], uid, "— בחר ציוד —", true);
       $("#tkType").value="אחזקות שבר"; $("#tkType").dispatchEvent(new Event("change")); paintFormColors(); };
-    d.appendChild(nb); box.appendChild(d); }
+    d.appendChild(nb); side.appendChild(d); }
+  const lg=mk("section","sc-sec sc-leg"); [["ok","בעבודה"],["down","לא בעבודה"],["issue","בעיה אחרת"]].forEach(([k,l])=>{ const x=mk("span"); x.append(mk("i",k), l); lg.appendChild(x); }); side.appendChild(lg);
+  const al=mk("section","sc-sec sc-alarms"); al.appendChild(mk("h4",null,"תקלות פעילות — כל הקבוצות"));
+  downAll.forEach(({u,g:x})=>{ const I=info[u], t=I.tk[0]||I.ev[0], r=mk("button","sc-al"); r.type="button"; r.innerHTML=TRI;
+    r.append(mk("span",null,u+(t?" — "+(t.title||t.desc||""):"")), mk("small",null,x.g)); r.onclick=()=>{ unitSel=null; pick(x,u); }; al.appendChild(r); });
+  if(!downAll.length) al.appendChild(mk("p","sc-ok","אין תקלות פעילות"));
+  side.appendChild(al);
+  const body=mk("div","sc-body"); body.append(bw, side);
+  // the groups as tabs at the bottom
+  const tabs=mk("nav","sc-tabs"); tabs.setAttribute("aria-label","קבוצות");
+  G.forEach(x=>{ const ok=x.units.filter(u=>info[u].st!=="down").length, f=x.units.filter(u=>info[u].st==="down").length, b=mk("button"); b.type="button";
+    b.setAttribute("aria-current", x===g ? "page" : "false"); b.append(mk("span",null,x.g), mk("small",null,ok+"/"+x.units.length)); if(f) b.appendChild(mk("b",null,String(f)));
+    b.onclick=()=>{ try{ localStorage.setItem("ogg-units-g",x.g); }catch(e){} unitSel=null; renderUnits(); }; tabs.appendChild(b); });
+  box.append(bar, body, tabs);
+  // a phone (or a narrow card): the basin shrinks to fit, the drawing stays the same
+  const most=Math.max(1,...rows.map(r=>r.length)), need=most*108+124;
+  requestAnimationFrame(()=>{ const w=bw.clientWidth; const z=w && w<need ? w/need : 1; outer.style.width = z<1 ? need+"px" : ""; outer.style.zoom = z<1 ? String(z) : ""; });
 }
+let unitsRT=null; addEventListener("resize",()=>{ clearTimeout(unitsRT); unitsRT=setTimeout(()=>{ if(!$("#viewDash").hidden) renderUnits(); },200); });
 function paintUnitsCfg(){ const c=$("#unitsCfg"); if(!c) return; c.hidden=!isManager();
   if(document.activeElement!==$("#unitsTxt")) $("#unitsTxt").value=lists._units||"";
   const G=unitsParse($("#unitsTxt").value); $("#unitsInfo").textContent = G.length ? G.map(x=>x.g+": "+x.units.length).join(" · ") : ""; }
@@ -2199,7 +2230,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.60", APP_DATE="01/11/2026";
+const APP_VER="3.61", APP_DATE="01/11/2026";
 $("#verChip").textContent = BETA && LITE_MQ.matches ? "בטא "+APP_VER : "v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){

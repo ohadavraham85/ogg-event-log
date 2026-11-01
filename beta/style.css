@@ -2504,39 +2504,104 @@ html.inb-dock .fb-btn{left:416px}
   color:var(--ink-2);font:inherit;font-size:16px;line-height:1;cursor:pointer;display:grid;place-items:center;z-index:2}
 .inb-close:hover{color:var(--ink);border-color:var(--ink-2)}
 #dlgInbox h3{padding-left:44px}
-/* units board (dashboard): working / not working / another problem, from what is open on each unit */
+/* units board (dashboard): a control-room screen — the basin with its aerators and aspirators, coloured by what is open on each unit */
 .units-card{padding:14px;margin:0 0 14px}
 .un-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px}
 .un-head h3{margin:0}
-.un-seg{max-width:100%;overflow-x:auto}
-.un-seg button b{font-weight:800;margin-inline-start:2px;direction:ltr;unicode-bidi:isolate}
-.un-seg button.has-down b{color:#D6342C}
-.un-cnt{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:12px}
-.un-c{border:1px solid var(--edge);border-top:4px solid;border-radius:10px;padding:8px;text-align:center;background:var(--panel)}
-.un-c b{display:block;font-size:24px;line-height:1.1}
-.un-c span{font-size:13px;color:var(--ink-2)}
-.un-c.un-ok{border-top-color:#1C8A4E} .un-c.un-ok b{color:#1C8A4E}
-.un-c.un-down{border-top-color:#D6342C} .un-c.un-down b{color:#D6342C}
-.un-c.un-issue{border-top-color:#E07B12} .un-c.un-issue b{color:#C96A00}
-.un-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(68px,1fr));gap:8px}
-.un-u{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 4px 6px;border-radius:12px;border:2px solid transparent;
-  font:inherit;cursor:pointer;min-height:64px}
-.un-u svg{width:30px;height:30px}
-.un-u .un-id{font-size:12px;font-weight:700;direction:ltr}
-.un-u.un-ok{background:color-mix(in srgb,#1C8A4E 14%,var(--panel));color:#1C8A4E}
-.un-u.un-down{background:color-mix(in srgb,#D6342C 18%,var(--panel));color:#C62828}
-.un-u.un-issue{background:color-mix(in srgb,#E07B12 18%,var(--panel));color:#B85F00}
-.un-u .un-id{color:var(--ink)}
-.un-u.on{border-color:var(--water);box-shadow:0 0 0 2px color-mix(in srgb,var(--water) 30%,transparent)}
-.un-u .un-n{position:absolute;top:4px;left:4px;min-width:18px;height:18px;padding:0 5px;box-sizing:border-box;border-radius:9px;background:currentColor;font-style:normal;font-size:11px;line-height:18px}
-.un-u .un-n{color:#fff;background:#C62828} .un-u.un-issue .un-n{background:#B85F00}
-.un-u.un-down svg{animation:none}
-.un-u.un-ok svg{animation:unSpin 3s linear infinite}
-@keyframes unSpin{to{transform:rotate(360deg)}}
-@media (prefers-reduced-motion:reduce){.un-u.un-ok svg{animation:none}}
-.un-det{margin-top:12px;padding:10px;border:1px solid var(--edge);border-radius:12px;background:var(--panel-2);display:grid;gap:6px}
-.un-dt{font-weight:800}
-.un-it{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px;text-align:start;font:inherit;color:inherit;background:var(--panel);border:1px solid var(--edge);border-radius:10px;padding:8px 10px;cursor:pointer}
-.un-it .un-ty{font-size:12px;color:var(--ink-2);margin-inline-start:auto}
-.un-det .btn{justify-self:start}
+.units-card.scada{padding:0;overflow:hidden;background:#c9cbe0;color:#1c2140;border-color:#9aa0c4;font-family:Heebo,system-ui,sans-serif}
+.scada .sc-bar{display:flex;align-items:center;gap:10px;min-height:48px;padding:0 16px;border-top:8px solid #4b53d8;
+  background:linear-gradient(180deg,#e4e5f2,#cdd0e6);border-bottom:2px solid #9aa0c4}
+.scada .sc-bar h3{margin:0;flex:1;font-size:17px;color:#1c2140}
+.scada .sc-alarm{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;background:#c62828;color:#fff;border:1px solid #7f1414;border-radius:4px;font-size:14px;font-weight:700}
+.scada .sc-alarm svg{width:17px;height:17px}
+.scada .sc-body{display:flex;gap:14px;padding:14px 14px 10px;align-items:stretch}
+.scada .sc-bw{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px}
+.scada .sc-outer{padding:18px;border-radius:40px;box-sizing:border-box;
+  background:repeating-linear-gradient(135deg,rgba(255,255,255,.10) 0 3px,transparent 3px 9px),linear-gradient(180deg,#a3a9c6,#8a90b0);
+  box-shadow:inset 0 0 0 2px #7a80a2,0 6px 16px rgba(30,30,60,.25)}
+.scada .sc-rim{padding:10px;border-radius:26px;background:linear-gradient(180deg,#e3e5f3,#c3c7df);box-shadow:inset 0 2px 0 #fff,inset 0 -2px 0 #9ea4c4}
+.scada .sc-pool{border-radius:18px;padding:16px 26px;display:flex;flex-direction:column;justify-content:space-between;gap:6px;min-height:360px;box-sizing:border-box;
+  background:radial-gradient(circle at 20% 30%,rgba(255,240,215,.28) 0 2px,transparent 3px) 0 0/22px 18px,radial-gradient(circle at 70% 60%,rgba(90,55,25,.22) 0 3px,transparent 4px) 0 0/31px 27px,radial-gradient(ellipse at 50% 50%,#c39b6c 0%,#a97f52 70%,#94693f 100%);
+  box-shadow:inset 0 0 30px rgba(60,35,10,.45)}
+.scada .sc-row{display:flex;justify-content:space-around;align-items:flex-end;gap:4px;min-height:100px}
+.scada .sc-row.gap{min-height:14px}
+.scada .sc-title{text-align:center;font-size:26px;font-weight:800;color:#14182e;line-height:1.2}
+.scada .sc-u{position:relative;width:104px;padding:4px 3px 3px;display:flex;flex-direction:column;align-items:center;gap:3px;background:transparent;border:0;border-radius:10px;
+  outline:3px solid transparent;cursor:pointer;color:inherit;font:inherit}
+.scada .sc-u.on{outline-color:#ffd84a;background:rgba(255,240,200,.18)}
+.scada .sc-u:focus-visible{outline-color:#ffd84a}
+.scada .sc-aer{position:relative;width:98px;height:70px;display:flex;flex-direction:column;align-items:center}
+.scada .mo{position:relative;z-index:2;width:24px;height:35px;border-radius:5px 5px 2px 2px;box-shadow:0 2px 3px rgba(0,0,0,.35)}
+.scada .sc-aer .mo i{position:absolute;bottom:-5px;left:8px;width:8px;height:6px;border-radius:0 0 2px 2px}
+.scada .disc{position:relative;margin-top:-4px;width:92px;height:38px;border-radius:50%;display:flex;align-items:flex-end;justify-content:center;padding-bottom:4px;box-sizing:border-box;
+  background:radial-gradient(ellipse at 50% 30%,#8fd0ff 0%,#2a8cf5 50%,#0b56c8 100%);box-shadow:0 2px 0 #0a3f96,0 4px 8px rgba(0,0,0,.25)}
+.scada .disc span{font-size:12px;font-weight:800;color:#0c2a6a;letter-spacing:.4px;direction:ltr}
+.scada .sc-warn{position:absolute;top:2px;right:14px;width:21px;height:19px}
+.scada .sc-aer .sh{margin-top:4px;width:70px;height:5px;border-radius:3px;background:linear-gradient(180deg,#e7e9f2,#8f95ad)}
+.scada .sc-asp{width:98px;height:70px;display:flex;align-items:center;justify-content:center;gap:3px}
+.scada .sc-asp .fl{width:14px;height:59px;border-radius:50%;box-shadow:0 2px 4px rgba(0,0,0,.3)}
+.scada .sc-asp .am{display:flex;flex-direction:column;align-items:center}
+.scada .sc-asp .mo{width:28px;height:36px;border-radius:6px 6px 2px 2px}
+.scada .sc-asp .sh{width:49px;height:4px;margin-top:3px;border-radius:3px;background:linear-gradient(180deg,#e7e9f2,#8f95ad)}
+.scada .sc-asp .stem{width:6px;height:11px;background:#7c8299}
+.scada .sc-plate{padding:1px 7px;background:#c3c8de;border:1px solid #7d84a6;border-radius:4px;font-size:12px;font-weight:600;color:#1c2140;white-space:nowrap;direction:ltr}
+.scada .sc-n{position:absolute;top:0;left:2px;min-width:18px;height:18px;padding:0 5px;box-sizing:border-box;border-radius:9px;background:#c62828;color:#fff;font-style:normal;font-size:11px;font-weight:700;line-height:18px;z-index:3}
+.scada .st-issue .sc-n{background:#b85f00}
+/* motor colours: working green, not working red, another problem orange */
+.scada .st-ok .mo{background:repeating-linear-gradient(180deg,rgba(0,0,0,.16) 0 2px,transparent 2px 6px),linear-gradient(90deg,#14501a 0%,#3fae3f 30%,#9be89b 46%,#3fae3f 62%,#14501a 100%)}
+.scada .st-down .mo{background:repeating-linear-gradient(180deg,rgba(0,0,0,.16) 0 2px,transparent 2px 6px),linear-gradient(90deg,#5c0b0b 0%,#c62828 30%,#ff8a80 46%,#c62828 62%,#5c0b0b 100%)}
+.scada .st-issue .mo{background:repeating-linear-gradient(180deg,rgba(0,0,0,.16) 0 2px,transparent 2px 6px),linear-gradient(90deg,#6b3500 0%,#e07b12 30%,#ffc078 46%,#e07b12 62%,#6b3500 100%)}
+.scada .st-ok .sc-aer .mo i{background:#1d5e22} .scada .st-down .sc-aer .mo i{background:#7f1414} .scada .st-issue .sc-aer .mo i{background:#7a3d00}
+.scada .st-ok .fl{background:radial-gradient(ellipse at 40% 35%,#c4f7ad 0%,#4fc94f 55%,#1f7a2a 100%)}
+.scada .st-down .fl{background:radial-gradient(ellipse at 40% 35%,#ffb4ab 0%,#e53935 55%,#7f1414 100%)}
+.scada .st-issue .fl{background:radial-gradient(ellipse at 40% 35%,#ffe0b2 0%,#f39a2b 55%,#8a4500 100%)}
+.scada .st-down .sc-plate{background:#d32f2f;border-color:#7f1414;color:#fff}
+.scada .st-issue .sc-plate{background:#f6c27a;border-color:#a65a00}
+/* side panel */
+.scada .sc-side{width:270px;flex:none;display:flex;flex-direction:column;gap:10px}
+.scada .sc-sec{padding:10px 12px;background:#e6e8f4;border:1px solid #9aa0c4;border-radius:8px}
+.scada .sc-sec h4{margin:0 0 8px;font-size:15px;font-weight:700;color:#2b3160}
+.scada .sc-cnt{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.scada .sc-c{padding:6px 4px;background:#fff;border:1px solid #b6bbd6;border-top:4px solid;border-radius:6px;text-align:center}
+.scada .sc-c span{display:block;font-size:12px;color:#4a5078}
+.scada .sc-c b{display:block;font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:22px}
+.scada .sc-c.ok{border-top-color:#1f9a3e} .scada .sc-c.ok b{color:#17752f}
+.scada .sc-c.down{border-top-color:#d32f2f} .scada .sc-c.down b{color:#b71c1c}
+.scada .sc-c.issue{border-top-color:#e07b12} .scada .sc-c.issue b{color:#a65a00}
+.scada .sc-sel{display:grid;gap:6px}
+.scada .sc-selh{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.scada .sc-selh h4{margin:0;font-size:16px;color:#1c2140;direction:ltr;unicode-bidi:plaintext}
+.scada .sc-pill{padding:2px 10px;border-radius:999px;font-size:13px;font-weight:700;color:#fff}
+.scada .sc-pill.ok{background:#17752f} .scada .sc-pill.down{background:#c62828} .scada .sc-pill.issue{background:#b85f00}
+.scada .un-it{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px;text-align:start;font:inherit;font-size:14px;color:#1c2140;background:#fff;border:1px solid #b6bbd6;border-radius:6px;padding:7px 9px;cursor:pointer}
+.scada .un-it .sn{font-size:12px;font-weight:700;color:#4a5078}
+.scada .un-it .un-ty{font-size:12px;color:#4a5078;margin-inline-start:auto}
+.scada .sc-none{margin:0;font-size:13px;color:#4a5078}
+.scada .sc-new{height:40px;border-radius:6px;border:1px solid #5a6190;background:#343ba6;color:#fff;font:inherit;font-size:14px;font-weight:700;cursor:pointer}
+.scada .sc-leg{display:flex;gap:12px;flex-wrap:wrap;font-size:13px;color:#2b3160}
+.scada .sc-leg span{display:inline-flex;align-items:center;gap:5px}
+.scada .sc-leg i{width:13px;height:13px;border-radius:3px}
+.scada .sc-leg i.ok{background:#2fa84a} .scada .sc-leg i.down{background:#d32f2f} .scada .sc-leg i.issue{background:#e07b12}
+.scada .sc-alarms{flex:1;min-height:80px;background:#1c2140;border-color:#0e1128;display:flex;flex-direction:column;gap:6px;overflow:auto}
+.scada .sc-alarms h4{color:#e6e8f4;margin-bottom:2px}
+.scada .sc-al{display:flex;align-items:center;gap:8px;padding:7px 9px;min-height:40px;background:#4a1414;border:1px solid #ef5350;border-radius:6px;color:#ffd6d6;font:inherit;font-size:13px;text-align:start;cursor:pointer}
+.scada .sc-al svg{width:17px;height:17px;flex:none;color:#ef5350}
+.scada .sc-al span{flex:1}
+.scada .sc-al small{color:#ffb3b3;font-size:11px}
+.scada .sc-ok{margin:0;font-size:14px;color:#8ff0a4}
+/* the groups as tabs */
+.scada .sc-tabs{display:flex;flex-wrap:wrap;gap:6px;padding:8px 14px 10px;background:linear-gradient(180deg,#cdd0e6,#b8bcd8);border-top:2px solid #9aa0c4}
+.scada .sc-tabs button{flex:1;min-width:110px;height:44px;display:flex;align-items:center;justify-content:center;gap:8px;border-radius:4px;border:1px solid #6c7398;
+  background:linear-gradient(180deg,#f1f2fa,#d3d6ea);color:#1c2140;font:inherit;font-size:16px;font-weight:700;font-style:italic;cursor:pointer;box-shadow:0 1px 0 #fff inset,0 1px 2px rgba(0,0,0,.2)}
+.scada .sc-tabs button[aria-current="page"]{background:linear-gradient(180deg,#4b53c9,#343ba6);color:#fff;box-shadow:inset 0 2px 4px rgba(0,0,0,.35)}
+.scada .sc-tabs small{font-style:normal;font-size:13px;font-weight:600;opacity:.85;direction:ltr}
+.scada .sc-tabs b{min-width:22px;height:22px;padding:0 6px;box-sizing:border-box;border-radius:11px;background:#d32f2f;color:#fff;font-style:normal;font-size:13px;line-height:22px}
+@media (max-width:760px){
+  .scada .sc-body{flex-direction:column;padding:10px}
+  .scada .sc-side{width:auto}
+  .scada .sc-pool{min-height:0}
+  .scada .sc-title{font-size:20px}
+  .scada .sc-alarms{min-height:0}
+  .scada .sc-tabs button{min-width:0;font-size:14px;gap:5px;padding:0 6px;height:auto;min-height:44px;line-height:1.15}
+}
 #unitsTxt{width:100%;box-sizing:border-box;font-family:ui-monospace,monospace;font-size:14px;margin:6px 0 8px}
