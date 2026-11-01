@@ -1156,7 +1156,9 @@ function unitsParse(txt){
     if(units.length) out.push({g:m[1], units:[...new Set(units)]}); });
   return out;
 }
-const unitRe=id=>new RegExp("(^|[^A-Za-z0-9])"+id.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"(?![A-Za-z0-9])","i");
+// "B105" also finds "B-105", "B 105", "b105"; not "B1050" or "AB105"
+const unitRe=id=>{ const esc=x=>x.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"), m=id.match(/^(.*?[^\d\s-])[\s-]*(\d+)$/);
+  return new RegExp("(^|[^A-Za-z0-9])"+(m ? esc(m[1])+"[\\s_-]?"+m[2] : esc(id))+"(?![A-Za-z0-9])","i"); };
 function unitInfo(id){
   const re=unitRe(id), on=x=>(x.eq||[]).some(v=>re.test(v)) || re.test(x.title||"");
   const tk=tasks.filter(t=>tkOpen(t) && on(t)), ev=events.filter(e=>isOpen(e) && on(e));
@@ -2197,7 +2199,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.59", APP_DATE="01/11/2026";
+const APP_VER="3.60", APP_DATE="01/11/2026";
 $("#verChip").textContent = BETA && LITE_MQ.matches ? "בטא "+APP_VER : "v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){

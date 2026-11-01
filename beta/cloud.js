@@ -538,9 +538,13 @@
     lists._core_ppl=Array.isArray(o._core_ppl)?o._core_ppl:[];
     lists._roles_ppl=o._roles_ppl && typeof o._roles_ppl==="object" ? o._roles_ppl : {};
     lists._dept_ppl=o._dept_ppl && typeof o._dept_ppl==="object" ? o._dept_ppl : {};
-    lists._units=typeof o._units==="string" ? o._units : "";
-    listsSynced=js; try{ localStorage.setItem(LSL, js); }catch(e){}
+    // the units board: an older version of the app (still open on someone's device) writes the lists without "_units" at all —
+    // that is not a removal (removing writes ""), so keep ours and put it back in the cloud
+    const keepUnits = !("_units" in o) && !!lists._units;
+    if(!keepUnits) lists._units=typeof o._units==="string" ? o._units : "";
+    listsSynced=js; try{ localStorage.setItem(LSL, keepUnits ? JSON.stringify(Object.assign({}, o, {_units:lists._units})) : js); }catch(e){}
     rebuildLists(); renderAll();
+    if(keepUnits && get(K_ROLE)!=="viewer") setTimeout(cloudPush, 1500);
   }
   function syncChip(meta){
     if(!navigator.onLine) return setChip("off","לא מקוון — השינויים יישלחו כשהרשת תחזור");
