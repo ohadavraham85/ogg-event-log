@@ -2504,3 +2504,39 @@ html.inb-dock .fb-btn{left:416px}
   color:var(--ink-2);font:inherit;font-size:16px;line-height:1;cursor:pointer;display:grid;place-items:center;z-index:2}
 .inb-close:hover{color:var(--ink);border-color:var(--ink-2)}
 #dlgInbox h3{padding-left:44px}
+/* units board (dashboard): working / not working / another problem, from what is open on each unit */
+.units-card{padding:14px;margin:0 0 14px}
+.un-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.un-head h3{margin:0}
+.un-seg{max-width:100%;overflow-x:auto}
+.un-seg button b{font-weight:800;margin-inline-start:2px;direction:ltr;unicode-bidi:isolate}
+.un-seg button.has-down b{color:#D6342C}
+.un-cnt{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:12px}
+.un-c{border:1px solid var(--edge);border-top:4px solid;border-radius:10px;padding:8px;text-align:center;background:var(--panel)}
+.un-c b{display:block;font-size:24px;line-height:1.1}
+.un-c span{font-size:13px;color:var(--ink-2)}
+.un-c.un-ok{border-top-color:#1C8A4E} .un-c.un-ok b{color:#1C8A4E}
+.un-c.un-down{border-top-color:#D6342C} .un-c.un-down b{color:#D6342C}
+.un-c.un-issue{border-top-color:#E07B12} .un-c.un-issue b{color:#C96A00}
+.un-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(68px,1fr));gap:8px}
+.un-u{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 4px 6px;border-radius:12px;border:2px solid transparent;
+  font:inherit;cursor:pointer;min-height:64px}
+.un-u svg{width:30px;height:30px}
+.un-u .un-id{font-size:12px;font-weight:700;direction:ltr}
+.un-u.un-ok{background:color-mix(in srgb,#1C8A4E 14%,var(--panel));color:#1C8A4E}
+.un-u.un-down{background:color-mix(in srgb,#D6342C 18%,var(--panel));color:#C62828}
+.un-u.un-issue{background:color-mix(in srgb,#E07B12 18%,var(--panel));color:#B85F00}
+.un-u .un-id{color:var(--ink)}
+.un-u.on{border-color:var(--water);box-shadow:0 0 0 2px color-mix(in srgb,var(--water) 30%,transparent)}
+.un-u .un-n{position:absolute;top:4px;left:4px;min-width:18px;height:18px;padding:0 5px;box-sizing:border-box;border-radius:9px;background:currentColor;font-style:normal;font-size:11px;line-height:18px}
+.un-u .un-n{color:#fff;background:#C62828} .un-u.un-issue .un-n{background:#B85F00}
+.un-u.un-down svg{animation:none}
+.un-u.un-ok svg{animation:unSpin 3s linear infinite}
+@keyframes unSpin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.un-u.un-ok svg{animation:none}}
+.un-det{margin-top:12px;padding:10px;border:1px solid var(--edge);border-radius:12px;background:var(--panel-2);display:grid;gap:6px}
+.un-dt{font-weight:800}
+.un-it{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px;text-align:start;font:inherit;color:inherit;background:var(--panel);border:1px solid var(--edge);border-radius:10px;padding:8px 10px;cursor:pointer}
+.un-it .un-ty{font-size:12px;color:var(--ink-2);margin-inline-start:auto}
+.un-det .btn{justify-self:start}
+#unitsTxt{width:100%;box-sizing:border-box;font-family:ui-monospace,monospace;font-size:14px;margin:6px 0 8px}
