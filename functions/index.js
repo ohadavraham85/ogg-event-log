@@ -121,7 +121,8 @@ exports.eventPush = onDocumentWritten({ document: "events/{id}", region: REGION,
 });
 /* the morning reminder, from the server (07:00): each person gets the open tasks due today that are theirs (assigned to them or
    their department, or opened by them) — whatever version of the app they have. Not for a task they already have a 🔔
-   reminder on (that one comes by itself), nor one whose bell they turned off for that date, nor if "תזכורות" is off. */
+   reminder on (that one comes by itself), nor one whose bell they turned off for that date, nor if "תזכורות" is off.
+   A manager (with "every task of the team" on that device) gets all of the team's tasks due today. */
 exports.dueMorning = onSchedule({ schedule: "0 7 * * *", region: REGION, timeZone: "Asia/Jerusalem" }, async () => {
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jerusalem" }).format(new Date());
   const due = (await db.collection("meta").where("due", "==", today).get()).docs
@@ -137,10 +138,12 @@ exports.dueMorning = onSchedule({ schedule: "0 7 * * *", region: REGION, timeZon
     const has = new Set((Array.isArray(me.reminders) ? me.reminders : []).map(r => r && r.tid));
     let skip = {}; try { const sp = JSON.parse((prSnaps[i].exists && prSnaps[i].data().syncPrefs) || "{}"); skip = JSON.parse((sp["ogg-rem-skip"] || {}).v || "{}") || {}; } catch (e) {}
     const R = { mail, name: m.name, dept: (m.name && dept[m.name]) || "" };
-    const mine = due.filter(t => (isMine(t, R) || openedBy(t, R)) && !has.has(t.id) && skip[t.id] !== t.due);
-    if (mine.length) per.set(mail, mine); });
+    const ok = t => !has.has(t.id) && skip[t.id] !== t.due;
+    const mine = due.filter(t => (isMine(t, R) || openedBy(t, R)) && ok(t)), team_ = m.role === "admin" ? due.filter(ok) : mine;
+    if (team_.length) per.set(mail, { mine, all: team_ }); });
   const sends = [];
-  tokens.docs.forEach(d => { const p = d.data(), mail = String(p.mail || "").toLowerCase(), mine = per.get(mail); if (!mine || !p.token) return;
+  tokens.docs.forEach(d => { const p = d.data(), mail = String(p.mail || "").toLowerCase(), P = per.get(mail); if (!P || !p.token) return;
+    const mine = p.all !== false ? P.all : P.mine; if (!mine.length) return;                // the manager's device setting decides: all, or only theirs
     const body = mine.slice(0, 5).map(t => "• " + (t.no ? "#" + t.no + " " : "") + (t.title || "משימה")).join("\n") + (mine.length > 5 ? "\n…ועוד " + (mine.length - 5) : "");
     sends.push({ ref: d.ref, mail, msg: { token: p.token, data: { title: "🔔 להיום: " + (mine.length === 1 ? "משימה אחת" : mine.length + " משימות"), body,
       tag: "ogg-task-today-" + today, tid: mine.length === 1 ? String(mine[0].id) : "" }, webpush: WEBPUSH } }); });
