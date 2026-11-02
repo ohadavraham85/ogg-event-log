@@ -10,7 +10,7 @@ const { logger } = require("firebase-functions");
 const { initializeApp } = require("firebase-admin/app");
 const { getFirestore, FieldValue } = require("firebase-admin/firestore");
 const { getMessaging } = require("firebase-admin/messaging");
-const { newsFor, clean } = require("./news");
+const { newsFor, clean, isMine, openedBy } = require("./news");
 
 // must be the Firestore database's location (Firebase console → Firestore → the location shown at the top / in settings)
 const REGION = process.env.FUNCTIONS_REGION || "me-west1";
@@ -92,11 +92,60 @@ exports.taskPush = onDocumentWritten({ document: "meta/{doc}", region: REGION, d
     if (!news.length) return;
     const body = news.slice(0, 4).map(n => (n.by && n.by !== who ? n.by + ": " : "") + n.text).join("\n") + (news.length > 4 ? "\n…" : "");
     const head = news.some(n => n.kind === "assign" && /הוקצתה/.test(n.text)) ? "הוקצתה לך משימה" : "משימה · " + who;
-    sends.push({ ref: d.ref, mail, msg: { token: p.token, data: { title: head, body: (t.title || "") + "\n" + body, tag: "ogg-task-" + tid, tid }, webpush: WEBPUSH } });
+    // a tag of its own for each message: several changes to one task no longer replace each other on the phone
+    sends.push({ ref: d.ref, mail, msg: { token: p.token, data: { title: head, body: (t.title || "") + "\n" + body, tag: "ogg-task-" + tid + "-" + Date.now().toString(36), tid }, webpush: WEBPUSH } });
   });
   await sendAll(sends);
 });
 
+/* a new event in the log (events/<id> created by someone): to everyone in the team except the one who wrote it, the office
+   screen and whoever turned "אירוע חדש ביומן" off — also when the app is closed (before, only an open app noticed).
+   An old record that arrives now (a backup loaded, an import) is not news: only events from the last 3 days. */
+exports.eventPush = onDocumentWritten({ document: "events/{id}", region: REGION, database: DATABASE }, async ev => {
+  const before = ev.data.before.exists ? ev.data.before.data() : null;
+  const after = ev.data.after.exists ? ev.data.after.data() : null;
+  if (!after || after._del || before) return;
+  const when = Date.parse(String(after.when || "")); if (when && Date.now() - when > 3 * 864e5) return;
+  const writer = String(after._by || "").toLowerCase();
+  const tokens = await db.collection("push").get(); if (tokens.empty) return;
+  const { members } = await team();
+  const who = ((members.get(writer) || {}).name) || writer.split("@")[0];
+  const off = await notifOffOf([...new Set(tokens.docs.map(d => String(d.data().mail || "").toLowerCase()).filter(Boolean))]);
+  const what = [(after.type || [])[0], (after.loc || [])[0]].filter(Boolean).join(" · ");
+  const body = [what, String(after.title || after.desc || "").slice(0, 90), "נרשם ע\"י " + who].filter(Boolean).join("\n");
+  const sends = [];
+  tokens.docs.forEach(d => { const p = d.data(), mail = String(p.mail || "").toLowerCase(), m = members.get(mail);
+    if (!m || mail === writer || m.role === "viewer" || !p.token || (off.get(mail) || []).includes("ev")) return;
+    sends.push({ ref: d.ref, mail, msg: { token: p.token, data: { title: "אירוע חדש ביומן", body, tag: "ogg-new-" + ev.params.id }, webpush: WEBPUSH } }); });
+  await sendAll(sends);
+});
+/* the morning reminder, from the server (07:00): each person gets the open tasks due today that are theirs (assigned to them or
+   their department, or opened by them) — whatever version of the app they have. Not for a task they already have a 🔔
+   reminder on (that one comes by itself), nor one whose bell they turned off for that date, nor if "תזכורות" is off. */
+exports.dueMorning = onSchedule({ schedule: "0 7 * * *", region: REGION, timeZone: "Asia/Jerusalem" }, async () => {
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jerusalem" }).format(new Date());
+  const due = (await db.collection("meta").where("due", "==", today).get()).docs
+    .filter(d => d.id.startsWith("task-") && !d.data()._del && d.data().status !== "הושלמה" && !d.data().priv).map(d => d.data());
+  if (!due.length) return;
+  const tokens = await db.collection("push").get(); if (tokens.empty) return;
+  const { members, dept } = await team();
+  const mails = [...new Set(tokens.docs.map(d => String(d.data().mail || "").toLowerCase()).filter(Boolean))];
+  const [meSnaps, prSnaps] = await Promise.all([db.getAll(...mails.map(x => db.doc("meta/me-" + x))), db.getAll(...mails.map(x => db.doc("private/" + x)))]);
+  const per = new Map();
+  mails.forEach((mail, i) => { const m = members.get(mail); if (!m || m.role === "viewer") return;
+    const me = meSnaps[i].exists ? meSnaps[i].data() : {}; if (Array.isArray(me.notifOff) && me.notifOff.includes("rem")) return;
+    const has = new Set((Array.isArray(me.reminders) ? me.reminders : []).map(r => r && r.tid));
+    let skip = {}; try { const sp = JSON.parse((prSnaps[i].exists && prSnaps[i].data().syncPrefs) || "{}"); skip = JSON.parse((sp["ogg-rem-skip"] || {}).v || "{}") || {}; } catch (e) {}
+    const R = { mail, name: m.name, dept: (m.name && dept[m.name]) || "" };
+    const mine = due.filter(t => (isMine(t, R) || openedBy(t, R)) && !has.has(t.id) && skip[t.id] !== t.due);
+    if (mine.length) per.set(mail, mine); });
+  const sends = [];
+  tokens.docs.forEach(d => { const p = d.data(), mail = String(p.mail || "").toLowerCase(), mine = per.get(mail); if (!mine || !p.token) return;
+    const body = mine.slice(0, 5).map(t => "• " + (t.no ? "#" + t.no + " " : "") + (t.title || "משימה")).join("\n") + (mine.length > 5 ? "\n…ועוד " + (mine.length - 5) : "");
+    sends.push({ ref: d.ref, mail, msg: { token: p.token, data: { title: "🔔 להיום: " + (mine.length === 1 ? "משימה אחת" : mine.length + " משימות"), body,
+      tag: "ogg-task-today-" + today, tid: mine.length === 1 ? String(mine[0].id) : "" }, webpush: WEBPUSH } }); });
+  await sendAll(sends);
+});
 // settings → 🔔 התראות: the kinds each person turned off (assign / update / status / edit / off / fb / rem / ev)
 async function notifOffOf(mails) {
   const m = new Map(); if (!mails.length) return m;
