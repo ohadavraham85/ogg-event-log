@@ -2715,3 +2715,9 @@ button.sc-hr{cursor:pointer}
 .pl-dlg{max-width:none}
 .pl-dlg #plTitle:focus{outline:none}
 .pl-sum{margin:4px 0 8px;font-weight:600;color:var(--ink-2)}
+/* the beta: what everyone has and what runs here, under the chip */
+.ver-wrap{display:inline-flex;flex-direction:column;align-items:center;gap:1px;flex:none}
+.ver-main{font-size:10px;line-height:1.2;color:var(--ink-2);white-space:nowrap;direction:rtl}
+.ver-main.diff{color:#C96A00;font-weight:700}
+html.lite .ver-main{font-size:8.5px;color:rgba(255,255,255,.9)}
+html.lite .ver-main.diff{color:#FFD166}

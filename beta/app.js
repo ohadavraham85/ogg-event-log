@@ -2312,7 +2312,12 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.72", APP_DATE="02/11/2026";
+const APP_VER="3.73", APP_DATE="02/11/2026";
+// the beta: under the chip, the version everyone has (the site's own version.txt) and the one running here
+if(BETA){ const l=$("#verMain"), paint=v=>{ l.hidden=false; l.textContent="לכולם "+(v||"?")+" · אצלי "+APP_VER;
+    l.classList.toggle("diff", !!v && v!==APP_VER); l.title = !v ? "לא הצלחתי לבדוק מה יש לכולם" : v===APP_VER ? "לכולם יש את אותה גרסה" : "בבטא יש גרסה שעוד לא פורסמה לכולם"; };
+  const look=()=>fetch("../version.txt?t="+Date.now(),{cache:"no-store"}).then(r=>r.ok?r.text():"").then(t=>paint(t.trim().slice(0,12))).catch(()=>paint(""));
+  look(); document.addEventListener("visibilitychange",()=>{ if(!document.hidden) look(); }); }
 $("#verChip").textContent = BETA && LITE_MQ.matches ? "בטא "+APP_VER : "v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
