@@ -71,4 +71,4 @@ function newsFor(before, after, who, R) {
   return taskNews(was, t, who, R);
 }
 
-module.exports = { isMine, followsTask, taskNews, newsFor, clean };
+module.exports = { isMine, openedBy, followsTask, taskNews, newsFor, clean };

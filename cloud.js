@@ -210,10 +210,18 @@
       window.cloudMineState="ok";
       let items=[]; try{ items=s.exists() ? JSON.parse(s.data().items||"[]") : []; }catch(e){}
       if(window.meApply) window.meApply(items);
+      // my other devices: messages, "חדש" marks, settings (app.js merges; a missing one is sent from here)
+      const D=s.exists() ? s.data() : {};
+      if(window.syncApply) ["syncInbox","syncSeen","syncPrefs"].forEach(f=>{ try{ window.syncApply(f, typeof D[f]==="string" ? D[f] : ""); }catch(e){} });
     }, ()=>{ window.cloudMineState="denied"; if(window.paintMe2) window.paintMe2(); });
   }
+  // one part of the in-step copy (syncInbox / syncSeen / syncPrefs) — the other fields of the document stay as they are
+  window.cloudSyncPut=(field, js)=>{ if(!started || !me) return;
+    F.setDoc(F.doc(db,"private",me),{[field]:js,_upd:F.serverTimestamp(),_by:me},{merge:true}).catch(()=>{}); };
+  window.cloudSyncPull=async()=>{ if(!started || !me || !window.syncApply) return;
+    try{ const s=await F.getDoc(F.doc(db,"private",me)); const D=s.exists()?s.data():{}; window.syncApply("syncPrefs", typeof D.syncPrefs==="string"?D.syncPrefs:""); }catch(e){} };
   window.cloudPushMine=items=>{ if(!started || !me) return; clearTimeout(minePushT);
-    minePushT=setTimeout(async()=>{ try{ await F.setDoc(F.doc(db,"private",me),{items:JSON.stringify(items),_upd:F.serverTimestamp(),_by:me}); window.cloudMineState="ok"; }
+    minePushT=setTimeout(async()=>{ try{ await F.setDoc(F.doc(db,"private",me),{items:JSON.stringify(items),_upd:F.serverTimestamp(),_by:me},{merge:true}); window.cloudMineState="ok"; }
       catch(e){ window.cloudMineState="denied"; } if(window.paintMe2) window.paintMe2(); },700); };
   /* feedback (💬): one document each in its own collection "feedback" (feedback/<id>), which only managers can read —
      the screenshot can show anything that was on the sender's screen. Older ones were kept in meta/fb-<id>, where every
@@ -499,7 +507,7 @@
   /* new events recorded by someone else: tab counter, "חדש" marker, toast, and a device notification
      when the app is in the background (needs the user's permission; not when the app is closed) */
   function announce(fresh){
-    fresh.forEach(f=>UNSEEN.add(f.e.id)); saveUnseen(); renderList(false);
+    fresh.forEach(f=>{ if(!(window.evSeenHas && window.evSeenHas(f.e.id))) UNSEEN.add(f.e.id); }); saveUnseen(); renderList(false);   // seen already on my other device: not new here
     const who=m=>(m||"").split("@")[0];
     const one=fresh[0].e, what=[(one.type||[])[0],(one.loc||[])[0]].filter(Boolean).join(" · ");
     const title = fresh.length===1 ? "אירוע חדש ביומן" : fresh.length+" אירועים חדשים ביומן";
@@ -512,7 +520,7 @@
         .catch(()=>{ try{ const n=new Notification(title,opt); n.onclick=()=>{ window.focus(); showNew(); n.close(); }; }catch(e){} });
     }
   }
-  function listsJSON(){ const o={}; Object.keys(SEED).forEach(k=>{ o[k]=lists["_custom_"+k]; o["_hide_"+k]=lists["_hide_"+k]; }); o._core_ppl=lists._core_ppl||[]; o._roles_ppl=lists._roles_ppl||{}; o._dept_ppl=lists._dept_ppl||{}; return JSON.stringify(o); }
+  function listsJSON(){ const o={}; Object.keys(SEED).forEach(k=>{ o[k]=lists["_custom_"+k]; o["_hide_"+k]=lists["_hide_"+k]; }); o._core_ppl=lists._core_ppl||[]; o._roles_ppl=lists._roles_ppl||{}; o._dept_ppl=lists._dept_ppl||{}; o._units=lists._units||""; o._umode=lists._umode||{}; return JSON.stringify(o); }
   function rebuildLists(){
     Object.keys(SEED).forEach(k=>{
       const custom=lists["_custom_"+k]||[], hidden=lists["_hide_"+k]||[];
@@ -530,8 +538,14 @@
     lists._core_ppl=Array.isArray(o._core_ppl)?o._core_ppl:[];
     lists._roles_ppl=o._roles_ppl && typeof o._roles_ppl==="object" ? o._roles_ppl : {};
     lists._dept_ppl=o._dept_ppl && typeof o._dept_ppl==="object" ? o._dept_ppl : {};
-    listsSynced=js; try{ localStorage.setItem(LSL, js); }catch(e){}
+    // the units board: an older version of the app (still open on someone's device) writes the lists without "_units" at all —
+    // that is not a removal (removing writes ""), so keep ours and put it back in the cloud
+    const keepU = !("_units" in o) && !!lists._units, keepM = !("_umode" in o) && Object.keys(lists._umode||{}).length>0, keepUnits = keepU || keepM;
+    if(!keepU) lists._units=typeof o._units==="string" ? o._units : "";
+    if(!keepM) lists._umode=o._umode && typeof o._umode==="object" ? o._umode : {};
+    listsSynced=js; try{ localStorage.setItem(LSL, keepUnits ? JSON.stringify(Object.assign({}, o, {_units:lists._units, _umode:lists._umode})) : js); }catch(e){}
     rebuildLists(); renderAll();
+    if(keepUnits && get(K_ROLE)!=="viewer") setTimeout(cloudPush, 1500);
   }
   function syncChip(meta){
     if(!navigator.onLine) return setChip("off","לא מקוון — השינויים יישלחו כשהרשת תחזור");
@@ -702,6 +716,23 @@
     const L=(list||[]).slice(0,50), nx=L.length ? Math.min(...L.map(r=>r.at)) : null;
     F.setDoc(F.doc(db,"meta","me-"+me),{reminders:L, remNext:nx, _upd:F.serverTimestamp(), _by:me},{merge:true}).catch(()=>toast("שמירת התזכורת בענן נכשלה"));
   },400); };
+  // a change to my reminders, made on the list as the cloud has it now (one at a time, in order) — so a device that hasn't
+  // heard yet of a reminder set on another one doesn't wipe it. Offline (can't read it): the whole list from here, as before.
+  let remQ=Promise.resolve();
+  window.cloudRemEdit=(edit, local)=>{ if(!started || !me) return; clearTimeout(remT);
+    // then read it back: if another device wrote at the same moment and my change isn't there, make it again (a few times)
+    remQ=remQ.then(async()=>{ const ref=F.doc(db,"meta","me-"+me);
+      for(let n=0;n<4;n++){ let L, L0=null;
+        try{ const s=await F.getDoc(ref); L0=(s.exists() && Array.isArray(s.data().reminders) ? s.data().reminders : []).filter(r=>r && r.tid && r.at); L=edit(L0); }
+        catch(e){ L=(local||[]).slice(); }
+        L=L.slice(0,50);
+        if(n>0 && L0 && JSON.stringify(L)===JSON.stringify(L0)) break;      // it's there
+        const nx=L.length ? Math.min(...L.map(r=>r.at)) : null;
+        try{ await F.setDoc(ref,{reminders:L, remNext:nx, _upd:F.serverTimestamp(), _by:me},{merge:true}); }
+        catch(e){ toast("שמירת התזכורת בענן נכשלה"); return; }
+        if(!L0) return;                                                   // offline: written from here, nothing to compare
+        if(window.remApply) window.remApply(L);
+        await new Promise(r=>setTimeout(r, 500+Math.random()*900)); } }); };
   window.cloudSetNotif=list=>{ if(!started || !me) return;
     F.setDoc(F.doc(db,"meta","me-"+me),{notifOff:(list||[]).slice(0,20), _upd:F.serverTimestamp(), _by:me},{merge:true}).then(()=>toast("נשמר")).catch(()=>toast("השמירה בענן נכשלה")); };
   async function loadSelfName(){

@@ -102,6 +102,8 @@ function load(){
   lists._core_ppl = Array.isArray(saved._core_ppl) ? saved._core_ppl : [];   // ⭐ core staff: always first, own colour
   lists._roles_ppl = saved._roles_ppl && typeof saved._roles_ppl==="object" ? saved._roles_ppl : {};   // person → role
   lists._dept_ppl = saved._dept_ppl && typeof saved._dept_ppl==="object" ? saved._dept_ppl : {};      // person → department
+  lists._units = typeof saved._units==="string" ? saved._units : "";                                    // the units board: "group: units" per line
+  lists._umode = saved._umode && typeof saved._umode==="object" ? saved._umode : {};                     // unit → {m:"man"|"stop", by, at} set by hand
 }
 /* serial numbers: every event and every task keeps a permanent number — #1 is the oldest
    (events by their date, tasks by when they were opened); a new one gets the next number.
@@ -129,7 +131,7 @@ function persist(){
   ensureNos();
   saveBig(LS, JSON.stringify(events)).then(ok=>{ if(!ok) toast("הדפדפן חסם שמירה מקומית"); });
   try{
-    const out={}; Object.keys(SEED).forEach(k=>{ out[k]=lists["_custom_"+k]; out["_hide_"+k]=lists["_hide_"+k]; }); out._core_ppl=lists._core_ppl||[]; out._roles_ppl=lists._roles_ppl||{}; out._dept_ppl=lists._dept_ppl||{};
+    const out={}; Object.keys(SEED).forEach(k=>{ out[k]=lists["_custom_"+k]; out["_hide_"+k]=lists["_hide_"+k]; }); out._core_ppl=lists._core_ppl||[]; out._roles_ppl=lists._roles_ppl||{}; out._dept_ppl=lists._dept_ppl||{}; out._units=lists._units||""; out._umode=lists._umode||{};
     localStorage.setItem(LSL, JSON.stringify(out));
   }catch(e){ toast("הדפדפן חסם שמירה מקומית"); }
   // a linked file that is waiting for the browser's permission: ask now (we are inside a click)
@@ -548,7 +550,7 @@ function paintEvFiles(){ const box=$("#evPh"); if(box) evThumbs(evFiles, box, m=
 function resetForm(){
   evFiles=[]; paintEvFiles();
   sel.type=[]; sel.loc=[]; sel.eq=[]; sel.ppl=[]; sel.stat=["פתוח"];
-  $("#title").value=""; $("#desc").value=""; $("#act").value=""; editId=null;
+  $("#title").value=""; $("#desc").value=""; editId=null;
   $("#saveBtn").textContent="שמור אירוע"; $("#delEvBtn").hidden=true; setNow(); paintRows(); window.scrollTo({top:0});
 }
 function collect(){
@@ -556,7 +558,7 @@ function collect(){
     id: editId || (Date.now().toString(36)+Math.random().toString(36).slice(2,7)),
     type: sel.type.slice(), loc: sel.loc.slice(), eq: sel.eq.slice(), ppl: sel.ppl.slice(),
     stat: sel.stat.slice(), title: $("#title").value.trim(),
-    desc: $("#desc").value.trim(), act: $("#act").value.trim(),
+    desc: $("#desc").value.trim(),   // "פעולה שננקטה" is gone from the form; an edit keeps what an event already had
     when: whenStr(), ts: new Date().toISOString(), files: evFiles.slice()
   };
 }
@@ -580,13 +582,13 @@ function doSave(e){
   if(i>=0) events[i]=e; else events.unshift(e);
   events.sort((a,b)=>(b.when||"").localeCompare(a.when||""));
   const ts = i>=0 ? syncTaskFromEvent(e) : null;
-  persist(); renderAll(); toast((i>=0?"האירוע עודכן":"האירוע נשמר")+(ts ? (isOpen(e)?" · המשימה חזרה למשימות הפתוחות":" · המשימה סומנה כהושלמה") : "")); resetForm();
+  persist(); renderAll(); toast((i>=0?"האירוע עודכן":"האירוע נשמר")+(ts ? (isOpen(e)?" · המשימה חזרה למשימות הפתוחות":" · המשימה סומנה כהושלמה") : "")); resetForm(); show("List"); window.scrollTo({top:0});   // saved: back to the events list
 }
 $("#saveBtn").onclick = ()=>{
   const e=collect();
   if(!e.type.length){ toast("בחר סוג אירוע"); openSheet("type"); return; }
   if(!e.loc.length){ toast("בחר מיקום"); openSheet("loc"); return; }
-  if(!e.desc){ toast("כתוב מה קרה"); $("#desc").focus(); return; }
+  if(!e.desc){ toast("כתוב תיאור אירוע"); $("#desc").focus(); return; }
   const d=findDup(e);
   if(d){
     $("#dupText").textContent = fmtWhen(d.when)+" · "+(d.loc||[]).join(" · ")+" — "+d.desc.slice(0,90);
@@ -872,7 +874,7 @@ function loadInto(e){
   editId=e.id;
   sel.type=(e.type||[]).slice(); sel.loc=(e.loc||[]).slice();
   sel.eq=(e.eq||[]).slice(); sel.ppl=(e.ppl||[]).slice(); sel.stat=(e.stat||["פתוח"]).slice();
-  $("#title").value=e.title||""; $("#desc").value=e.desc||""; $("#act").value=e.act||"";
+  $("#title").value=e.title||""; $("#desc").value=e.desc||"";
   evFiles=(e.files||[]).filter(m=>m && !m.del).slice(); paintEvFiles();
   const parts=(e.when||"").split("T"); $("#dDate").value=parts[0]||""; $("#dTime").value=(parts[1]||"").slice(0,5);
   $("#saveBtn").textContent="עדכן אירוע"; $("#delEvBtn").hidden=!isManager(); show("New"); paintRows(); window.scrollTo({top:0});
@@ -914,7 +916,7 @@ function renderStats(){
   });
   $("#cnt").textContent = events.length? "("+open+"/"+events.length+")":"";   // open out of all, like the tasks tab
 }
-function renderAll(){ paintRows(); renderFilters(); renderList(); renderStats(); renderMgr(); if(!$("#viewDash").hidden) renderDash(); if(!$("#viewCal").hidden) renderCal(); updateBadge(); paintNewCount(); }
+function renderAll(){ if(typeof paintUnitsCfg==="function") paintUnitsCfg(); paintRows(); renderFilters(); renderList(); renderStats(); renderMgr(); if(!$("#viewDash").hidden) renderDash(); if(!$("#viewCal").hidden) renderCal(); updateBadge(); paintNewCount(); }
 $("#q").oninput=renderList; $("#fType").onchange=renderList; $("#fLoc").onchange=renderList;
 
 /* ================= dashboard ================= */
@@ -1139,7 +1141,184 @@ function dashTasks(cards, from){
       .concat(PRIOS.map(p=>["עדיפות "+p, open.filter(t=>prioOf(t)===p).length])), ["מדד","משימות"]);
   c.classList.add("wide"); cards.appendChild(c);
 }
-function renderDash(){ renderDash0(); arrangeDash(); paintTicker(); paintBoard(); paintBriefCard(); renderLitePie(); }
+function renderDash(){ renderDash0(); arrangeDash(); paintTicker(); paintBoard(); paintBriefCard(); renderUnits(); renderLitePie(); }
+/* ===== units board (dashboard): groups of units (e.g. a basin and its motors), set in settings → ניהול רשימות (the names are the
+   team's data, never in the code). A unit's state comes from what is open on it — its name in a task's or an event's equipment
+   or title: an open "אחזקות שבר" task or an open fault event → not working; anything else open → another problem; nothing → working.
+   Closing the task brings the unit back by itself. */
+function unitsParse(txt){
+  // "name: units" per line; "|" starts a new row in the drawing (an empty one is a gap); a unit ending in "*" is an aspirator,
+  // in "+" an aerator with a white disc (its row is spaced evenly)
+  const out=[];
+  // after the units, "; כניסה: ימין למעלה (שם)" / "; יציאה: שמאל אמצע" draws a pipe in or out of the basin: a side
+  // (ימין / שמאל / למעלה / למטה) and where along it (למעלה / אמצע / למטה, or ימין / אמצע / שמאל), and an optional name
+  String(txt||"").split(/\n+/).forEach(line=>{ const m=line.match(/^\s*([^:]+?)\s*:\s*(.+)$/); if(!m || m[1]==="כותרת") return;
+    const rows=[], kind={}, pipes=[], parts=m[2].split(";");
+    parts.slice(1).forEach(x=>{ const q=x.trim().match(/^(כניסה|יציאה)\s*:?\s*(.*)$/); if(!q) return;
+      const nm=(q[2].match(/\(([^)]*)\)/)||[])[1]||"", w=q[2].replace(/\([^)]*\)/,"").split(/\s+/).filter(Boolean);
+      const side={"ימין":"r","שמאל":"l","למעלה":"t","למטה":"b"}[w[0]]||(q[1]==="כניסה"?"r":"l");
+      const at={"למעלה":18,"ימין":82,"אמצע":50,"למטה":82,"שמאל":18}[w[1]]; pipes.push({dir:q[1]==="כניסה"?"in":"out", side, at:at===undefined?50:at, name:nm.trim()}); });
+    parts[0].split("|").forEach(seg=>{ const row=[];
+      seg.split(/[,\s]+/).filter(Boolean).forEach(p=>{ const asp=/\*$/.test(p), wht=/\+$/.test(p); p=p.replace(/[*+]+$/,""); if(!p) return;
+        const r=p.match(/^(.*?)(\d+)-(?:\1)?(\d+)$/), ids=[];                 // P101-P110 or P101-110
+        if(r && +r[3]>=+r[2] && +r[3]-+r[2]<200){ for(let n=+r[2]; n<=+r[3]; n++) ids.push(r[1]+String(n).padStart(r[2].length,"0")); }
+        else ids.push(p);
+        ids.forEach(u=>{ row.push(u); if(asp) kind[u]="asp"; else if(wht) kind[u]="wht"; }); });
+      rows.push(row); });
+    const units=[...new Set(rows.flat())];
+    if(units.length) out.push({g:m[1], rows, units, kind, pipes}); });
+  return out;
+}
+// "B105" also finds "B-105", "B 105", "b105"; not "B1050" or "AB105"
+// …and "B1-05", "B1 05", "B1/05" (the group's digit apart from the unit's number)
+const unitRe=id=>{ const esc=x=>x.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"), m=id.match(/^(.*?[^\d\s-])[\s-]*(\d+)$/);
+  const num=m ? (m[2].length>2 ? m[2][0]+"[\\s./_-]?"+m[2].slice(1) : m[2]) : "";
+  return new RegExp("(^|[^A-Za-z0-9])"+(m ? esc(m[1])+"[\\s_-]?"+num : esc(id))+"(?![A-Za-z0-9])","i"); };
+function unitInfo(id){
+  const re=unitRe(id), on=x=>(x.eq||[]).some(v=>re.test(v)) || re.test(x.title||"");
+  const tk=tasks.filter(t=>tkOpen(t) && on(t)), ev=events.filter(e=>isOpen(e) && on(e));
+  const down=tk.some(t=>/אחזקות שבר/.test(t.type||"")) || ev.some(e=>(e.type||[]).some(x=>/תקלה/.test(x)));
+  const m=unitMode(id);
+  return {id, tk, ev, mode:m, st: down ? "down" : m==="stop" ? "stop" : tk.length||ev.length ? "issue" : "ok"};
+}
+const UNIT_ST={ok:"בעבודה", down:"לא בעבודה", issue:"בעיה אחרת", stop:"מושבת", man:"עובד בידני", auto:"אוטומטי"};
+// set by hand on the unit (the team sees it): עובד בידני / מושבת; "אוטומטי" clears it. A fault from an open task still wins.
+const unitMode=u=>((lists._umode||{})[u]||{}).m || "auto";
+// everything that ever happened on a unit: its tasks and events (open and closed) and the hand-set mode changes, newest first
+function unitHist(u){
+  // the history looks wider than the state: also the description, the action taken, the updates and the checklist
+  const re=unitRe(u), on=x=>(x.eq||[]).some(v=>re.test(v)) || re.test(x.title||"") || re.test(x.desc||"") || re.test(x.act||"")
+    || (x.log||[]).some(l=>l && re.test(l.text||"")) || (x.check||[]).some(c=>c && re.test(c.text||"")), out=[];
+  tasks.filter(t=>!t.priv && on(t)).forEach(t=>out.push({at:String(t.created||t.start||""), k:"משימה", n:snOf(t), t:t.title||"", type:t.type||"",
+    st: tkOpen(t) ? tkStat(t) : "הושלמה"+(t.doneAt?" "+dmy(String(t.doneAt).slice(0,10)):""), open:tkOpen(t), go:()=>goTask(t.id)}));
+  events.filter(on).forEach(e=>out.push({at:String(e.when||""), k:"אירוע", n:snOf(e), t:e.title||e.desc||"", type:(e.type||[]).join(" · "),
+    st: isOpen(e) ? "פתוח" : "נסגר"+(e.closedAt?" "+dmy(String(e.closedAt).slice(0,10)):""), open:isOpen(e), go:()=>{ show("List");
+      const a=document.querySelector('#viewList .ev[data-id="'+e.id+'"]'); if(a){ a.classList.add("flash"); setTimeout(()=>a.classList.remove("flash"),2200); requestAnimationFrame(()=>a.scrollIntoView({block:"center"})); } }}));
+  const M=(lists._umode||{})[u]; if(M) (M.h||[]).concat(M.m?[M]:[]).forEach(x=>{ if(x && x.at) out.push({at:String(x.at), k:"מצב", n:"", t:UNIT_ST[x.m]||x.m, type:x.by||"", st:"", open:false}); });
+  return out.sort((a,b)=>b.at.localeCompare(a.at));
+}
+function unitSetMode(u, m){ if(isViewer()) return; lists._umode=Object.assign({}, lists._umode||{});
+  const was=lists._umode[u]||{}, h=(was.h||[]).concat(was.m ? [{m:was.m, by:was.by||"", at:was.at||""}] : []).slice(-30);   // the earlier ones: the unit's history
+  lists._umode[u]={m, by:reporter()||myName()||"", at:nowLocal(), h};
+  persist(); renderUnits(); toast(u+" — "+(m==="auto"?"אוטומטי":UNIT_ST[m])); }
+let unitSel=null;
+// "כותרת: …" in the settings names the button and the window
+const unitsTitle=()=>{ const m=String(lists._units||"").match(/^\s*כותרת\s*:\s*(.+)$/m); return m ? m[1].trim() : "סטטוס יחידות"; };
+function renderUnits(){
+  const card=$("#dUnits"); if(!card) return; const G=unitsParse(lists._units); card.textContent="";
+  let box=card;
+  if(!G.length){ box.hidden=!isManager() || isViewer();           // not set up yet: a manager sees how to set it up
+    if(box.hidden) return; box.appendChild(mk("div","un-head")).appendChild(mk("h3",null,"מצב יחידות"));
+    box.appendChild(mk("p","hint", isLite() ? "עוד לא הוגדרו יחידות. ההגדרה — מהמחשב: הגדרות ← ניהול רשימות ← לוח יחידות בדשבורד."
+      : "עוד לא הוגדרו יחידות. כותבים פעם אחת את הקבוצות והיחידות (למשל בריכה והמנועים בה), ומצב כל יחידה יוצג כאן לפי המשימות והאירועים הפתוחים עליה."));
+    if(!isLite()){ const b=mk("button","btn primary","הגדר יחידות"); b.type="button";
+      b.onclick=()=>{ sgCur="lists"; try{ localStorage.setItem("ogg-settings-topic","lists"); }catch(e){} show("Data"); paintSettings();
+        const c=$("#unitsCfg"); if(c){ c.scrollIntoView({block:"center"}); $("#unitsTxt").focus(); } };
+      box.appendChild(b); }
+    return; }
+  card.hidden=false;
+  const info={}; G.forEach(x=>x.units.forEach(u=>{ if(!info[u]) info[u]=unitInfo(u); }));
+  // the dashboard: one long button with the summary; it opens the control screen
+  { const b=mk("button","un-open"); b.type="button";
+    b.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path fill="currentColor" d="M12 10.3a1.7 1.7 0 1 1 0 3.4 1.7 1.7 0 0 1 0-3.4zm.5-6c2.4.4 3 3 1.5 5.1l-.9-.4c-.4-.2-.8-.2-1.2-.1l-.9-3.7c-.2-.6.4-1.1 1-1h.5zm6.7 8.7c-.4 2.4-3 3-5.1 1.5l.4-.9c.2-.4.2-.8.1-1.2l3.7-.9c.6-.2 1.1.4 1 1v.5zm-7.7 6.7c-2.4-.4-3-3-1.5-5.1l.9.4c.4.2.8.2 1.2.1l.9 3.7c.2.6-.4 1.1-1 1h-.5zM4.8 11c.4-2.4 3-3 5.1-1.5l-.4.9c-.2.4-.2.8-.1 1.2l-3.7.9c-.6.2-1.1-.4-1-1V11z"/></svg>';
+    b.appendChild(mk("span","un-ot",unitsTitle())); const sm=mk("span","un-os");
+    G.forEach(x=>{ const ok=x.units.filter(u=>info[u].st!=="down" && info[u].st!=="stop").length, f=x.units.some(u=>info[u].st==="down");
+      const c=mk("span","un-oc"+(f?" bad":"")); c.append(mk("b",null,x.g.split(/\s+/).pop()), " "+ok+"/"+x.units.length); sm.appendChild(c); });
+    const down=new Set(); G.forEach(x=>x.units.forEach(u=>{ if(info[u].st==="down") down.add(u); }));
+    if(down.size) sm.appendChild(mk("span","un-oa","⚠ "+down.size+" לא בעבודה"));
+    b.appendChild(sm); b.onclick=()=>{ const d=$("#dlgUnits"); if(!d.open) d.showModal(); renderUnits(); }; card.appendChild(b); }
+  const dlg=$("#dlgUnits"); if(!dlg || !dlg.open) return;
+  box=$("#uScada"); box.textContent="";
+  const leave=fn=>()=>{ dlg.close(); fn(); };                    // from the screen to a task or an event: the window closes first
+  let cur=""; try{ cur=localStorage.getItem("ogg-units-g")||""; }catch(e){} const g=G.find(x=>x.g===cur)||G[0];
+  const WARN='<svg class="sc-warn" viewBox="0 0 30 27" role="img" aria-label="תקלה"><path d="M15 2L28 25H2z" fill="#e53935" stroke="#fff" stroke-width="2" stroke-linejoin="round"/><path d="M15 10v7M15 20v1.5" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/></svg>';
+  const TRI='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l10 18H2z"/><path d="M12 10v5"/><path d="M12 18v.5"/></svg>';
+  const downAll=g.units.filter(u=>info[u].st==="down").map(u=>({u, g}));   // the faults of the group on screen (the tabs show the others')
+  const pick=(x,u)=>{ try{ localStorage.setItem("ogg-units-g",x.g); }catch(e){} unitSel = unitSel===u && x===g ? null : u; renderUnits(); };
+  // the screen's top bar
+  const bar=mk("div","sc-bar"); bar.appendChild(mk("h3",null,unitsTitle()));
+  const mid=mk("div","sc-mid"); mid.appendChild(mk("span","sc-lbl","צג מחשב בקרה")); bar.appendChild(mid);
+  const rt=mk("div","sc-rt");
+  if(downAll.length){ const al=mk("span","sc-alarm"); al.innerHTML=TRI; al.append(downAll.length+" לא בעבודה"); rt.appendChild(al); }
+  const xb=mk("button","sc-x","✕"); xb.type="button"; xb.setAttribute("aria-label","סגור"); xb.title="סגור"; xb.onclick=()=>dlg.close(); rt.appendChild(xb);
+  bar.appendChild(rt);
+  // the basin: rows of units as drawn in the settings
+  let rows=g.rows.length===1 && g.rows[0].length>7 ? g.rows[0].reduce((a,u,i)=>{ if(i%5===0) a.push([]); a[a.length-1].push(u); return a; },[]) : g.rows;
+  const bw=mk("div","sc-bw"), outer=mk("div","sc-outer"), rim=mk("div","sc-rim"), pool=mk("div","sc-pool");
+  rows.forEach(r=>{ const row=mk("div","sc-row"+(r.length?"":" gap")+(r.length && r.every(u=>g.kind[u]==="wht")?" even":""));
+    r.forEach(u=>{ const I=info[u], asp=g.kind[u]==="asp", k=I.tk.length+I.ev.length, b=mk("button","sc-u st-"+I.st+(I.mode==="man" && I.st!=="down" && I.st!=="stop"?" man":"")+(unitSel===u?" on":"")); b.type="button";
+      b.innerHTML = asp
+        ? '<div class="sc-asp" aria-hidden="true"><i class="fl"></i><div class="am"><i class="mo"></i><i class="sh"></i><i class="stem"></i></div><i class="fl"></i></div>'
+        : '<div class="sc-aer'+(g.kind[u]==="wht"?" wht":"")+'"><div class="mo" aria-hidden="true"><i></i></div><div class="disc"><span aria-hidden="true">'+(g.kind[u]==="wht"?"ST":"VFD")+'</span>'+(I.st==="down"?WARN:"")+'</div><i class="sh" aria-hidden="true"></i></div>';
+      b.appendChild(mk("span","sc-plate",(asp?"אספירטור ":"מאוורר שטח ")+u)); if(k) b.appendChild(mk("i","sc-n",String(k)));
+      if(I.mode==="man" && I.st!=="down" && I.st!=="stop") b.appendChild(mk("i","sc-man","ידני"));
+      b.setAttribute("aria-label",(asp?"אספירטור ":"מאוורר ")+u+" — "+UNIT_ST[I.st]+(I.mode==="man"?" · ידני":"")+(k?" · "+k+" פתוחים":"")); b.title=b.getAttribute("aria-label");
+      b.setAttribute("aria-pressed",String(unitSel===u)); b.onclick=()=>pick(g,u); row.appendChild(b); });
+    pool.appendChild(row); });
+  rim.appendChild(pool); outer.appendChild(rim);
+  (g.pipes||[]).forEach(pp=>{ const v=pp.side==="t"||pp.side==="b", e=mk("div","sc-pipe "+pp.dir+" s-"+pp.side);
+    e.style[v?"left":"top"]=pp.at+"%"; e.appendChild(mk("i","sc-flow"));
+    e.appendChild(mk("span","sc-ptag",(pp.dir==="in"?"כניסה":"יציאה")+(pp.name?" · "+pp.name:"")));
+    e.setAttribute("aria-label",(pp.dir==="in"?"צינור כניסה":"צינור יציאה")+(pp.name?" — "+pp.name:"")); e.setAttribute("role","img"); outer.appendChild(e); });
+  bw.append(outer, mk("div","sc-title",g.g));
+  // the side panel: counts, the picked unit, legend, faults in all groups
+  const side=mk("aside","sc-side");
+  const n={ok:0,down:0,issue:0,stop:0,man:0}; g.units.forEach(u=>{ const I=info[u]; n[I.st]++; if(I.mode==="man" && I.st!=="down" && I.st!=="stop") n.man++; });
+  n.ok+=n.issue;                                                      // "בעבודה" counts every unit that runs (a problem or by hand too)
+  const s1=mk("section","sc-sec"); s1.appendChild(mk("h4",null,"סטטוס — "+g.g)); const cn=mk("div","sc-cnt");
+  [["ok","בעבודה"],["man","מתוכם ידני"],["down","לא בעבודה"],["stop","מושבת"],["issue","בעיה אחרת"]].forEach(([k,l])=>{ const c=mk("div","sc-c "+k); c.append(mk("span",null,l), mk("b",null,String(n[k]))); cn.appendChild(c); });
+  s1.appendChild(cn); side.appendChild(s1);
+  if(unitSel && g.units.includes(unitSel)){ const I=info[unitSel], d=mk("section","sc-sec sc-sel");
+    const h=mk("div","sc-selh"); h.append(mk("h4",null,(g.kind[unitSel]==="asp"?"אספירטור ":"מאוורר ")+unitSel), mk("span","sc-pill "+I.st,UNIT_ST[I.st]+(I.mode==="man" && I.st!=="stop"?" · ידני":""))); d.appendChild(h);
+    const M=(lists._umode||{})[unitSel], ms=mk("div","sc-mode"); ms.setAttribute("role","group"); ms.setAttribute("aria-label","מצב הפעלה");
+    [["auto","אוטומטי"],["man","עובד בידני"],["stop","מושבת"]].forEach(([k,l])=>{ const b=mk("button","m-"+k,l); b.type="button"; b.setAttribute("aria-pressed",String(I.mode===k));
+      b.disabled=isViewer(); const uu=unitSel; b.onclick=()=>{ if(I.mode!==k) unitSetMode(uu,k); }; ms.appendChild(b); });
+    d.appendChild(ms); if(M && M.by) d.appendChild(mk("p","sc-none",UNIT_ST[M.m]+" · "+M.by+(M.at?" · "+fmtWhen(M.at):"")));
+    I.tk.forEach(t=>{ const r=mk("button","un-it"); r.type="button"; r.append(mk("span","sn",snOf(t)||"משימה"), mk("span",null,t.title||""), mk("span","un-ty",(t.type||"")+" · "+tkStat(t)));
+      r.onclick=leave(()=>goTask(t.id)); d.appendChild(r); });
+    I.ev.forEach(e=>{ const r=mk("button","un-it"); r.type="button"; r.append(mk("span","sn",snOf(e)||"אירוע"), mk("span",null,e.title||e.desc||""), mk("span","un-ty",(e.type||[]).join(" · ")||"אירוע"));
+      r.onclick=()=>{ dlg.close(); show("List"); const a=document.querySelector('#viewList .ev[data-id="'+e.id+'"]');   // the event in the list
+        if(a){ a.classList.add("flash"); setTimeout(()=>a.classList.remove("flash"),2200); requestAnimationFrame(()=>a.scrollIntoView({block:"center"})); } }; d.appendChild(r); });
+    if(!I.tk.length && !I.ev.length) d.appendChild(mk("p","sc-none","אין משימות או אירועים פתוחים על היחידה."));
+    // the unit's history
+    const H=unitHist(unitSel), hs=mk("div","sc-hist"); hs.appendChild(mk("h5",null,"היסטוריה"+(H.length?" ("+H.length+")":"")));
+    if(!H.length) hs.appendChild(mk("p","sc-none","עוד אין רישומים על היחידה."));
+    H.forEach(x=>{ const r=mk(x.go?"button":"div","sc-hr"+(x.open?" open":"")+(x.k==="מצב"?" mode":"")); if(x.go){ r.type="button"; r.onclick=leave(x.go); }
+      r.append(mk("span","sc-hd",x.at ? (d=>d.slice(0,6)+d.slice(8))(dmy(x.at.slice(0,10))) : ""), mk("span","sc-hk",x.k+(x.n?" "+x.n:"")), mk("span","sc-ht",x.t),
+        mk("span","sc-hs",[x.type,x.st].filter(Boolean).join(" · ")));
+      hs.appendChild(r); });
+    d.appendChild(hs);
+    const nb=mk("button","sc-new","＋ משימה על "+unitSel); nb.type="button"; const uid=unitSel;
+    nb.onclick=()=>{ dlg.close(); goTasks({}); openTaskForm(null); fillSelect($("#tkEq"), [...new Set(byUse("eq").concat(uid))], uid, "— בחר ציוד —", true);
+      $("#tkType").value="אחזקות שבר"; $("#tkType").dispatchEvent(new Event("change")); paintFormColors(); };
+    d.appendChild(nb); side.appendChild(d); }
+  const lg=mk("section","sc-sec sc-leg"); [["ok","בעבודה"],["man","ידני"],["down","לא בעבודה"],["stop","מושבת"],["issue","בעיה אחרת"]].forEach(([k,l])=>{ const x=mk("span"); x.append(mk("i",k), l); lg.appendChild(x); }); side.appendChild(lg);
+  const al=mk("section","sc-sec sc-alarms"); al.appendChild(mk("h4",null,"תקלות פעילות — "+g.g));
+  downAll.forEach(({u,g:x})=>{ const I=info[u], t=I.tk[0]||I.ev[0], r=mk("button","sc-al"); r.type="button"; r.innerHTML=TRI;
+    r.append(mk("span",null,u+(t?" — "+(t.title||t.desc||""):""))); r.onclick=()=>{ unitSel=null; pick(x,u); }; al.appendChild(r); });
+  if(!downAll.length) al.appendChild(mk("p","sc-ok","אין תקלות פעילות"));
+  side.appendChild(al);
+  const body=mk("div","sc-body"); body.append(bw, side);
+  // the groups as tabs at the bottom
+  const tabs=mk("nav","sc-tabs"); tabs.setAttribute("aria-label","קבוצות");
+  G.forEach(x=>{ const ok=x.units.filter(u=>info[u].st!=="down" && info[u].st!=="stop").length, f=x.units.filter(u=>info[u].st==="down").length, b=mk("button"); b.type="button";
+    b.setAttribute("aria-current", x===g ? "page" : "false"); b.append(mk("span",null,x.g), mk("small",null,ok+"/"+x.units.length)); if(f) b.appendChild(mk("b",null,String(f)));
+    b.onclick=()=>{ try{ localStorage.setItem("ogg-units-g",x.g); }catch(e){} unitSel=null; renderUnits(); }; tabs.appendChild(b); });
+  box.append(bar, tabs, body);                                    // the groups right under the title
+  // a phone (or a narrow card): the basin shrinks to fit, the drawing stays the same
+  const most=Math.max(1,...rows.map(r=>r.length)), need=most*108+124;
+  requestAnimationFrame(()=>{ const w=bw.clientWidth; const z=w && w<need ? w/need : 1; outer.style.width = z<1 ? need+"px" : ""; outer.style.zoom = z<1 ? String(z) : ""; });
+}
+let unitsRT=null; addEventListener("resize",()=>{ clearTimeout(unitsRT); unitsRT=setTimeout(()=>{ if($("#dlgUnits") && $("#dlgUnits").open) renderUnits(); },200); });
+function paintUnitsCfg(){ const c=$("#unitsCfg"); if(!c) return; c.hidden=!isManager();
+  if(document.activeElement!==$("#unitsTxt")) $("#unitsTxt").value=String(lists._units||"").split("\n").filter(l=>!/^\s*כותרת\s*:/.test(l)).join("\n");
+  if(document.activeElement!==$("#unitsName")){ const m=String(lists._units||"").match(/^\s*כותרת\s*:\s*(.+)$/m); $("#unitsName").value=m?m[1].trim():""; }
+  const G=unitsParse($("#unitsTxt").value); $("#unitsInfo").textContent = G.length ? G.map(x=>x.g+": "+x.units.length).join(" · ") : ""; }
+if($("#unitsSave")){ $("#unitsTxt").oninput=()=>{ const G=unitsParse($("#unitsTxt").value); $("#unitsInfo").textContent=G.map(x=>x.g+": "+x.units.length).join(" · "); };
+  $("#unitsSave").onclick=()=>{ if(!isManager()){ toast("רק מנהל יכול לשנות"); return; }
+    const nm=$("#unitsName").value.trim(), body=$("#unitsTxt").value.split("\n").filter(l=>!/^\s*כותרת\s*:/.test(l)).join("\n").trim();
+    lists._units=(nm && body ? "כותרת: "+nm+"\n" : "")+body; persist(); renderAll(); paintUnitsCfg();
+    const G=unitsParse(lists._units); toast(G.length ? "נשמר — "+G.reduce((s,x)=>s+x.units.length,0)+" יחידות ב-"+G.length+" קבוצות" : "לוח היחידות הוסר מהדשבורד"); }; }
 /* phone dashboard: one pie, switched between views (kept on this device); a slice opens the tasks list filtered */
 const LP_VIEWS=[["type","קטגוריה"],["prio","עדיפות"],["dept","מחלקה"],["stat","סטטוס"],["ppl","אחראי"],["ev","אירועים לפי סוג"]];
 const LP_COL=["maint","flood","visit","power","fault","gen"];
@@ -1422,31 +1601,42 @@ window.paintTeamStrip=function(){
    just for the capture, every such colour on the page is written inline as plain rgba(); the returned function puts things back */
 function h2cColorsOn(){
   const P=["color","background-color","background-image","border-top-color","border-right-color","border-bottom-color","border-left-color",
-    "outline-color","box-shadow","text-decoration-color","fill","stroke","caret-color"], undo=[];
-  const fix=v=>v.replace(/color\((?:srgb|display-p3) ([-\d.e]+) ([-\d.e]+) ([-\d.e]+)(?: \/ ([\d.%]+))?\)/g,(m,r,g,b,a)=>{
+    "outline-color","box-shadow","text-shadow","text-decoration-color","column-rule-color","-webkit-text-fill-color","-webkit-text-stroke-color",
+    "fill","stroke","caret-color"], undo=[], BAD=/color\(|color-mix|oklch|oklab|lab\(|lch\(/;
+  const fix=v=>v.replace(/color\((?:srgb|display-p3|srgb-linear) ([-\d.e]+) ([-\d.e]+) ([-\d.e]+)(?: \/ ([\d.%]+))?\)/g,(m,r,g,b,a)=>{
       const c=x=>Math.max(0,Math.min(255,Math.round(parseFloat(x)*255)));
       const al = a==null ? 1 : (String(a).endsWith("%") ? parseFloat(a)/100 : parseFloat(a));
       return "rgba("+c(r)+","+c(g)+","+c(b)+","+al+")"; })
-    .replace(/(?:oklch|oklab|lab|lch)\([^()]*\)/g,"rgba(128,128,128,1)");
+    .replace(/(?:oklch|oklab|lab|lch|color-mix|color)\([^()]*(?:\([^()]*\)[^()]*)*\)/g,"rgba(128,128,128,1)");   // anything left that it can't read
+  // the ::before / ::after layers can't take an inline style: they get a rule of their own, by a mark on their element
+  const css=[]; let n=0;
   [document.documentElement,...document.querySelectorAll("*")].forEach(el=>{
     if(!el.style) return; const cs=getComputedStyle(el);
-    P.forEach(p=>{ const v=cs.getPropertyValue(p); if(!v || !/color\(|oklch|oklab|lab\(|lch\(/.test(v)) return;
+    P.forEach(p=>{ const v=cs.getPropertyValue(p); if(!v || !BAD.test(v)) return;
       undo.push([el,p,el.style.getPropertyValue(p),el.style.getPropertyPriority(p)]); el.style.setProperty(p, fix(v), "important"); });
+    ["::before","::after"].forEach(ps=>{ const pc=getComputedStyle(el,ps); if(!pc || pc.content==="none" || pc.content==="normal") return;
+      const fixed=P.map(p=>[p,pc.getPropertyValue(p)]).filter(([,v])=>v && BAD.test(v)); if(!fixed.length) return;
+      if(!el.hasAttribute("data-h2c")){ el.setAttribute("data-h2c", String(++n)); }
+      css.push('[data-h2c="'+el.getAttribute("data-h2c")+'"]'+ps+"{"+fixed.map(([p,v])=>p+":"+fix(v)+" !important").join(";")+"}"); });
   });
-  return ()=>undo.reverse().forEach(([el,p,v,pr])=>{ if(v) el.style.setProperty(p,v,pr); else el.style.removeProperty(p); });
+  const st=document.createElement("style"); st.textContent=css.join("\n"); document.head.appendChild(st);
+  return ()=>{ st.remove(); document.querySelectorAll("[data-h2c]").forEach(el=>el.removeAttribute("data-h2c"));
+    undo.reverse().forEach(([el,p,v,pr])=>{ if(v) el.style.setProperty(p,v,pr); else el.style.removeProperty(p); }); };
 }
 let fbBase=null, fbMarks=[];
 $("#fbBtn").onclick=async()=>{
   const b=$("#fbBtn"); b.hidden=true; if($("#dTip")) $("#dTip").hidden=true;
   try{
     await loadH2C();
-    const sc=Math.min(1, 1100/innerWidth), bg=getComputedStyle(document.body).backgroundColor;
+    const sc=Math.min(1, 1100/innerWidth);
     const restore=h2cColorsOn();
+    // the page colour, read after the fix above (before it, team mode's tinted page reports "color(srgb …)", which html2canvas can't take)
+    let bg=getComputedStyle(document.body).backgroundColor; if(!/^(rgba?\(|#|transparent)/.test(bg||"")) bg="#ffffff";
     try{ fbBase=await html2canvas(document.body,{x:scrollX,y:scrollY,width:innerWidth,height:innerHeight,windowWidth:innerWidth,windowHeight:innerHeight,
       scale:sc,backgroundColor:bg||"#ffffff",logging:false}); }
     finally{ restore(); }
     fbMarks=[]; fbDraw(); $("#fbText").value=""; $("#dlgFb").showModal(); setTimeout(()=>$("#fbText").focus(),100);
-  }catch(e){ toast("לא הצלחתי לצלם את המסך"); }
+  }catch(e){ try{ console.error("feedback capture", e); }catch(_){} toast("לא הצלחתי לצלם את המסך"); }
   b.hidden=false;
 };
 function fbDraw(){
@@ -1536,7 +1726,7 @@ function show(w){
   if(w==="Cal" && isLite()) w="Dash";                // no calendar in the phone view
   if($("#dTip")) $("#dTip").hidden=true;
   const prev=curView; curView=w;
-  if(prev==="List" && w!=="List" && UNSEEN.size){ UNSEEN.clear(); saveUnseen(); }   // seen once you leave the list
+  if(prev==="List" && w!=="List" && UNSEEN.size){ evSeenAdd([...UNSEEN]); UNSEEN.clear(); saveUnseen(); }   // seen once you leave the list (on my other devices too)
   if(prev==="Tasks" && w!=="Tasks" && typeof tkMarkSeen==="function") tkMarkSeen();   // new tasks: seen once you leave the tasks list
   if($("#newCnt")) paintNewCount();
   // the calendar opens from the events or the tasks list, and that tab stays lit; settings is the gear in the header
@@ -1561,6 +1751,7 @@ let sgCur="lists"; try{ sgCur=localStorage.getItem("ogg-settings-topic")||"lists
    A regular member sees "צוות וחשבון" (own account) and "כללי"; lists management and files/backup are for admins. */
 function isManager(){ if(!CLOUD_ON) return true; try{ return localStorage.getItem("ogg-cloud-role")==="admin"; }catch(e){ return false; } }
 function paintSettings(){
+  if(typeof paintUnitsCfg==="function") paintUnitsCfg();          // the units board fields show what is saved
   const team=!!$("#cloudCard"), mgr=isManager();
   $("#sgNav [data-sg=team]").hidden=!team; $("#sgNav [data-sg=notif]").hidden=!team || isViewer();
   if(sgCur==="notif" && (!team || isViewer())) sgCur="general";
@@ -1594,7 +1785,7 @@ $("#themeBtn").onclick=()=>{
 };
 try{ const th=localStorage.getItem("ogg-theme"); if(th==="light"||th==="dark") document.documentElement.setAttribute("data-theme",th); }catch(e){}
 if(darkMQ.addEventListener) darkMQ.addEventListener("change",paintThemeBtn);
-/* colour scheme (accent): the same app in another colour; the choice stays on this device */
+/* colour scheme (accent): the same app in another colour; the choice follows my devices (see "my devices in step") */
 const ACCENTS=[["teal","טורקיז","#0E7C86"],["blue","כחול מבט\"י","#1565A8"],["red","אדום","#D32F2F"],["orange","כתום עז","#C94A00"],["green","ירוק","#1B8A3A"],["emerald","ירוק-טורקיז","#008C7A"],["cyan","תכלת","#0277BD"],["royal","כחול רויאל","#1D4ED8"],["violet","סגול עז","#7C3AED"],["magenta","מג׳נטה","#C2185B"],["black","שחור","#111827"],["purple","סגול","#6A3FB8"],["wine","בורדו","#9C2A4E"],["amber","כתום","#B45309"],["slate","גרפיט","#3F4B59"]];
 function curAccent(){ return document.documentElement.getAttribute("data-accent") || "teal"; }
 function paintAccents(){
@@ -2121,7 +2312,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.51", APP_DATE="26/10/2026";
+const APP_VER="3.72", APP_DATE="02/11/2026";
 $("#verChip").textContent = BETA && LITE_MQ.matches ? "בטא "+APP_VER : "v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -2193,7 +2384,7 @@ let lastTyping=0;
 document.addEventListener("input",()=>{ lastTyping=Date.now(); },true);
 function quietNow(){
   if(Date.now()-lastTyping<2*60e3) return false;
-  if(document.querySelector("dialog[open]")) return false;
+  if(document.querySelector("dialog[open]:not(.dock)")) return false;
   const a=document.activeElement; if(a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && a.type!=="checkbox") return false;
   if(!$("#viewNew").hidden) return false;                      // recording / editing an event
   const tf=$("#tfPanel"); if(tf && !tf.hidden) return false;    // the task form is open
@@ -2435,7 +2626,7 @@ function tkSeenSave(){ const S=tkSeen; if(!S) return;
 function tkIsNew(t){ if(t.priv || !tkOpen(t)) return false; const S=tkSeenLoad();
   return !S.ids.has(t.id) && String(t.created||"")>S.since; }
 document.addEventListener("visibilitychange",()=>{ if(document.hidden && curView==="Tasks") tkMarkSeen(); });   // left the app from the list
-function tkMarkSeen(){ if(!tkShownNew.size) return; const S=tkSeenLoad(); tkShownNew.forEach(id=>S.ids.add(id)); tkShownNew.clear(); tkSeenSave(); }
+function tkMarkSeen(){ if(!tkShownNew.size) return; const S=tkSeenLoad(); tkShownNew.forEach(id=>S.ids.add(id)); tkShownNew.clear(); tkSeenSave(); seenSyncSoon(); }
 function paintTaskCount(){
   const V=tkVis(), n=V.filter(tkOpen).length;              // "(open/total)": 4/5 = 4 open out of 5
   $("#tkCnt").textContent = "("+(V.length ? nf(n)+"/"+nf(V.length) : "0")+")";
@@ -2462,7 +2653,7 @@ function inboxGet(){ try{ const a=JSON.parse(localStorage.getItem(inboxKey())||"
 function inboxPut(a){
   a.sort((x,y)=>String(y.at).localeCompare(String(x.at)));
   try{ localStorage.setItem(inboxKey(), JSON.stringify(a.slice(0,INBOX_MAX))); }catch(e){}
-  paintInbox();
+  paintInbox(); if(!inbQuiet) inboxSyncSoon();
 }
 function paintInbox(){
   const b=$("#inboxBtn"); if(!b) return;
@@ -2484,17 +2675,20 @@ function inboxAdd(items, toasted){
 function inboxCheck(){ if(TV) return;
   if(!CLOUD_ON || !inboxGet().some(x=>!x.read && !x.arch)) return;
   const sp=$("#splash"); if(sp && !sp.hidden) return;                 // after the opening screen
-  if(document.querySelector("dialog[open]")) return;                  // the weekly window etc. first (retried when it closes)
+  if(document.querySelector("dialog[open]:not(.dock)")) return;       // the weekly window etc. first (retried when it closes)
   openInbox();
 }
 let inbTab="in";
 const inbDelKey=()=>inboxKey()+"-del";
 function inboxDelIds(){ try{ const a=JSON.parse(localStorage.getItem(inbDelKey())||"[]"); return Array.isArray(a) ? a : []; }catch(e){ return []; } }
-function inboxArchive(id, on){ const a=inboxGet(), x=a.find(m=>m.id===id); if(!x) return; x.arch=on; x.read=true; inboxPut(a); openInbox(); }
+function inboxArchive(id, on){ const a=inboxGet(), x=a.find(m=>m.id===id); if(!x) return; x.arch=on; x.archT=Date.now(); x.read=true; inboxPut(a); inboxAfter(); }
+// after moving messages to the archive: nothing left in "הודעות" → the window closes by itself
+function inboxAfter(){ const d=$("#dlgInbox");
+  if(inbTab==="in" && d.open && !inboxGet().some(x=>!x.arch)){ d.close(); toast("אין עוד הודעות — הכל בארכיון"); } else openInbox(); }
 function inboxDelete(ids){                       // final delete; remembered so the same message is not brought back
   const set=new Set(ids); inboxPut(inboxGet().filter(m=>!set.has(m.id)));
   try{ localStorage.setItem(inbDelKey(), JSON.stringify(inboxDelIds().concat(ids).slice(-400))); }catch(e){}
-  openInbox();
+  inboxSyncSoon(); openInbox();
 }
 // swipe a message to the right → it moves to the archive
 function inbSwipe(row, card, fn){
@@ -2531,7 +2725,9 @@ function openInbox(){
     r.appendChild(mk("span","inb-i",INBOX_ICON[x.kind]||"•"));
     const body=mk("span","inb-b"); body.appendChild(mk("b","inb-t",x.title||"(ללא כותרת)")); body.appendChild(mk("span","inb-x",x.text||""));
     body.appendChild(mk("span","inb-m",[x.by,fmtWhen(x.at)].filter(Boolean).join(" · "))); r.appendChild(body);
-    r.onclick=()=>{ if(r.dataset.swiped) return; d.close(); if(x.reply){ } else if(x.fb){ if(window.openFeedback) window.openFeedback(x.fb); } else goTask(x.tid); };
+    r.onclick=()=>{ if(r.dataset.swiped) return;
+      if(d.classList.contains("dock")){ x.read=true; inboxPut(all); openInbox(); } else d.close();   // side panel: stays open, this one is read
+      if(x.reply){ } else if(x.fb){ if(window.openFeedback) window.openFeedback(x.fb); } else goTask(x.tid); };
     row.appendChild(r);
     if(inArch){
       const act=mk("div","inb-act");
@@ -2546,13 +2742,16 @@ function openInbox(){
     }
     box.appendChild(row);
   });
-  if(!d.open) d.showModal();
+  if(!d.open){
+    // computer: a panel on the left beside the app (the screen stays usable, it moves aside); phone: over the screen as before
+    const dock=!isLite() && innerWidth>=1100; d.classList.toggle("dock",dock); document.documentElement.classList.toggle("inb-dock",dock);
+    if(dock) d.show(); else d.showModal(); }
 }
 document.querySelectorAll("#dlgInbox [data-ib]").forEach(b=>b.onclick=()=>{ inbTab=b.dataset.ib; openInbox(); });
 $("#inbAll").onclick=()=>{
   const all=inboxGet();
   if(inbTab==="arch"){ const ids=all.filter(x=>x.arch).map(x=>x.id); if(ids.length && confirm("למחוק סופית "+ids.length+" הודעות מהארכיון?")) inboxDelete(ids); }
-  else { all.forEach(x=>{ if(!x.arch){ x.arch=true; x.read=true; } }); inboxPut(all); openInbox(); }
+  else { const t=Date.now(); all.forEach(x=>{ if(!x.arch){ x.arch=true; x.archT=t; x.read=true; } }); inboxPut(all); inboxAfter(); }
 };
 function goTask(tid){
   const pv=tid.startsWith("p:"), t=pv ? privTasks().find(x=>x.id===tid) : tasks.find(x=>x.id===tid); if(!t){ toast("המשימה כבר לא קיימת"); return; }
@@ -2567,7 +2766,13 @@ function goTask(tid){
 }
 $("#inboxBtn").onclick=()=>{ inbTab="in"; openInbox(); };
 $("#inbClose").onclick=()=>$("#dlgInbox").close();
-$("#dlgInbox").addEventListener("close",()=>{ const a=inboxGet(); if(a.some(x=>!x.read)){ a.forEach(x=>x.read=true); inboxPut(a); } });
+$("#inbX").onclick=()=>$("#dlgInbox").close();
+// the window got narrow (or wide) while the messages are open: the side panel ↔ the window over the screen, without marking them read
+window.addEventListener("resize",()=>{ const d=$("#dlgInbox"); if(!d.open) return;
+  const dock=!isLite() && innerWidth>=1100; if(dock===d.classList.contains("dock")) return;
+  d._switch=true; d.close(); openInbox(); });
+document.addEventListener("keydown",e=>{ const d=$("#dlgInbox"); if(e.key==="Escape" && d.open && d.classList.contains("dock") && !document.querySelector("dialog[open]:not(#dlgInbox)")) d.close(); });
+$("#dlgInbox").addEventListener("close",()=>{ if($("#dlgInbox")._switch){ $("#dlgInbox")._switch=false; return; } document.documentElement.classList.remove("inb-dock"); $("#dlgInbox").classList.remove("dock"); const a=inboxGet(); if(a.some(x=>!x.read)){ a.forEach(x=>x.read=true); inboxPut(a); } });
 $("#dlgWeek").addEventListener("close",()=>setTimeout(inboxCheck,300));
 document.addEventListener("visibilitychange",()=>{ if(!document.hidden){ inboxOpenUntil=Date.now()+20000; setTimeout(inboxCheck,1200); } });
 window.inboxAdd=inboxAdd; window.inboxCheck=inboxCheck; window.paintInbox=paintInbox;
@@ -2968,7 +3173,7 @@ $("#tkExp").onclick=()=>exportTasksCsv(tkLastRows);
 function tkText(t){ return [snOf(t),t.title,t.desc,t.act,t.type,t.prio,(t.ppl||[]).join(" "),(t.loc||[]).join(" "),(t.eq||[]).join(" "),(t.depts||[]).join(" "),
   (t.log||[]).map(l=>(l.by||"")+" "+(l.text||"")).join(" "),(t.check||[]).filter(x=>x&&!x.del).map(x=>x.text).join(" "),(t.files||[]).filter(x=>x&&!x.del).map(x=>x.name).join(" ")].join(" ").toLowerCase(); }
 function renderTasks(){
-  reconcileTaskEvents();
+  reconcileTaskEvents(); if(typeof remAutoSoon==="function") remAutoSoon();
   const ae=document.activeElement; tkFocus = ae && ae.dataset && ae.dataset.draft || null;   // typing in a task's message box
   paintTaskCount(); renderTkFilters(); paintMe();
   if(!$("#viewDash").hidden && typeof renderDash==="function") setTimeout(renderDash,0);   // keep the tasks card current
@@ -3017,6 +3222,7 @@ function renderTasks(){
       tkRowOpen.has(t.id) ? tkRowOpen.delete(t.id) : tkRowOpen.add(t.id); c.classList.toggle("x"); }); c.style.borderInlineStartColor = tkOpen(t) && !t.due ? "var(--c-"+ph+")" : "";
     if(tkOpen(t) && t.due) c.classList.add(t.due<today?"tl-late":t.due===today?"tl-today":"tl-future");   // the whole frame in the traffic-light colour of the due date
     if(tkOpen(t) && (pr==="גבוהה" || pr==="דחופה")) c.classList.add("tk-blink", pr==="דחופה" ? "hot" : "high");   // high and urgent: the whole task pulses red
+    if(tkOpen(t) && tkStat(t)==="בהמתנה"){ c.classList.remove("tk-blink","high","hot"); c.classList.add("tk-hold"); }   // בהמתנה: the whole task greyed out like a disabled button (no red pulse while it waits)
     const tx=mk("span","tk-tt",t.title||"(ללא כותרת)");
     { const tt=mk("div","tk-t"); tt.appendChild(tkCircle(t, ()=>tkOpen(t) ? openTaskDone(t.id) : reopenTask(t))); if(t.no) tt.appendChild(mk("span","sn","#"+t.no));
       (t.eq||[]).forEach(q=>{ const g=mk("span","tk-eqtag eqc","⚙ "+q); g.title="ציוד"; eqPaint(g,q); tx.appendChild(g); });   // the equipment, right by the title
@@ -3835,7 +4041,7 @@ function haptic(){
 }
 document.addEventListener("click",ev=>{ if(ev.isTrusted && ev.target.closest && ev.target.closest("button,.btn,[role=tab],summary,.seg button,.dt-tile,.kpi,.tk-tag,input[type=checkbox],input[type=radio]") && !(hapSw && hapSw.contains(ev.target))) haptic(); },true);
 /* "שקיפות הרקע" (settings → ערכת צבעים): the light page behind the content turns see-through, showing the blue behind it.
-   0 = as before. Kept on this device. */
+   0 = as before. Follows my devices like the colours. */
 const GLASS_KEY="ogg-glass";
 function applyGlass(v){ v=Math.max(0,Math.min(80,+v||0)); const r=document.documentElement;
   r.style.setProperty("--glass", v+"%"); r.classList.toggle("glass", v>0);
@@ -3935,7 +4141,7 @@ function tourAuto(){ if(TV) return;                           // the first time 
   try{ if(localStorage.getItem(TOUR_KEY)) return; }catch(e){ return; }
   let n=0; const t=setInterval(()=>{ n++;
     try{ if(TV || localStorage.getItem(TOUR_KEY)){ clearInterval(t); return; } }catch(e){}   // marked done meanwhile / became the office screen
-    const sp=$("#splash"), busy=(sp && !sp.hidden) || document.querySelector("dialog[open]");
+    const sp=$("#splash"), busy=(sp && !sp.hidden) || document.querySelector("dialog[open]:not(.dock)");
     if(!busy){ clearInterval(t); tourStart(); } else if(n>120) clearInterval(t); },1000);
 }
 function openFlow(which){
@@ -4989,7 +5195,10 @@ setTimeout(relPaint,1500);
    function "remindTick" sends the push when the time comes (app closed too); with the app on screen a message says it here. */
 var REMS=null;                                    // (var + functions: the task list can draw before this part of the file has run)
 function remList(){ if(!REMS){ try{ const a=JSON.parse(localStorage.getItem("ogg-rems")||"[]"); REMS=Array.isArray(a)?a:[]; }catch(e){ REMS=[]; } } return REMS; }
-function remSave(){ try{ localStorage.setItem("ogg-rems",JSON.stringify(REMS)); }catch(e){} if(window.cloudSetRems) window.cloudSetRems(REMS); }
+// edit: what this change does to the list — applied to the cloud copy as it is now, so a device that has not heard yet of a
+// reminder set on another one can't wipe it (without one, or offline, the whole list is written as before)
+function remSave(edit){ try{ localStorage.setItem("ogg-rems",JSON.stringify(REMS)); }catch(e){}
+  if(edit && window.cloudRemEdit) window.cloudRemEdit(edit, REMS); else if(window.cloudSetRems) window.cloudSetRems(REMS); }
 window.remApply=list=>{ REMS=Array.isArray(list)?list.filter(r=>r && r.tid && r.at):[]; try{ localStorage.setItem("ogg-rems",JSON.stringify(REMS)); }catch(e){}
   if(typeof renderTasks==="function") renderTasks(); };
 function remOf(tid){ return remList().find(r=>r.tid===tid); }
@@ -5029,11 +5238,12 @@ function remSet(ms){
   if(!remFor || !(ms>Date.now())){ toast("בחר זמן עתידי"); return; }
   const t=remFor;
   const rp=$("#remRep").value;
-  REMS=remList().filter(x=>x.tid!==t.id).concat(Object.assign({id:newId(), tid:t.id, at:Math.round(ms), title:(t.priv?"🔒 ":t.no?"#"+t.no+" ":"")+(t.title||"משימה")}, rp?{rep:rp}:{}));
-  remSave(); $("#dlgRem").close(); renderTasks(); toast("🔔 תזכורת נקבעה ל"+remWhen(ms)+(rp?" · "+REP_TXT[rp]:""));
+  const rec=Object.assign({id:newId(), tid:t.id, at:Math.round(ms), title:(t.priv?"🔒 ":t.no?"#"+t.no+" ":"")+(t.title||"משימה")}, rp?{rep:rp}:{});
+  REMS=remList().filter(x=>x.tid!==t.id).concat(rec);
+  remSave(L=>L.filter(x=>x.tid!==t.id).concat(rec)); $("#dlgRem").close(); renderTasks(); toast("🔔 תזכורת נקבעה ל"+remWhen(ms)+(rp?" · "+REP_TXT[rp]:""));
 }
 $("#remSetAt").onclick=()=>{ const v=$("#remAt").value; if(!v){ $("#remAt").focus(); return; } remSet(new Date(v).getTime()); };
-$("#remOff").onclick=()=>{ if(!remFor) return; REMS=remList().filter(x=>x.tid!==remFor.id); remSave(); $("#dlgRem").close(); renderTasks(); toast("התזכורת בוטלה"); };
+$("#remOff").onclick=()=>{ if(!remFor) return; const tid=remFor.id; remSkip(remFor); REMS=remList().filter(x=>x.tid!==tid); remSave(L=>L.filter(x=>x.tid!==tid)); $("#dlgRem").close(); renderTasks(); toast("התזכורת בוטלה"); };
 $("#remClose").onclick=()=>$("#dlgRem").close();
 // the time came: on screen — a message here; app in the background without push — a device notification; otherwise the push brings it
 function remTick(){
@@ -5045,10 +5255,39 @@ function remTick(){
     else if(window.notifOn("rem") && "Notification" in window && Notification.permission==="granted" && navigator.serviceWorker)
       navigator.serviceWorker.ready.then(g=>g.showNotification("🔔 תזכורת",{body:r.title, tag:"ogg-task-"+r.tid, icon:"icons/icon-notebook-192.png", badge:"icons/badge-96.png", lang:"he", dir:"rtl", data:{tid:r.tid}})).catch(()=>{});
   });
-  REMS=REMS.filter(r=>r.at>now || r.rep).map(r=>r.at>now ? r : Object.assign({},r,{at:remNextAt(r.at,r.rep,now)})).filter(r=>r.at>now);   // a repeating one moves on
-  remSave(); renderTasks();
+  const step=L=>L.filter(r=>r.at>now || r.rep).map(r=>r.at>now ? r : Object.assign({},r,{at:remNextAt(r.at,r.rep,now)})).filter(r=>r.at>now);   // a repeating one moves on
+  REMS=step(REMS); remSave(step); renderTasks();
 }
 setInterval(remTick,30e3);
+/* the default reminder: every open task of mine (assigned to me, opened by me, or personal) with a due date gets 🔔 at 07:00 on
+   that day ("auto"). It moves with the due date and goes when the task is done or the date is removed. A reminder I set
+   myself is never touched; one I cancel stays cancelled for that date (a new date brings it back). */
+const REM_AT_H=7, K_REMSKIP="ogg-rem-skip";
+function remSkipGet(){ try{ return JSON.parse(localStorage.getItem(K_REMSKIP)||"{}")||{}; }catch(e){ return {}; } }
+function remSkip(t){ const r=remOf(t.id); if(!r || !r.auto) return; const S=remSkipGet(); S[t.id]=t.due||"";
+  const keys=Object.keys(S); keys.slice(0,Math.max(0,keys.length-300)).forEach(k=>delete S[k]);
+  try{ localStorage.setItem(K_REMSKIP, JSON.stringify(S)); }catch(e){} }
+function remAutoWant(){
+  const S=remSkipGet(), now=Date.now(), want={};
+  const add=t=>{ if(S[t.id]!==undefined && S[t.id]===(t.due||"")) return;             // cancelled for this date
+    const at = tkOpen(t) && t.due ? new Date(t.due+"T"+String(REM_AT_H).padStart(2,"0")+":00").getTime() : 0;
+    want[t.id] = at>now ? {at, title:(t.priv?"🔒 ":t.no?"#"+t.no+" ":"")+(t.title||"משימה")} : null; };
+  tasks.forEach(t=>{ if(isMine(t) || openedByMe(t)) add(t); });
+  try{ privTasks().forEach(add); }catch(e){}
+  return want;
+}
+function remAutoEdit(want){ return L=>{ let out=L.slice();
+  Object.keys(want).forEach(tid=>{ const w=want[tid], i=out.findIndex(r=>r.tid===tid), r=i>=0?out[i]:null;
+    if(!w){ if(r && r.auto) out.splice(i,1); return; }
+    if(!r) out.push({id:newId(), tid, at:w.at, title:w.title, auto:1});
+    else if(r.auto && (r.at!==w.at || r.title!==w.title)) out[i]=Object.assign({}, r, {at:w.at, title:w.title}); });
+  return out; }; }
+var remAutoT=null;                  // var: renderTasks can run before this part of the file
+function remAutoSoon(){ clearTimeout(remAutoT); remAutoT=setTimeout(()=>{
+  if(CLOUD_ON && !(window.cloudMe && window.cloudMe())) return;            // team log: wait until signed in
+  const edit=remAutoEdit(remAutoWant()), before=JSON.stringify(remList().map(r=>[r.tid,r.at,r.title]));
+  const next=edit(remList()); if(JSON.stringify(next.map(r=>[r.tid,r.at,r.title]))===before) return;
+  REMS=next; remSave(edit); renderTasks(); }, 2500); }
 /* ===== settings → 🔔 התראות: what to be notified about — push to the phone and notifications on the device (the 📨 list keeps everything).
    Saved here and on meta/me-<me>.notifOff (the cloud functions read it), so it holds on every device of the account. */
 var NOTIF_KINDS=[["assign","משימה חדשה או שהוקצתה לי"],["update","עדכון שנכתב במשימה"],["status","שינוי סטטוס וסיום משימה"],
@@ -5176,3 +5415,231 @@ document.querySelectorAll("#fdKind button").forEach(b=>b.onclick=()=>{ fdKind=b.
   run();
 })();
 tkColWApply();
+
+/* ===== my devices in step (team log): the messages (📨 read / archive / delete), the "חדש" marks on events and tasks, and my
+   display settings follow the account — kept in private/<me> (only I read or write it). Both sides merge, never just overwrite:
+   a message read anywhere is read; the later archive change wins; deletes add up; per setting the later change wins — so a
+   device that was away can't undo what another one did. Text size, column widths and the phone/full view stay per device. */
+var inbQuiet=false, inbSyncT=null, seenSyncT=null, prefSyncT=null, syncQuiet=false;
+const INB_SYNC=150, K_EVSEEN="ogg-ev-seen-sync", K_PSYNC="ogg-prefs-sync", K_PT="ogg-prefs-t";
+const SYNC_PREFS=["ogg-theme","ogg-accent","ogg-glass","ogg-haptic","ogg-tk-view","ogg-tk-sort","ogg-tk-col","ogg-list-view",
+  "ogg-dash-range","ogg-dash-dept","ogg-cal-dept","ogg-lite-pie","ogg-badge","ogg-rem-skip"];
+function inboxSyncSoon(){ if(!window.cloudSyncPut) return; clearTimeout(inbSyncT);
+  inbSyncT=setTimeout(()=>window.cloudSyncPut("syncInbox", JSON.stringify({items:inboxGet().slice(0,INB_SYNC), del:inboxDelIds().slice(-300)})), 800); }
+function inboxFromCloud(js){
+  let R={}; try{ R=JSON.parse(js||"{}")||{}; }catch(e){ return; }
+  const RI=Array.isArray(R.items)?R.items:[], RD=Array.isArray(R.del)?R.del:[];
+  const del0=inboxDelIds(), del=new Set(del0), addDel=RD.filter(i=>!del.has(i));
+  if(addDel.length){ addDel.forEach(i=>del.add(i)); try{ localStorage.setItem(inbDelKey(), JSON.stringify([...del].slice(-400))); }catch(e){} }
+  const loc=inboxGet(), by=new Map(loc.map(x=>[x.id,x])), rIds=new Set(); let changed=addDel.length>0, mine=false, fresh=false;
+  RI.forEach(r=>{ if(!r || !r.id || del.has(r.id)) return; rIds.add(r.id); const l=by.get(r.id);
+    if(!l){ by.set(r.id, Object.assign({}, r)); changed=true; if(!r.read && !r.arch) fresh=true; return; }
+    if(r.read && !l.read){ l.read=true; changed=true; } else if(l.read && !r.read) mine=true;
+    if((r.archT||0)>(l.archT||0)){ if(!!l.arch!==!!r.arch) changed=true; l.arch=!!r.arch; l.archT=r.archT; }
+    else if((l.archT||0)>(r.archT||0)) mine=true; });
+  const out=[...by.values()].filter(x=>!del.has(x.id)); if(out.length!==loc.length) changed=true;
+  if(changed){ inbQuiet=true; inboxPut(out); inbQuiet=false;
+    if($("#dlgInbox").open) openInbox(); else if(fresh && Date.now()<inboxOpenUntil) inboxCheck(); }
+  // what I have that the cloud copy doesn't: send it back (only within what is sent, so the two settle)
+  const sent=inboxGet().slice(0,INB_SYNC), RDs=new Set(RD);
+  if(mine || sent.some(x=>!rIds.has(x.id)) || del0.slice(-100).some(i=>!RDs.has(i))) inboxSyncSoon();
+}
+// "חדש" on events: what I saw on one device is seen on all of them
+function evSeenGet(){ try{ const a=JSON.parse(localStorage.getItem(K_EVSEEN)||"[]"); return Array.isArray(a)?a:[]; }catch(e){ return []; } }
+window.evSeenHas=id=>evSeenGet().includes(id);
+function evSeenAdd(ids){ const a=evSeenGet(), h=new Set(a); ids.forEach(i=>{ if(!h.has(i)){ h.add(i); a.push(i); } });
+  try{ localStorage.setItem(K_EVSEEN, JSON.stringify(a.slice(-300))); }catch(e){} seenSyncSoon(); }
+function seenSyncSoon(){ if(!window.cloudSyncPut) return; clearTimeout(seenSyncT);
+  seenSyncT=setTimeout(()=>{ const S=tkSeenLoad(); window.cloudSyncPut("syncSeen", JSON.stringify({ev:evSeenGet(), tk:{since:S.since, ids:[...S.ids].slice(-400)}})); }, 800); }
+function seenFromCloud(js){
+  let R={}; try{ R=JSON.parse(js||"{}")||{}; }catch(e){ return; }
+  const ev=Array.isArray(R.ev)?R.ev:[], mineEv=evSeenGet(), hv=new Set(ev); let mine=mineEv.slice(-100).some(i=>!hv.has(i));
+  if(ev.length){ const a=mineEv, h=new Set(a); ev.forEach(i=>{ if(!h.has(i)){ h.add(i); a.push(i); } }); try{ localStorage.setItem(K_EVSEEN, JSON.stringify(a.slice(-300))); }catch(e){}
+    const n=UNSEEN.size; ev.forEach(i=>UNSEEN.delete(i)); if(UNSEEN.size!==n){ saveUnseen(); renderList(false); } }
+  const S=tkSeenLoad(), T=R.tk||{}, tids=Array.isArray(T.ids)?T.ids:[], ht=new Set(tids); let tch=false;
+  tids.forEach(i=>{ if(!S.ids.has(i)){ S.ids.add(i); tch=true; } });
+  if(T.since && String(T.since)>String(S.since)){ S.since=String(T.since); tch=true; } else if(String(S.since)>String(T.since||"")) mine=true;
+  if([...S.ids].slice(-100).some(i=>!ht.has(i))) mine=true;
+  if(tch){ tkSeenSave(); if(typeof renderTasks==="function") renderTasks(); }
+  if(mine) seenSyncSoon();
+}
+// settings: every change to one of SYNC_PREFS is stamped with its time (whichever way the app writes it)
+function prefSyncOn(){ try{ return localStorage.getItem(K_PSYNC)!=="0"; }catch(e){ return true; } }
+function prefT(){ try{ return JSON.parse(localStorage.getItem(K_PT)||"{}")||{}; }catch(e){ return {}; } }
+(()=>{ try{ const P=Storage.prototype, set=P.setItem, rm=P.removeItem;
+  const touch=(st,k)=>{ if(syncQuiet || st!==window.localStorage || !SYNC_PREFS.includes(k)) return;
+    const T=prefT(); T[k]=Date.now(); set.call(st, K_PT, JSON.stringify(T)); prefSyncSoon(); };
+  P.setItem=function(k,v){ set.call(this,k,v); touch(this,k); };
+  P.removeItem=function(k){ rm.call(this,k); touch(this,k); }; }catch(e){} })();
+function prefSyncSoon(){ if(!window.cloudSyncPut || !prefSyncOn()) return; clearTimeout(prefSyncT);
+  prefSyncT=setTimeout(()=>{ const T=prefT(), o={}; let stamp=false;
+    SYNC_PREFS.forEach(k=>{ let v=null; try{ v=localStorage.getItem(k); }catch(e){}
+      if(!T[k]){ if(v===null) return; T[k]=1; stamp=true; }      // set before syncing existed: the oldest possible change
+      o[k]={v, t:T[k]}; });
+    if(stamp){ syncQuiet=true; try{ localStorage.setItem(K_PT, JSON.stringify(T)); }catch(e){} syncQuiet=false; }
+    window.cloudSyncPut("syncPrefs", JSON.stringify(o)); }, 800); }
+function prefsFromCloud(js){
+  if(!prefSyncOn()) return;
+  let R={}; try{ R=JSON.parse(js||"{}")||{}; }catch(e){ return; }
+  const T=prefT(); let changed=false, mine=false;
+  SYNC_PREFS.forEach(k=>{ const r=R[k], lt=T[k]||0; let lv=null; try{ lv=localStorage.getItem(k); }catch(e){}
+    if(r && r.t>lt){ syncQuiet=true; try{ if(r.v===null) localStorage.removeItem(k); else localStorage.setItem(k, String(r.v)); }catch(e){} syncQuiet=false;
+      T[k]=r.t; if(lv!==r.v) changed=true; }
+    else if(lt>(r?r.t:0) || (!r && lv!==null)) mine=true; });
+  syncQuiet=true; try{ localStorage.setItem(K_PT, JSON.stringify(T)); }catch(e){} syncQuiet=false;
+  if(changed) prefsReapply();
+  if(mine) prefSyncSoon();
+}
+// a setting that came from my other device: put it on the screen now
+function prefsReapply(){
+  const g=k=>{ try{ return localStorage.getItem(k); }catch(e){ return null; } }, de=document.documentElement;
+  const th=g("ogg-theme"); if(th==="light" || th==="dark") de.setAttribute("data-theme",th); else de.removeAttribute("data-theme");
+  const ac=g("ogg-accent"); if(!ac || ac==="teal") de.removeAttribute("data-accent"); else de.setAttribute("data-accent",ac);
+  paintAccents(); paintThemeBtn(); applyGlass(g(GLASS_KEY));
+  if($("#hapOn")) $("#hapOn").checked=hapOn();
+  listView = g("ogg-list-view")==="rows" ? "rows" : "tiles"; applyListView();
+  tkLV = g("ogg-tk-view")==="rows" ? "rows" : "tiles"; paintTkLV();
+  tkSort = g("ogg-tk-sort")||"new"; $("#tkSort").value=tkSort;
+  try{ tkCol=JSON.parse(g("ogg-tk-col")||"null"); }catch(e){ tkCol=null; }
+  dRange = g("ogg-dash-range")||"365"; dDept = g("ogg-dash-dept")||""; calDept = g("ogg-cal-dept")||"";
+  badgeMode = g("ogg-badge")||"recent"; $("#badgeMode").value=badgeMode; updateBadge();
+  renderAll();
+}
+window.syncApply=(field, js)=>{
+  if(field==="syncInbox") inboxFromCloud(js); else if(field==="syncSeen") seenFromCloud(js); else if(field==="syncPrefs") prefsFromCloud(js);
+};
+if($("#psyncRow")) $("#psyncRow").hidden=!CLOUD_ON;
+if($("#psyncOn")){ $("#psyncOn").checked=prefSyncOn();
+  $("#psyncOn").onchange=e=>{ try{ localStorage.setItem(K_PSYNC, e.target.checked?"1":"0"); }catch(_){}
+    if(e.target.checked){ prefSyncSoon(); if(window.cloudSyncPull) window.cloudSyncPull(); toast("ההגדרות יהיו זהות בכל המכשירים שלך"); }
+    else toast("ההגדרות במכשיר הזה נפרדות משאר המכשירים"); }; }
+
+/* ===== import from Microsoft Planner: the plan exported to Excel (.xlsx). Read here in the browser (a small unzip + XML read,
+   no library). Only tasks that have not started come in; a preview first: department, who is who, how often each repeats
+   (from the plan's own history, or the words in its title), and what is already here (same title and due date). */
+function xlsxCol(ref){ const m=/^[A-Z]+/.exec(ref||""); if(!m) return 0; let n=0; for(const ch of m[0]) n=n*26+ch.charCodeAt(0)-64; return n-1; }
+async function xlsxRead(buf){
+  const u8=new Uint8Array(buf), dv=new DataView(buf), td=new TextDecoder();
+  let e=u8.length-22; while(e>=0 && dv.getUint32(e,true)!==0x06054b50) e--; if(e<0) throw new Error("not a zip");
+  const files={}; let p=dv.getUint32(e+16,true);
+  for(let i=0, n=dv.getUint16(e+10,true); i<n; i++){ const nl=dv.getUint16(p+28,true), xl=dv.getUint16(p+30,true), cl=dv.getUint16(p+32,true);
+    files[td.decode(u8.subarray(p+46,p+46+nl))]={comp:dv.getUint16(p+10,true), size:dv.getUint32(p+20,true), off:dv.getUint32(p+42,true)}; p+=46+nl+xl+cl; }
+  const get=async name=>{ const f=files[name]; if(!f) return null; const st=f.off+30+dv.getUint16(f.off+26,true)+dv.getUint16(f.off+28,true), data=u8.subarray(st,st+f.size);
+    if(f.comp===0) return td.decode(data);
+    return td.decode(await new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream("deflate-raw"))).arrayBuffer()); };
+  const xml=s=>new DOMParser().parseFromString(s,"application/xml"), tags=(n,t)=>[...n.getElementsByTagName(t)];
+  const ss=[], sst=await get("xl/sharedStrings.xml"); if(sst) tags(xml(sst),"si").forEach(si=>ss.push(tags(si,"t").map(t=>t.textContent).join("")));
+  const rel={}; tags(xml(await get("xl/_rels/workbook.xml.rels")||"<x/>"),"Relationship").forEach(r=>rel[r.getAttribute("Id")]=r.getAttribute("Target"));
+  const out=[];
+  for(const sh of tags(xml(await get("xl/workbook.xml")||"<x/>"),"sheet")){
+    let tg=rel[sh.getAttribute("r:id")]||""; tg=tg.replace(/^\/+/,""); if(!tg.startsWith("xl/")) tg="xl/"+tg;
+    const sx=await get(tg); if(!sx) continue; const rows=[];
+    tags(xml(sx),"row").forEach(r=>{ const row=[]; tags(r,"c").forEach(c=>{ const t=c.getAttribute("t"), v=c.getElementsByTagName("v")[0]; let x;
+        if(t==="s") x=ss[+(v?v.textContent:"")]; else if(t==="inlineStr") x=tags(c,"t").map(y=>y.textContent).join("");
+        else { x=v?v.textContent:""; if(t!=="str" && t!=="b" && x!=="" && !isNaN(x)) x=+x; }
+        row[xlsxCol(c.getAttribute("r"))]=x; }); rows.push(row); });
+    out.push({name:sh.getAttribute("name"), rows}); }
+  return out;
+}
+// the plan's columns, in Hebrew or English exports
+const PL_COLS={id:["מזהה הפעילות","Task ID"], title:["שם הפעילות","Task Name"], bucket:["מכל","Bucket Name"], status:["מצב","Progress"], prio:["עדיפות","Priority"],
+  ppl:["שם מקבל ההקצאה","Assigned To"], by:["נוצרה על ידי","Created By"], created:["תאריך יצירה","Created Date"], start:["תאריך התחלה","Start date","Start Date"],
+  due:["תאריך יעד","Due date","Due Date"], done:["תאריך השלמה","Completed Date"], check:["פריטים ברשימת פעולות לביצוע","Checklist Items"], labels:["תוויות","Labels"], notes:["הערות","Description"]};
+function plDate(v){ if(v===undefined || v===null || v==="") return "";
+  if(typeof v==="number") return ymd(new Date(Date.UTC(1899,11,30)+Math.round(v)*864e5));
+  let m=String(v).match(/^(\d{4})-(\d{2})-(\d{2})/); if(m) return m[1]+"-"+m[2]+"-"+m[3];
+  m=String(v).match(/^(\d{1,2})[./](\d{1,2})[./](\d{4})/); if(m) return m[3]+"-"+m[2].padStart(2,"0")+"-"+m[1].padStart(2,"0");
+  return ""; }
+function plTable(sheets){   // the sheet with the tasks, the one with names (not ids) first
+  let best=null;
+  sheets.forEach(sh=>{ const hi=sh.rows.findIndex(r=>r && r.some(c=>PL_COLS.title.includes(String(c||"").trim()))); if(hi<0) return;
+    const h=sh.rows[hi].map(c=>String(c||"").trim()), col={}; Object.keys(PL_COLS).forEach(k=>{ col[k]=h.findIndex(x=>PL_COLS[k].includes(x)); });
+    const data=sh.rows.slice(hi+1).filter(r=>r && r[col.title]); const ids=data.filter(r=>/^[A-Za-z0-9_-]{20,}$/.test(String(r[col.bucket]||""))).length;
+    const score=data.length - ids*2; if(!best || score>best.score) best={col, data, score}; });
+  return best;
+}
+const plWords=s=>String(s||"").replace(/[^֐-׿A-Za-z0-9 ]/g," ").split(/\s+/).filter(Boolean).sort().join(" ");
+function plRepGuess(title, dates){
+  const d=[...new Set(dates.filter(Boolean))].sort(); let g=0;
+  if(d.length>=2){ const gaps=d.slice(1).map((x,i)=>(new Date(x)-new Date(d[i]))/864e5).sort((a,b)=>a-b); g=gaps[Math.floor(gaps.length/2)]; }
+  const near=(a,b,t)=>Math.abs(a-b)<=t;
+  if(g){ if(g<=1.5) return {n:1,u:"d"}; if(near(g,7,1)) return {n:1,u:"w"}; if(near(g,14,2)) return {n:2,u:"w"}; if(near(g,30,4)) return {n:1,u:"m"};
+    if(near(g,61,6)) return {n:2,u:"m"}; if(near(g,91,8)) return {n:3,u:"m"}; if(near(g,182,15)) return {n:6,u:"m"}; if(near(g,365,20)) return {n:1,u:"y"}; }
+  const t=String(title||"");
+  if(/חצי\s*שנתי/.test(t)) return {n:6,u:"m"}; if(/שנתי/.test(t)) return {n:1,u:"y"}; if(/חודשי/.test(t)) return {n:1,u:"m"};
+  if(/שבועי/.test(t)) return {n:1,u:"w"}; if(/יומי/.test(t)) return {n:1,u:"d"};
+  return null;
+}
+function plCat(labels, bucket){   // the system's own categories (the three anchors) from the plan's labels, else its bucket
+  const s=String(labels||"")+";"+String(bucket||"");
+  if(/שבר/.test(s)) return "אחזקות שבר"; if(/י?יזומ/.test(s)) return "אחזקות יזומות"; if(/מתוכננ|קבוע|חודש|שנתי|שבוע|יומי/.test(s)) return "אחזקות מתוכננות";
+  return String(bucket||"").trim() || "אחזקות מתוכננות"; }
+function plCheck(raw){   // checklist: numbered items ("סעיף 3") in their order; "בוצע …" is a note, not a step → the description
+  const items=String(raw||"").split(";").map(x=>x.trim()).filter(Boolean), note=x=>/^בוצע(\s|$)/.test(x), notes=items.filter(note), steps=items.filter(x=>!note(x));   // (\b does not see Hebrew letters)
+  const num=x=>{ const m=x.match(/סעיף\s*(\d+)/); return m ? +m[1] : null; };
+  const numbered=steps.filter(x=>num(x)!==null).sort((a,b)=>num(a)-num(b)), rest=steps.filter(x=>num(x)===null);
+  return {steps:numbered.concat(rest), notes};
+}
+let PL=null;
+$("#plPick").onclick=()=>$("#plFile").click();
+$("#plFile").onchange=async()=>{ const f=$("#plFile").files[0]; $("#plFile").value=""; if(!f) return;
+  if(typeof DecompressionStream==="undefined"){ toast("הדפדפן הזה לא יודע לפתוח קבצי אקסל — נסה בכרום מעודכן"); return; }
+  let T; try{ T=plTable(await xlsxRead(await f.arrayBuffer())); }catch(e){ toast("לא הצלחתי לקרוא את הקובץ"); return; }
+  if(!T || T.col.title<0 || T.col.status<0){ toast("זה לא נראה כמו ייצוא של Planner (חסרות עמודות שם הפעילות / מצב)"); return; }
+  const c=T.col, g=(r,k)=>c[k]>=0 ? r[c[k]] : "", todo=T.data.filter(r=>/^(לא התחיל|Not started)$/i.test(String(g(r,"status")).trim()));
+  const hist={}; T.data.forEach(r=>{ const k=plWords(g(r,"title")); (hist[k]=hist[k]||[]).push(plDate(g(r,"due"))||plDate(g(r,"done"))); });
+  const have=new Set(tasks.filter(t=>!t.priv).map(t=>plWords(t.title)+"|"+(t.due||"")));
+  const names=new Set();
+  const items=todo.map(r=>{ const ppl=String(g(r,"ppl")||"").split(";").map(x=>x.trim()).filter(Boolean); ppl.forEach(x=>names.add(x));
+    const by=String(g(r,"by")||"").trim(); if(by) names.add(by);
+    const ck=plCheck(g(r,"check")), due=plDate(g(r,"due")), title=String(g(r,"title")).trim();
+    const desc=[String(g(r,"notes")||"").trim()].concat(ck.notes).filter(Boolean).join("\n");
+    return {on:true, title, due, start:plDate(g(r,"start")), created:plDate(g(r,"created")), ppl, by, prio:/דחוף|urgent/i.test(g(r,"prio")) ? "דחופה" : /חשוב|important/i.test(g(r,"prio")) ? "גבוהה" : /נמוכ|low/i.test(g(r,"prio")) ? "נמוכה" : "רגילה",
+      type:plCat(g(r,"labels"), g(r,"bucket")), check:ck.steps, desc, rep:plRepGuess(title+" "+String(g(r,"notes")||""), hist[plWords(title)]||[]), dup:have.has(plWords(title)+"|"+due)}; });
+  items.forEach(x=>{ if(x.dup) x.on=false; });
+  items.sort((a,b)=>(a.due||"9").localeCompare(b.due||"9"));
+  // who is who: the plan writes "family first"; match by the same words to a person already here, else keep the name
+  const P=pplValues(), map={};
+  names.forEach(n=>{ const w=plWords(n), hit=P.find(p=>plWords(p)===w); map[n] = hit || (/^[A-Za-z]{1,4}$/.test(n) ? "" : n); });   // a short Latin name is the plan's shared account: left out
+  PL={items, map, total:T.data.length}; plPaint(); $("#dlgPl").showModal();
+};
+const PL_REPS=[["","ללא"],["1d","יומית"],["1w","שבועית"],["2w","כל שבועיים"],["1m","חודשית"],["2m","כל חודשיים"],["3m","כל 3 חודשים"],["6m","כל חצי שנה"],["1y","שנתית"]];
+function plPaint(){
+  const {items, map}=PL, on=items.filter(x=>x.on).length, dup=items.filter(x=>x.dup).length;
+  $("#plSum").textContent=PL.total+" משימות בקובץ · "+items.length+" עוד לא התחילו"+(dup?" · "+dup+" כבר קיימות כאן (לא ייובאו)":"")+" · ייובאו: "+on;
+  const D=allDepts(); fillSelect($("#plDept"), D.length?D:["תפעול"], D.includes($("#plDept").value) ? $("#plDept").value : (D.find(d=>/תפעול/.test(d)) || D[0] || "תפעול"));
+  const pp=$("#plPpl"); pp.textContent=""; pp.appendChild(mk("h4",null,"אחראים"));
+  const P=pplValues();
+  Object.keys(map).forEach(n=>{ const l=mk("label","pl-p"); l.append(mk("span",null,n+" ←"));
+    const s=document.createElement("select"); [["","— לא לשייך —"]].concat(P.map(p=>[p,p]), P.includes(map[n]) || !map[n] ? [] : [[map[n],map[n]+" (חדש)"]])
+      .forEach(([v,t])=>{ const o=document.createElement("option"); o.value=v; o.textContent=t; s.appendChild(o); });
+    s.value=map[n]; s.onchange=()=>{ map[n]=s.value; }; l.appendChild(s); pp.appendChild(l); });
+  const box=$("#plList"); box.textContent="";
+  items.forEach(x=>{ const r=mk("div","pl-r"+(x.dup?" dup":"")+(x.due && x.due<ymd(new Date())?" late":""));
+    const cb=document.createElement("input"); cb.type="checkbox"; cb.checked=x.on; cb.setAttribute("aria-label","לייבא: "+x.title); cb.onchange=()=>{ x.on=cb.checked; plPaint(); };
+    const body=mk("div","pl-b"); const tb=mk("button","pl-t",x.title); tb.type="button"; tb.setAttribute("aria-expanded",String(!!x.open));
+    tb.title=x.check.length ? "רשימת הבדיקה — לשנות את הסדר" : ""; tb.onclick=()=>{ x.open=!x.open; plPaint(); };
+    body.append(tb, mk("span","pl-m",[x.due?"יעד "+dmy(x.due):"בלי תאריך יעד", x.type, x.prio!=="רגילה"?x.prio:"", x.ppl.map(n=>map[n]).filter(Boolean).join(", "), x.check.length?"☑ "+x.check.length:"", x.dup?"כבר קיימת":"", x.due && x.due<ymd(new Date())?"באיחור":""].filter(Boolean).join(" · ")));
+    const s=document.createElement("select"); s.className="pl-rep"; s.setAttribute("aria-label","מחזוריות");
+    PL_REPS.forEach(([v,t])=>{ const o=document.createElement("option"); o.value=v; o.textContent="🔁 "+t; s.appendChild(o); });
+    s.value=x.rep ? x.rep.n+x.rep.u : ""; s.onchange=()=>{ x.rep = s.value ? {n:+s.value.slice(0,-1), u:s.value.slice(-1)} : null; };
+    r.append(cb, body, s);
+    if(x.open && x.check.length){ const ck=mk("ol","pl-ck");                 // the checklist, in the order it will have — ▲▼ to change it
+      x.check.forEach((c,i)=>{ const li=mk("li"); li.appendChild(mk("span",null,c));
+        [["▲",-1],["▼",1]].forEach(([a,d])=>{ const b=mk("button","btn mini",a); b.type="button"; b.disabled=!x.check[i+d]; b.setAttribute("aria-label",d<0?"למעלה":"למטה");
+          b.onclick=()=>{ const t=x.check[i]; x.check[i]=x.check[i+d]; x.check[i+d]=t; plPaint(); }; li.appendChild(b); });
+        ck.appendChild(li); }); r.appendChild(ck); }
+    box.appendChild(r); });
+  $("#plGo").textContent="ייבא "+on+" משימות"; $("#plGo").disabled=!on;
+}
+$("#plCancel").onclick=()=>$("#dlgPl").close();
+$("#plGo").onclick=()=>{ if(!PL) return; const dept=$("#plDept").value, now=new Date().toISOString(), sel=PL.items.filter(x=>x.on && !x.dup);
+  sel.forEach(x=>{ const ppl=[...new Set(x.ppl.map(n=>PL.map[n]).filter(Boolean))];
+    const t={id:newId(), status:"פתוחה", created:x.created ? x.created+"T08:00:00.000Z" : now, log:[], openedBy:PL.map[x.by]||x.by||"", openedMail:"",
+      title:x.title, desc:x.desc, type:x.type, prio:x.prio, urgent:x.prio==="דחופה", ppl, loc:[], eq:[], due:x.due, start:x.start||"", depts:dept?[dept]:[], upd:now};
+    if(x.rep) t.rep={n:x.rep.n, u:x.rep.u};
+    if(x.check.length) t.check=x.check.map(text=>({id:newId(), text, done:false}));
+    tkLog(t, "יובאה מ-Planner"+(ppl.length?" · אחראי: "+ppl[0]:"")+(dept?" · מחלקה: "+dept:""), "", true);
+    tasks.push(t); });
+  saveTasks(); renderTasks(); $("#dlgPl").close(); PL=null; toast("יובאו "+sel.length+" משימות מ-Planner"); };
+
