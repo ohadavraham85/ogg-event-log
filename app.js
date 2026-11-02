@@ -1601,31 +1601,42 @@ window.paintTeamStrip=function(){
    just for the capture, every such colour on the page is written inline as plain rgba(); the returned function puts things back */
 function h2cColorsOn(){
   const P=["color","background-color","background-image","border-top-color","border-right-color","border-bottom-color","border-left-color",
-    "outline-color","box-shadow","text-decoration-color","fill","stroke","caret-color"], undo=[];
-  const fix=v=>v.replace(/color\((?:srgb|display-p3) ([-\d.e]+) ([-\d.e]+) ([-\d.e]+)(?: \/ ([\d.%]+))?\)/g,(m,r,g,b,a)=>{
+    "outline-color","box-shadow","text-shadow","text-decoration-color","column-rule-color","-webkit-text-fill-color","-webkit-text-stroke-color",
+    "fill","stroke","caret-color"], undo=[], BAD=/color\(|color-mix|oklch|oklab|lab\(|lch\(/;
+  const fix=v=>v.replace(/color\((?:srgb|display-p3|srgb-linear) ([-\d.e]+) ([-\d.e]+) ([-\d.e]+)(?: \/ ([\d.%]+))?\)/g,(m,r,g,b,a)=>{
       const c=x=>Math.max(0,Math.min(255,Math.round(parseFloat(x)*255)));
       const al = a==null ? 1 : (String(a).endsWith("%") ? parseFloat(a)/100 : parseFloat(a));
       return "rgba("+c(r)+","+c(g)+","+c(b)+","+al+")"; })
-    .replace(/(?:oklch|oklab|lab|lch)\([^()]*\)/g,"rgba(128,128,128,1)");
+    .replace(/(?:oklch|oklab|lab|lch|color-mix|color)\([^()]*(?:\([^()]*\)[^()]*)*\)/g,"rgba(128,128,128,1)");   // anything left that it can't read
+  // the ::before / ::after layers can't take an inline style: they get a rule of their own, by a mark on their element
+  const css=[]; let n=0;
   [document.documentElement,...document.querySelectorAll("*")].forEach(el=>{
     if(!el.style) return; const cs=getComputedStyle(el);
-    P.forEach(p=>{ const v=cs.getPropertyValue(p); if(!v || !/color\(|oklch|oklab|lab\(|lch\(/.test(v)) return;
+    P.forEach(p=>{ const v=cs.getPropertyValue(p); if(!v || !BAD.test(v)) return;
       undo.push([el,p,el.style.getPropertyValue(p),el.style.getPropertyPriority(p)]); el.style.setProperty(p, fix(v), "important"); });
+    ["::before","::after"].forEach(ps=>{ const pc=getComputedStyle(el,ps); if(!pc || pc.content==="none" || pc.content==="normal") return;
+      const fixed=P.map(p=>[p,pc.getPropertyValue(p)]).filter(([,v])=>v && BAD.test(v)); if(!fixed.length) return;
+      if(!el.hasAttribute("data-h2c")){ el.setAttribute("data-h2c", String(++n)); }
+      css.push('[data-h2c="'+el.getAttribute("data-h2c")+'"]'+ps+"{"+fixed.map(([p,v])=>p+":"+fix(v)+" !important").join(";")+"}"); });
   });
-  return ()=>undo.reverse().forEach(([el,p,v,pr])=>{ if(v) el.style.setProperty(p,v,pr); else el.style.removeProperty(p); });
+  const st=document.createElement("style"); st.textContent=css.join("\n"); document.head.appendChild(st);
+  return ()=>{ st.remove(); document.querySelectorAll("[data-h2c]").forEach(el=>el.removeAttribute("data-h2c"));
+    undo.reverse().forEach(([el,p,v,pr])=>{ if(v) el.style.setProperty(p,v,pr); else el.style.removeProperty(p); }); };
 }
 let fbBase=null, fbMarks=[];
 $("#fbBtn").onclick=async()=>{
   const b=$("#fbBtn"); b.hidden=true; if($("#dTip")) $("#dTip").hidden=true;
   try{
     await loadH2C();
-    const sc=Math.min(1, 1100/innerWidth), bg=getComputedStyle(document.body).backgroundColor;
+    const sc=Math.min(1, 1100/innerWidth);
     const restore=h2cColorsOn();
+    // the page colour, read after the fix above (before it, team mode's tinted page reports "color(srgb …)", which html2canvas can't take)
+    let bg=getComputedStyle(document.body).backgroundColor; if(!/^(rgba?\(|#|transparent)/.test(bg||"")) bg="#ffffff";
     try{ fbBase=await html2canvas(document.body,{x:scrollX,y:scrollY,width:innerWidth,height:innerHeight,windowWidth:innerWidth,windowHeight:innerHeight,
       scale:sc,backgroundColor:bg||"#ffffff",logging:false}); }
     finally{ restore(); }
     fbMarks=[]; fbDraw(); $("#fbText").value=""; $("#dlgFb").showModal(); setTimeout(()=>$("#fbText").focus(),100);
-  }catch(e){ toast("לא הצלחתי לצלם את המסך"); }
+  }catch(e){ try{ console.error("feedback capture", e); }catch(_){} toast("לא הצלחתי לצלם את המסך"); }
   b.hidden=false;
 };
 function fbDraw(){
@@ -2301,7 +2312,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.68", APP_DATE="01/11/2026";
+const APP_VER="3.69", APP_DATE="02/11/2026";
 $("#verChip").textContent = BETA && LITE_MQ.matches ? "בטא "+APP_VER : "v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
