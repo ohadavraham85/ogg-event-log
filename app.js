@@ -2312,7 +2312,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.69", APP_DATE="02/11/2026";
+const APP_VER="3.70", APP_DATE="02/11/2026";
 $("#verChip").textContent = BETA && LITE_MQ.matches ? "בטא "+APP_VER : "v"+APP_VER+(BETA?" · בטא":""); if(BETA){ $("#verChip").classList.add("beta"); document.title="בטא · "+document.title; }
 $("#verLine").textContent="גרסה "+APP_VER+" · "+APP_DATE;
 async function refreshApp(){
@@ -5513,4 +5513,133 @@ if($("#psyncOn")){ $("#psyncOn").checked=prefSyncOn();
   $("#psyncOn").onchange=e=>{ try{ localStorage.setItem(K_PSYNC, e.target.checked?"1":"0"); }catch(_){}
     if(e.target.checked){ prefSyncSoon(); if(window.cloudSyncPull) window.cloudSyncPull(); toast("ההגדרות יהיו זהות בכל המכשירים שלך"); }
     else toast("ההגדרות במכשיר הזה נפרדות משאר המכשירים"); }; }
+
+/* ===== import from Microsoft Planner: the plan exported to Excel (.xlsx). Read here in the browser (a small unzip + XML read,
+   no library). Only tasks that have not started come in; a preview first: department, who is who, how often each repeats
+   (from the plan's own history, or the words in its title), and what is already here (same title and due date). */
+function xlsxCol(ref){ const m=/^[A-Z]+/.exec(ref||""); if(!m) return 0; let n=0; for(const ch of m[0]) n=n*26+ch.charCodeAt(0)-64; return n-1; }
+async function xlsxRead(buf){
+  const u8=new Uint8Array(buf), dv=new DataView(buf), td=new TextDecoder();
+  let e=u8.length-22; while(e>=0 && dv.getUint32(e,true)!==0x06054b50) e--; if(e<0) throw new Error("not a zip");
+  const files={}; let p=dv.getUint32(e+16,true);
+  for(let i=0, n=dv.getUint16(e+10,true); i<n; i++){ const nl=dv.getUint16(p+28,true), xl=dv.getUint16(p+30,true), cl=dv.getUint16(p+32,true);
+    files[td.decode(u8.subarray(p+46,p+46+nl))]={comp:dv.getUint16(p+10,true), size:dv.getUint32(p+20,true), off:dv.getUint32(p+42,true)}; p+=46+nl+xl+cl; }
+  const get=async name=>{ const f=files[name]; if(!f) return null; const st=f.off+30+dv.getUint16(f.off+26,true)+dv.getUint16(f.off+28,true), data=u8.subarray(st,st+f.size);
+    if(f.comp===0) return td.decode(data);
+    return td.decode(await new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream("deflate-raw"))).arrayBuffer()); };
+  const xml=s=>new DOMParser().parseFromString(s,"application/xml"), tags=(n,t)=>[...n.getElementsByTagName(t)];
+  const ss=[], sst=await get("xl/sharedStrings.xml"); if(sst) tags(xml(sst),"si").forEach(si=>ss.push(tags(si,"t").map(t=>t.textContent).join("")));
+  const rel={}; tags(xml(await get("xl/_rels/workbook.xml.rels")||"<x/>"),"Relationship").forEach(r=>rel[r.getAttribute("Id")]=r.getAttribute("Target"));
+  const out=[];
+  for(const sh of tags(xml(await get("xl/workbook.xml")||"<x/>"),"sheet")){
+    let tg=rel[sh.getAttribute("r:id")]||""; tg=tg.replace(/^\/+/,""); if(!tg.startsWith("xl/")) tg="xl/"+tg;
+    const sx=await get(tg); if(!sx) continue; const rows=[];
+    tags(xml(sx),"row").forEach(r=>{ const row=[]; tags(r,"c").forEach(c=>{ const t=c.getAttribute("t"), v=c.getElementsByTagName("v")[0]; let x;
+        if(t==="s") x=ss[+(v?v.textContent:"")]; else if(t==="inlineStr") x=tags(c,"t").map(y=>y.textContent).join("");
+        else { x=v?v.textContent:""; if(t!=="str" && t!=="b" && x!=="" && !isNaN(x)) x=+x; }
+        row[xlsxCol(c.getAttribute("r"))]=x; }); rows.push(row); });
+    out.push({name:sh.getAttribute("name"), rows}); }
+  return out;
+}
+// the plan's columns, in Hebrew or English exports
+const PL_COLS={id:["מזהה הפעילות","Task ID"], title:["שם הפעילות","Task Name"], bucket:["מכל","Bucket Name"], status:["מצב","Progress"], prio:["עדיפות","Priority"],
+  ppl:["שם מקבל ההקצאה","Assigned To"], by:["נוצרה על ידי","Created By"], created:["תאריך יצירה","Created Date"], start:["תאריך התחלה","Start date","Start Date"],
+  due:["תאריך יעד","Due date","Due Date"], done:["תאריך השלמה","Completed Date"], check:["פריטים ברשימת פעולות לביצוע","Checklist Items"], labels:["תוויות","Labels"], notes:["הערות","Description"]};
+function plDate(v){ if(v===undefined || v===null || v==="") return "";
+  if(typeof v==="number") return ymd(new Date(Date.UTC(1899,11,30)+Math.round(v)*864e5));
+  let m=String(v).match(/^(\d{4})-(\d{2})-(\d{2})/); if(m) return m[1]+"-"+m[2]+"-"+m[3];
+  m=String(v).match(/^(\d{1,2})[./](\d{1,2})[./](\d{4})/); if(m) return m[3]+"-"+m[2].padStart(2,"0")+"-"+m[1].padStart(2,"0");
+  return ""; }
+function plTable(sheets){   // the sheet with the tasks, the one with names (not ids) first
+  let best=null;
+  sheets.forEach(sh=>{ const hi=sh.rows.findIndex(r=>r && r.some(c=>PL_COLS.title.includes(String(c||"").trim()))); if(hi<0) return;
+    const h=sh.rows[hi].map(c=>String(c||"").trim()), col={}; Object.keys(PL_COLS).forEach(k=>{ col[k]=h.findIndex(x=>PL_COLS[k].includes(x)); });
+    const data=sh.rows.slice(hi+1).filter(r=>r && r[col.title]); const ids=data.filter(r=>/^[A-Za-z0-9_-]{20,}$/.test(String(r[col.bucket]||""))).length;
+    const score=data.length - ids*2; if(!best || score>best.score) best={col, data, score}; });
+  return best;
+}
+const plWords=s=>String(s||"").replace(/[^֐-׿A-Za-z0-9 ]/g," ").split(/\s+/).filter(Boolean).sort().join(" ");
+function plRepGuess(title, dates){
+  const d=[...new Set(dates.filter(Boolean))].sort(); let g=0;
+  if(d.length>=2){ const gaps=d.slice(1).map((x,i)=>(new Date(x)-new Date(d[i]))/864e5).sort((a,b)=>a-b); g=gaps[Math.floor(gaps.length/2)]; }
+  const near=(a,b,t)=>Math.abs(a-b)<=t;
+  if(g){ if(g<=1.5) return {n:1,u:"d"}; if(near(g,7,1)) return {n:1,u:"w"}; if(near(g,14,2)) return {n:2,u:"w"}; if(near(g,30,4)) return {n:1,u:"m"};
+    if(near(g,61,6)) return {n:2,u:"m"}; if(near(g,91,8)) return {n:3,u:"m"}; if(near(g,182,15)) return {n:6,u:"m"}; if(near(g,365,20)) return {n:1,u:"y"}; }
+  const t=String(title||"");
+  if(/חצי\s*שנתי/.test(t)) return {n:6,u:"m"}; if(/שנתי/.test(t)) return {n:1,u:"y"}; if(/חודשי/.test(t)) return {n:1,u:"m"};
+  if(/שבועי/.test(t)) return {n:1,u:"w"}; if(/יומי/.test(t)) return {n:1,u:"d"};
+  return null;
+}
+function plCat(labels, bucket){   // the system's own categories (the three anchors) from the plan's labels, else its bucket
+  const s=String(labels||"")+";"+String(bucket||"");
+  if(/שבר/.test(s)) return "אחזקות שבר"; if(/י?יזומ/.test(s)) return "אחזקות יזומות"; if(/מתוכננ|קבוע|חודש|שנתי|שבוע|יומי/.test(s)) return "אחזקות מתוכננות";
+  return String(bucket||"").trim() || "אחזקות מתוכננות"; }
+function plCheck(raw){   // checklist: numbered items ("סעיף 3") in their order; "בוצע …" is a note, not a step → the description
+  const items=String(raw||"").split(";").map(x=>x.trim()).filter(Boolean), note=x=>/^בוצע(\s|$)/.test(x), notes=items.filter(note), steps=items.filter(x=>!note(x));   // (\b does not see Hebrew letters)
+  const num=x=>{ const m=x.match(/סעיף\s*(\d+)/); return m ? +m[1] : null; };
+  const numbered=steps.filter(x=>num(x)!==null).sort((a,b)=>num(a)-num(b)), rest=steps.filter(x=>num(x)===null);
+  return {steps:numbered.concat(rest), notes};
+}
+let PL=null;
+$("#plPick").onclick=()=>$("#plFile").click();
+$("#plFile").onchange=async()=>{ const f=$("#plFile").files[0]; $("#plFile").value=""; if(!f) return;
+  if(typeof DecompressionStream==="undefined"){ toast("הדפדפן הזה לא יודע לפתוח קבצי אקסל — נסה בכרום מעודכן"); return; }
+  let T; try{ T=plTable(await xlsxRead(await f.arrayBuffer())); }catch(e){ toast("לא הצלחתי לקרוא את הקובץ"); return; }
+  if(!T || T.col.title<0 || T.col.status<0){ toast("זה לא נראה כמו ייצוא של Planner (חסרות עמודות שם הפעילות / מצב)"); return; }
+  const c=T.col, g=(r,k)=>c[k]>=0 ? r[c[k]] : "", todo=T.data.filter(r=>/^(לא התחיל|Not started)$/i.test(String(g(r,"status")).trim()));
+  const hist={}; T.data.forEach(r=>{ const k=plWords(g(r,"title")); (hist[k]=hist[k]||[]).push(plDate(g(r,"due"))||plDate(g(r,"done"))); });
+  const have=new Set(tasks.filter(t=>!t.priv).map(t=>plWords(t.title)+"|"+(t.due||"")));
+  const names=new Set();
+  const items=todo.map(r=>{ const ppl=String(g(r,"ppl")||"").split(";").map(x=>x.trim()).filter(Boolean); ppl.forEach(x=>names.add(x));
+    const by=String(g(r,"by")||"").trim(); if(by) names.add(by);
+    const ck=plCheck(g(r,"check")), due=plDate(g(r,"due")), title=String(g(r,"title")).trim();
+    const desc=[String(g(r,"notes")||"").trim()].concat(ck.notes).filter(Boolean).join("\n");
+    return {on:true, title, due, start:plDate(g(r,"start")), created:plDate(g(r,"created")), ppl, by, prio:/דחוף|urgent/i.test(g(r,"prio")) ? "דחופה" : /חשוב|important/i.test(g(r,"prio")) ? "גבוהה" : /נמוכ|low/i.test(g(r,"prio")) ? "נמוכה" : "רגילה",
+      type:plCat(g(r,"labels"), g(r,"bucket")), check:ck.steps, desc, rep:plRepGuess(title+" "+String(g(r,"notes")||""), hist[plWords(title)]||[]), dup:have.has(plWords(title)+"|"+due)}; });
+  items.forEach(x=>{ if(x.dup) x.on=false; });
+  items.sort((a,b)=>(a.due||"9").localeCompare(b.due||"9"));
+  // who is who: the plan writes "family first"; match by the same words to a person already here, else keep the name
+  const P=pplValues(), map={};
+  names.forEach(n=>{ const w=plWords(n), hit=P.find(p=>plWords(p)===w); map[n] = hit || (/^[A-Za-z]{1,4}$/.test(n) ? "" : n); });   // a short Latin name is the plan's shared account: left out
+  PL={items, map, total:T.data.length}; plPaint(); $("#dlgPl").showModal();
+};
+const PL_REPS=[["","ללא"],["1d","יומית"],["1w","שבועית"],["2w","כל שבועיים"],["1m","חודשית"],["2m","כל חודשיים"],["3m","כל 3 חודשים"],["6m","כל חצי שנה"],["1y","שנתית"]];
+function plPaint(){
+  const {items, map}=PL, on=items.filter(x=>x.on).length, dup=items.filter(x=>x.dup).length;
+  $("#plSum").textContent=PL.total+" משימות בקובץ · "+items.length+" עוד לא התחילו"+(dup?" · "+dup+" כבר קיימות כאן (לא ייובאו)":"")+" · ייובאו: "+on;
+  const D=allDepts(); fillSelect($("#plDept"), D.length?D:["תפעול"], D.includes($("#plDept").value) ? $("#plDept").value : (D.find(d=>/תפעול/.test(d)) || D[0] || "תפעול"));
+  const pp=$("#plPpl"); pp.textContent=""; pp.appendChild(mk("h4",null,"אחראים"));
+  const P=pplValues();
+  Object.keys(map).forEach(n=>{ const l=mk("label","pl-p"); l.append(mk("span",null,n+" ←"));
+    const s=document.createElement("select"); [["","— לא לשייך —"]].concat(P.map(p=>[p,p]), P.includes(map[n]) || !map[n] ? [] : [[map[n],map[n]+" (חדש)"]])
+      .forEach(([v,t])=>{ const o=document.createElement("option"); o.value=v; o.textContent=t; s.appendChild(o); });
+    s.value=map[n]; s.onchange=()=>{ map[n]=s.value; }; l.appendChild(s); pp.appendChild(l); });
+  const box=$("#plList"); box.textContent="";
+  items.forEach(x=>{ const r=mk("div","pl-r"+(x.dup?" dup":"")+(x.due && x.due<ymd(new Date())?" late":""));
+    const cb=document.createElement("input"); cb.type="checkbox"; cb.checked=x.on; cb.setAttribute("aria-label","לייבא: "+x.title); cb.onchange=()=>{ x.on=cb.checked; plPaint(); };
+    const body=mk("div","pl-b"); const tb=mk("button","pl-t",x.title); tb.type="button"; tb.setAttribute("aria-expanded",String(!!x.open));
+    tb.title=x.check.length ? "רשימת הבדיקה — לשנות את הסדר" : ""; tb.onclick=()=>{ x.open=!x.open; plPaint(); };
+    body.append(tb, mk("span","pl-m",[x.due?"יעד "+dmy(x.due):"בלי תאריך יעד", x.type, x.prio!=="רגילה"?x.prio:"", x.ppl.map(n=>map[n]).filter(Boolean).join(", "), x.check.length?"☑ "+x.check.length:"", x.dup?"כבר קיימת":"", x.due && x.due<ymd(new Date())?"באיחור":""].filter(Boolean).join(" · ")));
+    const s=document.createElement("select"); s.className="pl-rep"; s.setAttribute("aria-label","מחזוריות");
+    PL_REPS.forEach(([v,t])=>{ const o=document.createElement("option"); o.value=v; o.textContent="🔁 "+t; s.appendChild(o); });
+    s.value=x.rep ? x.rep.n+x.rep.u : ""; s.onchange=()=>{ x.rep = s.value ? {n:+s.value.slice(0,-1), u:s.value.slice(-1)} : null; };
+    r.append(cb, body, s);
+    if(x.open && x.check.length){ const ck=mk("ol","pl-ck");                 // the checklist, in the order it will have — ▲▼ to change it
+      x.check.forEach((c,i)=>{ const li=mk("li"); li.appendChild(mk("span",null,c));
+        [["▲",-1],["▼",1]].forEach(([a,d])=>{ const b=mk("button","btn mini",a); b.type="button"; b.disabled=!x.check[i+d]; b.setAttribute("aria-label",d<0?"למעלה":"למטה");
+          b.onclick=()=>{ const t=x.check[i]; x.check[i]=x.check[i+d]; x.check[i+d]=t; plPaint(); }; li.appendChild(b); });
+        ck.appendChild(li); }); r.appendChild(ck); }
+    box.appendChild(r); });
+  $("#plGo").textContent="ייבא "+on+" משימות"; $("#plGo").disabled=!on;
+}
+$("#plCancel").onclick=()=>$("#dlgPl").close();
+$("#plGo").onclick=()=>{ if(!PL) return; const dept=$("#plDept").value, now=new Date().toISOString(), sel=PL.items.filter(x=>x.on && !x.dup);
+  sel.forEach(x=>{ const ppl=[...new Set(x.ppl.map(n=>PL.map[n]).filter(Boolean))];
+    const t={id:newId(), status:"פתוחה", created:x.created ? x.created+"T08:00:00.000Z" : now, log:[], openedBy:PL.map[x.by]||x.by||"", openedMail:"",
+      title:x.title, desc:x.desc, type:x.type, prio:x.prio, urgent:x.prio==="דחופה", ppl, loc:[], eq:[], due:x.due, start:x.start||"", depts:dept?[dept]:[], upd:now};
+    if(x.rep) t.rep={n:x.rep.n, u:x.rep.u};
+    if(x.check.length) t.check=x.check.map(text=>({id:newId(), text, done:false}));
+    tkLog(t, "יובאה מ-Planner"+(ppl.length?" · אחראי: "+ppl[0]:"")+(dept?" · מחלקה: "+dept:""), "", true);
+    tasks.push(t); });
+  saveTasks(); renderTasks(); $("#dlgPl").close(); PL=null; toast("יובאו "+sel.length+" משימות מ-Planner"); };
 
