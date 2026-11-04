@@ -2312,7 +2312,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.75", APP_DATE="04/11/2026";
+const APP_VER="3.76", APP_DATE="04/11/2026";
 // the beta: under the chip, the version everyone has (the site's own version.txt) and the one running here
 if(BETA){ const l=$("#verMain"), paint=v=>{ l.hidden=false; l.textContent="לכולם "+(v||"?")+" · אצלי "+APP_VER;
     l.classList.toggle("diff", !!v && v!==APP_VER); l.title = !v ? "לא הצלחתי לבדוק מה יש לכולם" : v===APP_VER ? "לכולם יש את אותה גרסה" : "בבטא יש גרסה שעוד לא פורסמה לכולם"; };
