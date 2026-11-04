@@ -2312,7 +2312,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.74", APP_DATE="04/11/2026";
+const APP_VER="3.75", APP_DATE="04/11/2026";
 // the beta: under the chip, the version everyone has (the site's own version.txt) and the one running here
 if(BETA){ const l=$("#verMain"), paint=v=>{ l.hidden=false; l.textContent="לכולם "+(v||"?")+" · אצלי "+APP_VER;
     l.classList.toggle("diff", !!v && v!==APP_VER); l.title = !v ? "לא הצלחתי לבדוק מה יש לכולם" : v===APP_VER ? "לכולם יש את אותה גרסה" : "בבטא יש גרסה שעוד לא פורסמה לכולם"; };
@@ -2995,14 +2995,14 @@ function renderCheck(t, c){
    a small preview for photos); the file itself is kept on this device (IndexedDB "ogg-files") and, in
    the team log, in the cloud ("files" — needs the updated security rules; until they are published a
    file stays on the device that added it and is sent later). Photos are shrunk (≤1600px JPEG);
-   other files up to 700KB for now — bigger storage comes later. */
+   other files up to 5MB (in the cloud, a bigger one is kept in parts). */
 const FDB={p:null};
 function fdb(){ return FDB.p || (FDB.p=new Promise((res,rej)=>{ const r=indexedDB.open("ogg-files",1);
   r.onupgradeneeded=()=>r.result.createObjectStore("f"); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); })); }
 async function fPut(id,rec){ const db=await fdb(); return new Promise((res,rej)=>{ const tx=db.transaction("f","readwrite"); tx.objectStore("f").put(rec,id); tx.oncomplete=()=>res(); tx.onerror=()=>rej(tx.error); }); }
 async function fGet(id){ try{ const db=await fdb(); return await new Promise(res=>{ const r=db.transaction("f").objectStore("f").get(id); r.onsuccess=()=>res(r.result||null); r.onerror=()=>res(null); }); }catch(e){ return null; } }
 window.fGet=fGet; window.fPut=fPut;
-const F_MAX=700*1024;
+const F_MAX=5*1024*1024;
 const readDataURL=f=>new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(f); });
 function shrinkImage(file, max, q){ return new Promise((res,rej)=>{ const img=new Image(), url=URL.createObjectURL(file);
   img.onload=()=>{ const k=Math.min(1,max/Math.max(img.naturalWidth,img.naturalHeight)), c=document.createElement("canvas");
@@ -3031,7 +3031,7 @@ async function storeFiles(list, fromCam){
         thumb=await shrinkImage(f,180,.6); type="image/jpeg";
         name = fromCam || /^image(\.|$)/i.test(name) ? "צילום "+nowLocal().replace("T"," ").slice(0,16).replace(/:/g,"-")+".jpg" : name.replace(/\.[^.]+$/,"")+".jpg";
       } else {
-        if(f.size>F_MAX){ toast("\""+name+"\" גדול מדי ("+kb(f.size)+") — בינתיים עד 700KB"); continue; }
+        if(f.size>F_MAX){ toast("\""+name+"\" גדול מדי ("+kb(f.size)+") — עד 5MB לקובץ"); continue; }
         data=await readDataURL(f);
       }
       const id=newId(), size=Math.round((data.length-data.indexOf(",")-1)*0.75);
