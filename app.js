@@ -2312,7 +2312,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.73", APP_DATE="02/11/2026";
+const APP_VER="3.74", APP_DATE="04/11/2026";
 // the beta: under the chip, the version everyone has (the site's own version.txt) and the one running here
 if(BETA){ const l=$("#verMain"), paint=v=>{ l.hidden=false; l.textContent="לכולם "+(v||"?")+" · אצלי "+APP_VER;
     l.classList.toggle("diff", !!v && v!==APP_VER); l.title = !v ? "לא הצלחתי לבדוק מה יש לכולם" : v===APP_VER ? "לכולם יש את אותה גרסה" : "בבטא יש גרסה שעוד לא פורסמה לכולם"; };
@@ -3388,7 +3388,7 @@ function openTaskForm(id, copy){
   fillSelect($("#tkPrio"), PRIOS, t ? prioOf(t) : "רגילה");
   fillSelect($("#tkPpl"), pplValues(), "", "— הוסף משתמש —", true);
   paintPplChips(t ? (t.ppl||[]) : (tkView==="mine" && myName() ? [myName()] : []));
-  fillSelect($("#tkLoc"), byUse("loc"), t ? (t.loc||[])[0]||"" : "", "— בחר מיקום —", true);
+  fillSelect($("#tkLoc"), byUse("loc"), "", "— הוסף מיקום —", true); paintLocChips(t ? (t.loc||[]) : []);
   fillSelect($("#tkEq"), byUse("eq"), t ? (t.eq||[])[0]||"" : "", "— בחר ציוד —", true);
   paintDeptChips(t ? (t.depts||[]) : (tkView==="mine" && myDept() && !myName() ? [myDept()] : []));
   $("#tkCkWrap").hidden=false;   // the checklist: new items on a new task; editing a task shows its items and adds more (a manager can also take one out)
@@ -3444,6 +3444,20 @@ function paintPplChips(sel){
   });
   box.hidden=!tkPplSel.length;
 }
+/* locations: as many as needed, one after another from the list (✕ takes one out) */
+let tkLocSel=[];
+function paintLocChips(sel){
+  if(sel) tkLocSel=sel.slice();
+  const box=$("#tkLocChips"); box.textContent="";
+  tkLocSel.forEach((n,i)=>{ const c=mk("span","pchip"), x=mk("button","pchip-x","✕"); x.type="button"; x.setAttribute("aria-label","הסר את "+n);
+    x.onclick=()=>{ tkLocSel.splice(i,1); paintLocChips(); }; c.append(mk("span","pchip-n",n), x); box.appendChild(c); });
+  box.hidden=!tkLocSel.length;
+}
+$("#tkLoc").addEventListener("change",()=>{
+  const el=$("#tkLoc"), v=el.value; if(!v || v==="__other") return;
+  if(!tkLocSel.includes(v)) tkLocSel.push(v);
+  el.value=""; paintLocChips(); el.closest(".tk-f").classList.remove("bad");
+});
 $("#tkPpl").addEventListener("change",()=>{
   const el=$("#tkPpl"), v=el.value; if(!v || v==="__other") return;
   if(!tkPplSel.includes(v)) tkPplSel.push(v);
@@ -3542,6 +3556,7 @@ $("#tkSave").onclick=()=>{
   const need=[["#tkType","קטגוריה"],["#tkPrio","עדיפות"],["#tkPpl","אחראי או מחלקה"],["#tkLoc","מיקום"],["#tkEq","ציוד"],["#tkTitle","כותרת המשימה"]];
   const miss=need.filter(([id])=>{ const v=($(id).value||"").trim(); let bad=!v || v==="__other";
     if(id==="#tkPpl") bad=!tkPplSel.length && !tkDeptSel.length;
+    if(id==="#tkLoc") bad=!tkLocSel.length;
     $(id).closest(".tk-f").classList.toggle("bad",bad); if(id==="#tkPpl") $("#tkDepts").closest(".tk-f").classList.toggle("bad",bad); return bad; });
   if(miss.length){ toast("חסר: "+miss.map(m=>m[1]).join(", "));
     const f=$(miss[0][0]); (f.classList.contains("ss-hidden") ? f.nextElementSibling : f).focus(); return; }
@@ -3551,7 +3566,7 @@ $("#tkSave").onclick=()=>{
   const title=$("#tkTitle").value.trim();
   const now=new Date().toISOString(), prio=$("#tkPrio").value||"רגילה";
   const data={title, desc:$("#tkDesc").value.trim(), type:$("#tkType").value||"", prio, urgent:prio==="דחופה",
-    ppl:tkPplSel.slice(), loc:one($("#tkLoc").value), eq:one($("#tkEq").value), due:$("#tkDue").value||"", start:$("#tkStart").value||"", depts:tkDeptSel.slice(), rep:readRep(), hrs, upd:now};
+    ppl:tkPplSel.slice(), loc:tkLocSel.slice(), eq:one($("#tkEq").value), due:$("#tkDue").value||"", start:$("#tkStart").value||"", depts:tkDeptSel.slice(), rep:readRep(), hrs, upd:now};
   if(hrs){ const old=tkEdit && tasks.find(x=>x.id===tkEdit), oh=old && old.hrs;   // keep the readings already kept
     hrs.hist = oh && oh.cur===hrs.cur ? (oh.hist||[]) : ((oh && oh.hist)||[]).filter(x=>x.at!==hrs.at).concat({h:hrs.cur,at:hrs.at}).slice(-12);
     if(oh && oh.cur===hrs.cur) hrs.at=oh.at;
@@ -3593,7 +3608,7 @@ function qkOpen(t, keys){
       const clr=mk("button","btn ghost qk-clr","ללא"); clr.type="button"; clr.onclick=()=>{ i.value=""; qkV[k]=""; };
       const r=mk("div","qk-date"); r.append(i,clr); sec.appendChild(r); box.appendChild(sec); return;
     }
-    const multi = k==="ppl" || k==="depts";
+    const multi = k==="ppl" || k==="depts" || k==="loc";
     const cur = k==="status" ? [tkStat(t)] : k==="prio" ? [prioOf(t)] : k==="type" ? (t.type?[t.type]:[]) : (t[k]||[]).slice();
     const opts = k==="status" ? ["פתוחה","בטיפול","בהמתנה"] : k==="prio" ? PRIOS : k==="type" ? tkCats() : k==="ppl" ? pplValues() : k==="depts" ? allDepts() : byUse(k);
     qkV[k]=cur.slice();
@@ -3631,7 +3646,7 @@ function qkSave(){
     const ppl = "ppl" in v ? v.ppl : (t.ppl||[]), dp = "depts" in v ? v.depts : (t.depts||[]);
     if(!ppl.length && !dp.length){ toast("צריך לפחות אחראי אחד או מחלקה"); return; }
     if("ppl" in v) d.ppl=ppl.slice(); if("depts" in v) d.depts=dp.slice(); }
-  if("loc" in v){ if(!v.loc.length){ toast("צריך לבחור מיקום"); return; } d.loc=v.loc.slice(0,1); }
+  if("loc" in v){ if(!v.loc.length){ toast("צריך לבחור מיקום"); return; } d.loc=v.loc.slice(); }
   if("eq" in v){ if(!v.eq.length){ toast("צריך לבחור ציוד"); return; } d.eq=v.eq.slice(0,1); }
   if("type" in v){ if(!v.type.length){ toast("צריך לבחור קטגוריה"); return; } d.type=v.type[0]; }
   if("prio" in v){ d.prio=v.prio[0]||"רגילה"; d.urgent=d.prio==="דחופה"; }
@@ -4026,6 +4041,7 @@ if(window.visualViewport){ const vvp=()=>{ if(ssPanel && ssPhone()) ssPanel._pla
 $("#tkType")._listKey="type"; $("#tkType")._keep=TK_CATS;   // the task type list: ✕ takes a type out of the list, and a typed new one is added for next time
 // people on a task: several are picked one after another — the list stays open
 $("#tkPpl")._picked=()=>tkPplSel; $("#tkPpl")._unpick=v=>{ tkPplSel=tkPplSel.filter(x=>x!==v); paintPplChips(); };
+$("#tkLoc")._picked=()=>tkLocSel; $("#tkLoc")._unpick=v=>{ tkLocSel=tkLocSel.filter(x=>x!==v); paintLocChips(); };
 
 /* ================= boot ================= */
 load(); loadTasks(); if(!CLOUD_ON) window.nosAfterSync(); setNow(); renderAll(); renderTasks(); renderDash(); show(REFRESH_VIEW||"Dash"); applyLite();
