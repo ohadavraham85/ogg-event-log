@@ -476,16 +476,25 @@
     return out;
   }
   /* files: one document per file in "files" (read/add: team members; remove: admins).
+     A document holds at most ~1MB, so a bigger file goes in parts: files/<id> has the first part and "parts", the others are
+     files/<id>~1, ~2 … (written first, so whoever reads the first one finds the rest). A small file stays one document as before.
      If the security rules don't allow it yet, the file stays on this device and is sent later. */
+  const PART=900000;
   async function pushFile(id){
     try{ const rec=await window.fGet(id); if(!rec || rec.up) return;
-      await F.setDoc(F.doc(db,"files",id),{data:rec.data,name:rec.name,type:rec.type,_upd:F.serverTimestamp(),_by:me});
+      const d=rec.data||"", n=Math.max(1,Math.ceil(d.length/PART));
+      for(let i=1;i<n;i++) await F.setDoc(F.doc(db,"files",id+"~"+i),{data:d.slice(i*PART,(i+1)*PART),of:id,part:i,_upd:F.serverTimestamp(),_by:me});
+      await F.setDoc(F.doc(db,"files",id),Object.assign({data:d.slice(0,PART),name:rec.name,type:rec.type,_upd:F.serverTimestamp(),_by:me}, n>1?{parts:n}:{}));
       rec.up=true; await window.fPut(id,rec);
     }catch(e){ /* not allowed yet / offline — retried on the next start */ }
   }
   window.cloudPutFile=id=>{ if(started && me) pushFile(id); };
   window.cloudGetFile=async id=>{ if(!started || !me) return null;
-    try{ const d=await F.getDoc(F.doc(db,"files",id)); if(!d.exists()) return null; const x=d.data(); return {data:x.data,name:x.name,type:x.type}; }catch(e){ return null; } };
+    try{ const d=await F.getDoc(F.doc(db,"files",id)); if(!d.exists()) return null; const x=d.data(); let data=x.data||"";
+      if(x.parts>1){ const rest=await Promise.all(Array.from({length:x.parts-1},(_,i)=>F.getDoc(F.doc(db,"files",id+"~"+(i+1)))));
+        if(rest.some(s=>!s.exists())) return null;                     // not all there yet
+        data+=rest.map(s=>s.data().data||"").join(""); }
+      return {data,name:x.name,type:x.type}; }catch(e){ return null; } };
   function cloudPushTasks(){
     if(!started || !me) return;
     const cur={}; tasks.forEach(t=>{ cur[t.id]=JSON.stringify(t); });
