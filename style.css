@@ -2721,3 +2721,24 @@ button.sc-hr{cursor:pointer}
 .ver-main.diff{color:#C96A00;font-weight:700}
 html.lite .ver-main{font-size:8.5px;color:rgba(255,255,255,.9)}
 html.lite .ver-main.diff{color:#FFD166}
+/* a running unit looks like it runs: the aerator's disc turns and rings of water spread from it, the motor hums; an aspirator
+   churns the water around it. Not working (red) or stopped (black): still. Off when the device asks for less motion. */
+.scada .sc-aer{position:relative}
+.scada .disc{z-index:1}
+.scada .disc span{position:relative;z-index:1}
+.scada .sc-u:is(.st-ok,.st-issue) .disc{overflow:hidden}
+.scada .sc-u:is(.st-ok,.st-issue) .disc::before{content:"";position:absolute;inset:0;border-radius:50%;
+  background:repeating-linear-gradient(100deg,transparent 0 11px,rgba(255,255,255,.32) 11px 15px);background-size:30px 100%;animation:scTurn .55s linear infinite}
+.scada .sc-u:is(.st-ok,.st-issue) .sc-aer::before,.scada .sc-u:is(.st-ok,.st-issue) .sc-aer::after{content:"";position:absolute;left:3px;top:31px;width:92px;height:38px;
+  border-radius:50%;border:2px solid rgba(255,255,255,.7);box-sizing:border-box;z-index:0;animation:scRing 2.2s ease-out infinite;pointer-events:none}
+.scada .sc-u:is(.st-ok,.st-issue) .sc-aer::after{animation-delay:1.1s}
+.scada .sc-u:is(.st-ok,.st-issue) .mo{animation:scHum .14s linear infinite}
+.scada .sc-asp{position:relative}
+.scada .sc-u:is(.st-ok,.st-issue) .sc-asp::before,.scada .sc-u:is(.st-ok,.st-issue) .sc-asp::after{content:"";position:absolute;left:19px;top:52px;width:60px;height:18px;
+  border-radius:50%;border:2px solid rgba(255,255,255,.65);box-sizing:border-box;animation:scRing 1.8s ease-out infinite;pointer-events:none}
+.scada .sc-u:is(.st-ok,.st-issue) .sc-asp::after{animation-delay:.9s;border-style:dotted}
+.scada .sc-u:is(.st-ok,.st-issue) .sc-asp .stem{animation:scHum .12s linear infinite}
+@keyframes scTurn{to{background-position:30px 0}}
+@keyframes scRing{0%{transform:scale(.9);opacity:.85}100%{transform:scale(1.75);opacity:0}}
+@keyframes scHum{0%,100%{transform:translateX(0)}25%{transform:translateX(.5px)}75%{transform:translateX(-.5px)}}
+@media (prefers-reduced-motion:reduce){ .scada .sc-u *,.scada .sc-u *::before,.scada .sc-u *::after,.scada .sc-u .sc-aer::before,.scada .sc-u .sc-aer::after{animation:none!important} }

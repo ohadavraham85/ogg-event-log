@@ -589,6 +589,8 @@ $("#saveBtn").onclick = ()=>{
   if(!e.type.length){ toast("בחר סוג אירוע"); openSheet("type"); return; }
   if(!e.loc.length){ toast("בחר מיקום"); openSheet("loc"); return; }
   if(!e.desc){ toast("כתוב תיאור אירוע"); $("#desc").focus(); return; }
+  const was=events.find(x=>x.id===e.id);
+  if(was && !isOpen(was) && isOpen(e) && !isManager()){ toast("רק מנהל יכול לפתוח מחדש אירוע שנסגר — הסטטוס נשאר 'נסגר'"); openSheet("stat"); return; }
   const d=findDup(e);
   if(d){
     $("#dupText").textContent = fmtWhen(d.when)+" · "+(d.loc||[]).join(" · ")+" — "+d.desc.slice(0,90);
@@ -741,10 +743,12 @@ function renderList(reset){
     info.onclick=()=>{ det.hidden=!det.hidden; d.classList.toggle("open",!det.hidden); info.textContent=det.hidden?"פרטים":"סגור פרטים"; };
     acts.appendChild(info);
     const closed_ = st==="נסגר";
-    const sbtn=document.createElement("button"); sbtn.className="stbtn "+(closed_?"reopen":"close");
-    sbtn.textContent = closed_ ? "פתח מחדש" : "סגור אירוע";
-    sbtn.onclick=()=>setStatus(e.id, !closed_);
-    acts.appendChild(sbtn);
+    // a closed event is reopened by a manager only
+    if(!closed_ || (isManager() && !isViewer())){
+      const sbtn=document.createElement("button"); sbtn.className="stbtn "+(closed_?"reopen":"close");
+      sbtn.textContent = closed_ ? "פתח מחדש" : "סגור אירוע";
+      sbtn.onclick=()=>setStatus(e.id, !closed_);
+      acts.appendChild(sbtn); }
     if(!isLocked(e) && !isViewer()){ const ed=document.createElement("button"); ed.textContent="ערוך"; ed.onclick=()=>loadInto(e); acts.appendChild(ed); }
     if(isLocked(e)){
       const lk=document.createElement("span"); lk.className="lock"; lk.title="ארכיון · "+(e.src||"");
@@ -856,6 +860,7 @@ function reopenTask(t){
 function undoTaskSync(s){ if(!s) return; Object.keys(s.prev).forEach(k=>{ if(s.prev[k]===undefined) delete s.t[k]; else s.t[k]=s.prev[k]; }); s.t.upd=new Date().toISOString(); saveTasks(); }
 function setStatus(id, close){
   const e=events.find(x=>x.id===id); if(!e) return;
+  if(!close && !isOpen(e) && !isManager()){ toast("רק מנהל יכול לפתוח מחדש אירוע שנסגר"); return; }
   const prev={stat:e.stat, closedAt:e.closedAt, closedBy:e.closedBy, ts:e.ts};
   if(close){ e.stat=["נסגר"]; e.closedAt=nowLocal(); e.closedBy=reporter()||""; } else { e.stat=["פתוח"]; delete e.closedAt; delete e.closedBy; }
   e.ts=new Date().toISOString();
@@ -2312,7 +2317,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.75", APP_DATE="04/11/2026";
+const APP_VER="3.77", APP_DATE="08/11/2026";
 // the beta: under the chip, the version everyone has (the site's own version.txt) and the one running here
 if(BETA){ const l=$("#verMain"), paint=v=>{ l.hidden=false; l.textContent="לכולם "+(v||"?")+" · אצלי "+APP_VER;
     l.classList.toggle("diff", !!v && v!==APP_VER); l.title = !v ? "לא הצלחתי לבדוק מה יש לכולם" : v===APP_VER ? "לכולם יש את אותה גרסה" : "בבטא יש גרסה שעוד לא פורסמה לכולם"; };
