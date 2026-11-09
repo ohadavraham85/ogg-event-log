@@ -2318,7 +2318,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.79", APP_DATE="09/11/2026";
+const APP_VER="3.80", APP_DATE="09/11/2026";
 // the beta: under the chip, the version everyone has (the site's own version.txt) and the one running here
 if(BETA){ const l=$("#verMain"), paint=v=>{ l.hidden=false; l.textContent="לכולם "+(v||"?")+" · אצלי "+APP_VER;
     l.classList.toggle("diff", !!v && v!==APP_VER); l.title = !v ? "לא הצלחתי לבדוק מה יש לכולם" : v===APP_VER ? "לכולם יש את אותה גרסה" : "בבטא יש גרסה שעוד לא פורסמה לכולם"; };
@@ -5679,6 +5679,8 @@ function tkPickPaint(){
   const mgr=isManager() && !isViewer(); $("#tkPickBtn").hidden=!mgr; if(!mgr) tkPick=null;   // managers only
   const on=!!tkPick; $("#viewTasks").classList.toggle("picking",on); document.documentElement.classList.toggle("tk-picking",on); $("#tkPickBtn").setAttribute("aria-pressed",String(on));
   $("#tkPickBar").hidden=!on; if(!on) return;
+  { const hb=document.querySelector("header.bar"), st=hb && /sticky|fixed/.test(getComputedStyle(hb).position);   // the bar stays at the top of the list, under the header
+    $("#tkPickBar").style.setProperty("--pick-top", (st ? Math.round(hb.getBoundingClientRect().height)+8 : 8)+"px"); }
   document.querySelectorAll("#tkList .tk[data-id]").forEach(c=>{ const sel=tkPick.has(c.dataset.id); c.classList.toggle("picked",sel);
     let m=c.querySelector(":scope > .tk-pickbox"); if(!m){ m=mk("span","tk-pickbox"); m.setAttribute("aria-hidden","true"); c.prepend(m); } m.textContent=sel?"✓":""; });
   const n=tkPick.size; $("#tkPickN").textContent = n ? n+" נבחרו" : "סמן משימות ברשימה";
