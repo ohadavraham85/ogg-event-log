@@ -2750,18 +2750,19 @@ html.lite .ver-main.diff{color:#FFD166}
 #viewTasks.picking .tk-pickbox{display:grid;place-items:center;position:absolute;inset-inline-start:10px;top:12px;width:24px;height:24px;border-radius:6px;
   border:2px solid var(--water);background:var(--panel);color:#fff;font-weight:900;font-size:15px;z-index:2}
 #viewTasks.picking .tk.picked .tk-pickbox{background:var(--water)}
-.tk-pickbar{position:fixed;inset-inline:12px;bottom:14px;z-index:60;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 12px;border-radius:14px;
+.tk-pickbar{position:sticky;top:var(--pick-top,8px);z-index:40;margin:0 0 10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 12px;border-radius:14px;
   background:var(--panel);border:1px solid var(--edge);box-shadow:0 8px 28px rgba(6,12,17,.25);max-width:760px;margin-inline:auto}
 .tk-pickbar b{flex:1 1 auto}
 .tk-pick-acts{display:flex;gap:6px;flex-wrap:wrap}
 .tk-pickbar .wa{background:#25D366;color:#fff;border-color:#1ea952}
 .tk-pickbar button:disabled{opacity:.45}
-html.lite .tk-pickbar{bottom:calc(84px + env(safe-area-inset-bottom,0px))}
+.tk-pickbar[hidden]{display:none}   /* "display:flex" above would otherwise keep it on the screen */
 #viewTasks.picking ~ .fab, #viewTasks.picking .fab{display:none}
 html.tk-picking .lite-fab,html.tk-picking #tkNewBtn{display:none!important}
-html.tk-picking .toast{bottom:calc(150px + env(safe-area-inset-bottom,0px))}
-html.lite.tk-picking .toast{bottom:calc(170px + env(safe-area-inset-bottom,0px))}
+
+
 html.lite #viewTasks.picking .tk:not(.x) > .tk-pickbox{display:grid!important}   /* the phone's compact cards hide everything but the title line */
 html.lite #viewTasks.picking .tk{padding-inline-start:44px}
-html.lite.tk-picking .toast{bottom:calc(240px + env(safe-area-inset-bottom,0px))}
+
 html.tk-picking .fb-btn{display:none}
+#viewTasks.picking .tk[data-id]{padding-inline-start:46px!important}
