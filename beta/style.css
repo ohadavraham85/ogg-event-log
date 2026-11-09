@@ -2742,3 +2742,26 @@ html.lite .ver-main.diff{color:#FFD166}
 @keyframes scRing{0%{transform:scale(.9);opacity:.85}100%{transform:scale(1.75);opacity:0}}
 @keyframes scHum{0%,100%{transform:translateX(0)}25%{transform:translateX(.5px)}75%{transform:translateX(-.5px)}}
 @media (prefers-reduced-motion:reduce){ .scada .sc-u *,.scada .sc-u *::before,.scada .sc-u *::after,.scada .sc-u .sc-aer::before,.scada .sc-u .sc-aer::after{animation:none!important} }
+/* pick tasks and send them */
+.tk-pick-btn[aria-pressed="true"]{background:var(--water);color:#fff;border-color:var(--water)}
+#viewTasks.picking .tk{cursor:pointer;position:relative;padding-inline-start:44px}
+#viewTasks.picking .tk.picked{outline:3px solid var(--water);outline-offset:-1px}
+.tk-pickbox{display:none}
+#viewTasks.picking .tk-pickbox{display:grid;place-items:center;position:absolute;inset-inline-start:10px;top:12px;width:24px;height:24px;border-radius:6px;
+  border:2px solid var(--water);background:var(--panel);color:#fff;font-weight:900;font-size:15px;z-index:2}
+#viewTasks.picking .tk.picked .tk-pickbox{background:var(--water)}
+.tk-pickbar{position:fixed;inset-inline:12px;bottom:14px;z-index:60;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 12px;border-radius:14px;
+  background:var(--panel);border:1px solid var(--edge);box-shadow:0 8px 28px rgba(6,12,17,.25);max-width:760px;margin-inline:auto}
+.tk-pickbar b{flex:1 1 auto}
+.tk-pick-acts{display:flex;gap:6px;flex-wrap:wrap}
+.tk-pickbar .wa{background:#25D366;color:#fff;border-color:#1ea952}
+.tk-pickbar button:disabled{opacity:.45}
+html.lite .tk-pickbar{bottom:calc(84px + env(safe-area-inset-bottom,0px))}
+#viewTasks.picking ~ .fab, #viewTasks.picking .fab{display:none}
+html.tk-picking .lite-fab,html.tk-picking #tkNewBtn{display:none!important}
+html.tk-picking .toast{bottom:calc(150px + env(safe-area-inset-bottom,0px))}
+html.lite.tk-picking .toast{bottom:calc(170px + env(safe-area-inset-bottom,0px))}
+html.lite #viewTasks.picking .tk:not(.x) > .tk-pickbox{display:grid!important}   /* the phone's compact cards hide everything but the title line */
+html.lite #viewTasks.picking .tk{padding-inline-start:44px}
+html.lite.tk-picking .toast{bottom:calc(240px + env(safe-area-inset-bottom,0px))}
+html.tk-picking .fb-btn{display:none}
