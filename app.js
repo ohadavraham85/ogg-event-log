@@ -1732,7 +1732,8 @@ function show(w){
   if($("#dTip")) $("#dTip").hidden=true;
   const prev=curView; curView=w;
   if(prev==="List" && w!=="List" && UNSEEN.size){ evSeenAdd([...UNSEEN]); UNSEEN.clear(); saveUnseen(); }   // seen once you leave the list (on my other devices too)
-  if(prev==="Tasks" && w!=="Tasks" && typeof tkMarkSeen==="function") tkMarkSeen();   // new tasks: seen once you leave the tasks list
+  if(prev==="Tasks" && w!=="Tasks" && typeof tkMarkSeen==="function") tkMarkSeen();
+  if(prev==="Tasks" && w!=="Tasks" && typeof tkPick!=="undefined" && tkPick){ tkPick=null; tkPickPaint(); }   // picking ends with the list   // new tasks: seen once you leave the tasks list
   if($("#newCnt")) paintNewCount();
   // the calendar opens from the events or the tasks list, and that tab stays lit; settings is the gear in the header
   const lit = w==="Cal" ? (calMd==="tk" ? "Tasks" : "List") : w;
@@ -2317,7 +2318,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.77", APP_DATE="08/11/2026";
+const APP_VER="3.79", APP_DATE="09/11/2026";
 // the beta: under the chip, the version everyone has (the site's own version.txt) and the one running here
 if(BETA){ const l=$("#verMain"), paint=v=>{ l.hidden=false; l.textContent="לכולם "+(v||"?")+" · אצלי "+APP_VER;
     l.classList.toggle("diff", !!v && v!==APP_VER); l.title = !v ? "לא הצלחתי לבדוק מה יש לכולם" : v===APP_VER ? "לכולם יש את אותה גרסה" : "בבטא יש גרסה שעוד לא פורסמה לכולם"; };
@@ -5668,4 +5669,43 @@ $("#plGo").onclick=()=>{ if(!PL) return; const dept=$("#plDept").value, now=new 
     tkLog(t, "יובאה מ-Planner"+(ppl.length?" · אחראי: "+ppl[0]:"")+(dept?" · מחלקה: "+dept:""), "", true);
     tasks.push(t); });
   saveTasks(); renderTasks(); $("#dlgPl").close(); PL=null; toast("יובאו "+sel.length+" משימות מ-Planner"); };
+
+/* ===== pick tasks and send them as a list (WhatsApp, e-mail, copy, the phone's share): "☑ סימון ושליחה" in the tasks list.
+   While picking, a tap on a task marks it (nothing opens). The text: number, title, due, who, priority, place, equipment,
+   status and checklist progress, and a link to the app. */
+let tkPick=null;
+const tkById=id=>tasks.find(t=>t.id===id) || (String(id).startsWith("p:") ? privTasks().find(t=>t.id===id) : null);
+function tkPickPaint(){
+  const mgr=isManager() && !isViewer(); $("#tkPickBtn").hidden=!mgr; if(!mgr) tkPick=null;   // managers only
+  const on=!!tkPick; $("#viewTasks").classList.toggle("picking",on); document.documentElement.classList.toggle("tk-picking",on); $("#tkPickBtn").setAttribute("aria-pressed",String(on));
+  $("#tkPickBar").hidden=!on; if(!on) return;
+  document.querySelectorAll("#tkList .tk[data-id]").forEach(c=>{ const sel=tkPick.has(c.dataset.id); c.classList.toggle("picked",sel);
+    let m=c.querySelector(":scope > .tk-pickbox"); if(!m){ m=mk("span","tk-pickbox"); m.setAttribute("aria-hidden","true"); c.prepend(m); } m.textContent=sel?"✓":""; });
+  const n=tkPick.size; $("#tkPickN").textContent = n ? n+" נבחרו" : "סמן משימות ברשימה";
+  ["#tkPickWa","#tkPickMail","#tkPickShare","#tkPickCopy"].forEach(s=>$(s).disabled=!n);
+  $("#tkPickShare").hidden=!navigator.share;
+}
+{ const rt=renderTasks; renderTasks=function(){ const r=rt.apply(this,arguments); tkPickPaint(); return r; }; }
+$("#tkList").addEventListener("click",e=>{ if(!tkPick) return; const c=e.target.closest(".tk[data-id]"); if(!c) return;
+  e.preventDefault(); e.stopPropagation(); const id=c.dataset.id; tkPick.has(id) ? tkPick.delete(id) : tkPick.add(id); tkPickPaint(); }, true);
+$("#tkPickBtn").onclick=()=>{ if(!isManager() || isViewer()) return; tkPick = tkPick ? null : new Set(); tkPickPaint(); if(tkPick) toast("סמן את המשימות לשליחה"); };
+$("#tkPickEnd").onclick=()=>{ tkPick=null; tkPickPaint(); };
+$("#tkPickAll").onclick=()=>{ if(!tkPick) return; const ids=[...document.querySelectorAll("#tkList .tk[data-id]")].map(c=>c.dataset.id);
+  const all=ids.every(i=>tkPick.has(i)); ids.forEach(i=>all ? tkPick.delete(i) : tkPick.add(i)); tkPickPaint(); };
+function tkPickText(){
+  const list=[...document.querySelectorAll("#tkList .tk[data-id]")].map(c=>c.dataset.id).filter(id=>tkPick.has(id)).map(tkById).filter(Boolean);
+  const L=["📋 משימות ("+list.length+") — "+dmy(ymd(new Date())), ""];
+  list.forEach((t,i)=>{ L.push((i+1)+". "+(t.no?"#"+t.no+" ":"")+(t.title||"(ללא כותרת)"));
+    const ppl=t.ppl||[], pr=prioOf(t), ck=(t.check||[]).filter(c=>c && !c.del);
+    const d=[t.due?"יעד "+dmy(t.due):"", ppl.length?"אחראי: "+ppl[0]+(ppl.length>1?" +"+(ppl.length-1):""):"", pr && pr!=="רגילה"?"עדיפות "+pr:"",
+      (t.loc||[]).length?"📍 "+t.loc.join(", "):"", (t.eq||[]).length?"⚙ "+t.eq.join(", "):"", tkOpen(t)?tkStat(t):"הושלמה", ck.length?"☑ "+ck.filter(c=>c.done).length+"/"+ck.length:""].filter(Boolean).join(" · ");
+    if(d) L.push("   "+d); });
+  L.push("", "ביומן: "+location.origin+location.pathname.replace(/beta\/?$/,""));
+  return {n:list.length, text:L.join("\n"), subject:"משימות ("+list.length+") — "+dmy(ymd(new Date()))};
+}
+$("#tkPickWa").onclick=()=>{ const x=tkPickText(); if(!x.n) return; window.open("https://wa.me/?text="+encodeURIComponent(x.text),"_blank","noopener"); };
+$("#tkPickMail").onclick=()=>{ const x=tkPickText(); if(!x.n) return; location.href="mailto:?subject="+encodeURIComponent(x.subject)+"&body="+encodeURIComponent(x.text); };
+$("#tkPickCopy").onclick=async()=>{ const x=tkPickText(); if(!x.n) return;
+  try{ await navigator.clipboard.writeText(x.text); toast("הרשימה הועתקה — "+x.n+" משימות"); }catch(e){ toast("לא הצלחתי להעתיק"); } };
+$("#tkPickShare").onclick=async()=>{ const x=tkPickText(); if(!x.n) return; try{ await navigator.share({title:x.subject, text:x.text}); }catch(e){} };
 
