@@ -2318,7 +2318,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.78", APP_DATE="09/11/2026";
+const APP_VER="3.79", APP_DATE="09/11/2026";
 // the beta: under the chip, the version everyone has (the site's own version.txt) and the one running here
 if(BETA){ const l=$("#verMain"), paint=v=>{ l.hidden=false; l.textContent="לכולם "+(v||"?")+" · אצלי "+APP_VER;
     l.classList.toggle("diff", !!v && v!==APP_VER); l.title = !v ? "לא הצלחתי לבדוק מה יש לכולם" : v===APP_VER ? "לכולם יש את אותה גרסה" : "בבטא יש גרסה שעוד לא פורסמה לכולם"; };
@@ -5676,6 +5676,7 @@ $("#plGo").onclick=()=>{ if(!PL) return; const dept=$("#plDept").value, now=new 
 let tkPick=null;
 const tkById=id=>tasks.find(t=>t.id===id) || (String(id).startsWith("p:") ? privTasks().find(t=>t.id===id) : null);
 function tkPickPaint(){
+  const mgr=isManager() && !isViewer(); $("#tkPickBtn").hidden=!mgr; if(!mgr) tkPick=null;   // managers only
   const on=!!tkPick; $("#viewTasks").classList.toggle("picking",on); document.documentElement.classList.toggle("tk-picking",on); $("#tkPickBtn").setAttribute("aria-pressed",String(on));
   $("#tkPickBar").hidden=!on; if(!on) return;
   document.querySelectorAll("#tkList .tk[data-id]").forEach(c=>{ const sel=tkPick.has(c.dataset.id); c.classList.toggle("picked",sel);
@@ -5687,7 +5688,7 @@ function tkPickPaint(){
 { const rt=renderTasks; renderTasks=function(){ const r=rt.apply(this,arguments); tkPickPaint(); return r; }; }
 $("#tkList").addEventListener("click",e=>{ if(!tkPick) return; const c=e.target.closest(".tk[data-id]"); if(!c) return;
   e.preventDefault(); e.stopPropagation(); const id=c.dataset.id; tkPick.has(id) ? tkPick.delete(id) : tkPick.add(id); tkPickPaint(); }, true);
-$("#tkPickBtn").onclick=()=>{ tkPick = tkPick ? null : new Set(); tkPickPaint(); if(tkPick) toast("סמן את המשימות לשליחה"); };
+$("#tkPickBtn").onclick=()=>{ if(!isManager() || isViewer()) return; tkPick = tkPick ? null : new Set(); tkPickPaint(); if(tkPick) toast("סמן את המשימות לשליחה"); };
 $("#tkPickEnd").onclick=()=>{ tkPick=null; tkPickPaint(); };
 $("#tkPickAll").onclick=()=>{ if(!tkPick) return; const ids=[...document.querySelectorAll("#tkList .tk[data-id]")].map(c=>c.dataset.id);
   const all=ids.every(i=>tkPick.has(i)); ids.forEach(i=>all ? tkPick.delete(i) : tkPick.add(i)); tkPickPaint(); };
