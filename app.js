@@ -90,6 +90,7 @@ window.bigReady=(async()=>{
 })();
 function load(){
   try{ events = JSON.parse(localStorage.getItem(LS)||"[]"); }catch(e){ events=[]; }
+  if(!Array.isArray(events)) events=[]; events.forEach(e=>fixArr(e,EV_ARR));   // list fields as lists (see normAll)
   let saved={}; try{ saved = JSON.parse(localStorage.getItem(LSL)||"{}"); }catch(e){}
   lists = {};
   Object.keys(SEED).forEach(k=>{
@@ -125,7 +126,12 @@ function ensureNos(){
   if(ct){ try{ localStorage.setItem(LST, JSON.stringify(tasks)); }catch(e){} if(window.cloudPushTasks) window.cloudPushTasks(); }
   return ce;
 }
-window.nosAfterSync=()=>{ const ce=ensureNos(); if(ce){ persist(); renderAll(); } renderTasks(); };
+/* records whose list fields arrived as one value (an older version, an import, a hand edit) are made lists again before
+   anything draws them — one such record used to stop the whole app on opening */
+const EV_ARR=["type","loc","eq","ppl","stat","files"], TK_ARR=["ppl","depts","loc","eq","check","log","files"];
+function fixArr(o, keys){ if(!o || typeof o!=="object") return o; keys.forEach(k=>{ const v=o[k]; if(v!=null && !Array.isArray(v)) o[k] = v==="" ? [] : [v]; }); return o; }
+function normAll(){ if(Array.isArray(events)) events.forEach(e=>fixArr(e,EV_ARR)); if(Array.isArray(tasks)) tasks.forEach(t=>fixArr(t,TK_ARR)); }
+window.nosAfterSync=()=>{ normAll(); const ce=ensureNos(); if(ce){ persist(); renderAll(); } renderTasks(); };
 const snOf=x=>x && x.no ? "#"+x.no : "";
 function persist(){
   ensureNos();
@@ -139,6 +145,17 @@ function persist(){
   else writeFile();
   if(window.cloudPush) window.cloudPush();   // team log: send what changed
 }
+/* a failure while drawing: the app goes on; the reason is kept (settings → about shows nothing new — it's in "ogg-last-err")
+   and said once in a while, so it can be sent on */
+let errSaidAt=0;
+function reportErr(where, e){
+  const msg=String((e && (e.message||e)) || "").slice(0,160);
+  try{ console.error("ogg:", where, e); localStorage.setItem("ogg-last-err", JSON.stringify({at:new Date().toISOString(), ver:APP_VER, where, msg, stack:String(e && e.stack || "").slice(0,600)})); }catch(_){}
+  if(Date.now()-errSaidAt>60e3){ errSaidAt=Date.now(); setTimeout(()=>{ try{ toast("תקלה בתצוגה ("+where+"): "+msg+" — שלח צילום למנהל"); }catch(_){} },400); }
+}
+function safely(where, fn){ try{ return fn(); }catch(e){ reportErr(where, e); } }
+addEventListener("error",e=>{ if(e && e.error) reportErr("כללי", e.error); });
+addEventListener("unhandledrejection",e=>{ const r=e && e.reason; if(r && !/abort|network|Failed to fetch|permission/i.test(String(r.message||r))) reportErr("async", r); });
 function toast(m, act){
   const t=$("#toast"), s=t.firstElementChild; s.textContent=m;
   if(act){
@@ -921,7 +938,7 @@ function renderStats(){
   });
   $("#cnt").textContent = events.length? "("+open+"/"+events.length+")":"";   // open out of all, like the tasks tab
 }
-function renderAll(){ if(typeof paintUnitsCfg==="function") paintUnitsCfg(); paintRows(); renderFilters(); renderList(); renderStats(); renderMgr(); if(!$("#viewDash").hidden) renderDash(); if(!$("#viewCal").hidden) renderCal(); updateBadge(); paintNewCount(); }
+function renderAll(){ normAll(); if(typeof paintUnitsCfg==="function") paintUnitsCfg(); paintRows(); renderFilters(); renderList(); renderStats(); renderMgr(); if(!$("#viewDash").hidden) renderDash(); if(!$("#viewCal").hidden) renderCal(); updateBadge(); paintNewCount(); }
 $("#q").oninput=renderList; $("#fType").onchange=renderList; $("#fLoc").onchange=renderList;
 
 /* ================= dashboard ================= */
@@ -1146,7 +1163,9 @@ function dashTasks(cards, from){
       .concat(PRIOS.map(p=>["עדיפות "+p, open.filter(t=>prioOf(t)===p).length])), ["מדד","משימות"]);
   c.classList.add("wide"); cards.appendChild(c);
 }
-function renderDash(){ renderDash0(); arrangeDash(); paintTicker(); paintBoard(); paintBriefCard(); renderUnits(); renderLitePie(); }
+// each part on its own: one card that fails (an odd record in the data) must not leave the whole dashboard — or the app — half drawn
+function renderDash(){ [["dash",renderDash0],["arrange",arrangeDash],["ticker",paintTicker],["board",paintBoard],["brief",paintBriefCard],["units",renderUnits],["pie",renderLitePie]]
+  .forEach(([n,f])=>safely(n,f)); }
 /* ===== units board (dashboard): groups of units (e.g. a basin and its motors), set in settings → ניהול רשימות (the names are the
    team's data, never in the code). A unit's state comes from what is open on it — its name in a task's or an event's equipment
    or title: an open "אחזקות שבר" task or an open fault event → not working; anything else open → another problem; nothing → working.
@@ -1180,20 +1199,21 @@ const unitRe=id=>{ const esc=x=>x.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"), m=id.ma
   const num=m ? (m[2].length>2 ? m[2][0]+"[\\s./_-]?"+m[2].slice(1) : m[2]) : "";
   return new RegExp("(^|[^A-Za-z0-9])"+(m ? esc(m[1])+"[\\s_-]?"+num : esc(id))+"(?![A-Za-z0-9])","i"); };
 function unitInfo(id){
-  const re=unitRe(id), on=x=>(x.eq||[]).some(v=>re.test(v)) || re.test(x.title||"");
+  const re=unitRe(id), on=x=>asArr(x.eq).some(v=>re.test(String(v))) || re.test(String(x.title||""));
   const tk=tasks.filter(t=>tkOpen(t) && on(t)), ev=events.filter(e=>isOpen(e) && on(e));
-  const down=tk.some(t=>/אחזקות שבר/.test(t.type||"")) || ev.some(e=>(e.type||[]).some(x=>/תקלה/.test(x)));
+  const down=tk.some(t=>/אחזקות שבר/.test(String(t.type||""))) || ev.some(e=>asArr(e.type).some(x=>/תקלה/.test(String(x))));
   const m=unitMode(id);
   return {id, tk, ev, mode:m, st: down ? "down" : m==="stop" ? "stop" : tk.length||ev.length ? "issue" : "ok"};
 }
+const asArr=v=>Array.isArray(v) ? v : v==null || v==="" ? [] : [v];
 const UNIT_ST={ok:"בעבודה", down:"לא בעבודה", issue:"בעיה אחרת", stop:"מושבת", man:"עובד בידני", auto:"אוטומטי"};
 // set by hand on the unit (the team sees it): עובד בידני / מושבת; "אוטומטי" clears it. A fault from an open task still wins.
 const unitMode=u=>((lists._umode||{})[u]||{}).m || "auto";
 // everything that ever happened on a unit: its tasks and events (open and closed) and the hand-set mode changes, newest first
 function unitHist(u){
   // the history looks wider than the state: also the description, the action taken, the updates and the checklist
-  const re=unitRe(u), on=x=>(x.eq||[]).some(v=>re.test(v)) || re.test(x.title||"") || re.test(x.desc||"") || re.test(x.act||"")
-    || (x.log||[]).some(l=>l && re.test(l.text||"")) || (x.check||[]).some(c=>c && re.test(c.text||"")), out=[];
+  const re=unitRe(u), T=v=>re.test(String(v||"")), on=x=>asArr(x.eq).some(T) || T(x.title) || T(x.desc) || T(x.act)
+    || asArr(x.log).some(l=>l && T(l.text)) || asArr(x.check).some(c=>c && T(c.text)), out=[];
   tasks.filter(t=>!t.priv && on(t)).forEach(t=>out.push({at:String(t.created||t.start||""), k:"משימה", n:snOf(t), t:t.title||"", type:t.type||"",
     st: tkOpen(t) ? tkStat(t) : "הושלמה"+(t.doneAt?" "+dmy(String(t.doneAt).slice(0,10)):""), open:tkOpen(t), go:()=>goTask(t.id)}));
   events.filter(on).forEach(e=>out.push({at:String(e.when||""), k:"אירוע", n:snOf(e), t:e.title||e.desc||"", type:(e.type||[]).join(" · "),
@@ -2318,7 +2338,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.80", APP_DATE="09/11/2026";
+const APP_VER="3.81", APP_DATE="18/11/2026";
 // the beta: under the chip, the version everyone has (the site's own version.txt) and the one running here
 if(BETA){ const l=$("#verMain"), paint=v=>{ l.hidden=false; l.textContent="לכולם "+(v||"?")+" · אצלי "+APP_VER;
     l.classList.toggle("diff", !!v && v!==APP_VER); l.title = !v ? "לא הצלחתי לבדוק מה יש לכולם" : v===APP_VER ? "לכולם יש את אותה גרסה" : "בבטא יש גרסה שעוד לא פורסמה לכולם"; };
@@ -2508,7 +2528,7 @@ const tkF={ppl:"",loc:"",type:"",prio:"",dept:"",late:false,rep:false,q:""};    
 const PRIOS=["דחופה","גבוהה","רגילה","נמוכה"];
 const PRIO_HUE={"דחופה":"fault","גבוהה":"flood","רגילה":"maint","נמוכה":"gen"};
 const prioOf=t=>PRIOS.includes(t.prio) ? t.prio : (t.urgent ? "דחופה" : "רגילה");   // older tasks: urgent flag
-function loadTasks(){ try{ tasks=JSON.parse(localStorage.getItem(LST)||"[]"); if(!Array.isArray(tasks)) tasks=[]; }catch(e){ tasks=[]; } }
+function loadTasks(){ try{ tasks=JSON.parse(localStorage.getItem(LST)||"[]"); if(!Array.isArray(tasks)) tasks=[]; }catch(e){ tasks=[]; } normAll(); }
 function saveTasks(){
   if(ensureNos()) persist();                      // a new task gets its number right away (events too, if any were waiting)
   saveBig(LST, JSON.stringify(tasks)).then(ok=>{ if(!ok) toast("הדפדפן חסם שמירה מקומית"); });
@@ -3183,7 +3203,7 @@ function exportTasksCsv(rows){
 $("#tkExp").onclick=()=>exportTasksCsv(tkLastRows);
 function tkText(t){ return [snOf(t),t.title,t.desc,t.act,t.type,t.prio,(t.ppl||[]).join(" "),(t.loc||[]).join(" "),(t.eq||[]).join(" "),(t.depts||[]).join(" "),
   (t.log||[]).map(l=>(l.by||"")+" "+(l.text||"")).join(" "),(t.check||[]).filter(x=>x&&!x.del).map(x=>x.text).join(" "),(t.files||[]).filter(x=>x&&!x.del).map(x=>x.name).join(" ")].join(" ").toLowerCase(); }
-function renderTasks(){
+function renderTasks(){ normAll();
   reconcileTaskEvents(); if(typeof remAutoSoon==="function") remAutoSoon();
   const ae=document.activeElement; tkFocus = ae && ae.dataset && ae.dataset.draft || null;   // typing in a task's message box
   paintTaskCount(); renderTkFilters(); paintMe();
@@ -4050,7 +4070,9 @@ $("#tkPpl")._picked=()=>tkPplSel; $("#tkPpl")._unpick=v=>{ tkPplSel=tkPplSel.fil
 $("#tkLoc")._picked=()=>tkLocSel; $("#tkLoc")._unpick=v=>{ tkLocSel=tkLocSel.filter(x=>x!==v); paintLocChips(); };
 
 /* ================= boot ================= */
-load(); loadTasks(); if(!CLOUD_ON) window.nosAfterSync(); setNow(); renderAll(); renderTasks(); renderDash(); show(REFRESH_VIEW||"Dash"); applyLite();
+load(); loadTasks(); if(!CLOUD_ON) safely("numbers",window.nosAfterSync); setNow();
+safely("all",renderAll); safely("tasks",renderTasks); safely("dash",renderDash);   // whatever fails, the app still opens on its screen
+show(REFRESH_VIEW||"Dash"); applyLite();
 $("#liteToggle").onclick=()=>{ try{ localStorage.setItem("ogg-view-full", isLite() ? "1" : "0"); }catch(e){} applyLite(); renderAll(); renderTasks();
   toast(isLite() ? "תצוגת טלפון" : "תצוגה מלאה — אפשר לחזור מכאן"); };
 $("#liteTheme").onclick=()=>$("#themeBtn").click();
@@ -5673,7 +5695,7 @@ $("#plGo").onclick=()=>{ if(!PL) return; const dept=$("#plDept").value, now=new 
 /* ===== pick tasks and send them as a list (WhatsApp, e-mail, copy, the phone's share): "☑ סימון ושליחה" in the tasks list.
    While picking, a tap on a task marks it (nothing opens). The text: number, title, due, who, priority, place, equipment,
    status and checklist progress, and a link to the app. */
-let tkPick=null;
+var tkPick=null;                                  // var: show() may look at it before this part of the file has run
 const tkById=id=>tasks.find(t=>t.id===id) || (String(id).startsWith("p:") ? privTasks().find(t=>t.id===id) : null);
 function tkPickPaint(){
   const mgr=isManager() && !isViewer(); $("#tkPickBtn").hidden=!mgr; if(!mgr) tkPick=null;   // managers only
@@ -5687,7 +5709,7 @@ function tkPickPaint(){
   ["#tkPickWa","#tkPickMail","#tkPickShare","#tkPickCopy"].forEach(s=>$(s).disabled=!n);
   $("#tkPickShare").hidden=!navigator.share;
 }
-{ const rt=renderTasks; renderTasks=function(){ const r=rt.apply(this,arguments); tkPickPaint(); return r; }; }
+{ const rt=renderTasks; renderTasks=function(){ const r=safely("tasks",()=>rt.apply(this,arguments)); safely("pick",tkPickPaint); return r; }; }   // a failure here never stops the caller
 $("#tkList").addEventListener("click",e=>{ if(!tkPick) return; const c=e.target.closest(".tk[data-id]"); if(!c) return;
   e.preventDefault(); e.stopPropagation(); const id=c.dataset.id; tkPick.has(id) ? tkPick.delete(id) : tkPick.add(id); tkPickPaint(); }, true);
 $("#tkPickBtn").onclick=()=>{ if(!isManager() || isViewer()) return; tkPick = tkPick ? null : new Set(); tkPickPaint(); if(tkPick) toast("סמן את המשימות לשליחה"); };
