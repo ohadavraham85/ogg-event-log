@@ -2338,7 +2338,7 @@ $("#wipeAll").onclick=async()=>{
 };
 
 /* ================= version ================= */
-const APP_VER="3.81", APP_DATE="18/11/2026";
+const APP_VER="3.82", APP_DATE="22/11/2026";
 // the beta: under the chip, the version everyone has (the site's own version.txt) and the one running here
 if(BETA){ const l=$("#verMain"), paint=v=>{ l.hidden=false; l.textContent="לכולם "+(v||"?")+" · אצלי "+APP_VER;
     l.classList.toggle("diff", !!v && v!==APP_VER); l.title = !v ? "לא הצלחתי לבדוק מה יש לכולם" : v===APP_VER ? "לכולם יש את אותה גרסה" : "בבטא יש גרסה שעוד לא פורסמה לכולם"; };
@@ -3089,9 +3089,10 @@ async function openFile(m){
     $("#imgView").src=url; $("#imgView").alt=m.name; $("#imgName").textContent=m.name+" · "+kb(m.size)+(m.by?" · "+m.by:"")+(m.at?" · "+fmtWhen(m.at):"");
     $("#imgDl").href=url; $("#imgDl").download=m.name; $("#dlgImg").showModal();
     $("#dlgImg").addEventListener("close",()=>setTimeout(()=>URL.revokeObjectURL(url),500),{once:true});
+  } else if(ty==="application/pdf" || isSheet(m, rec) || ty==="text/plain"){
+    viewDoc(m, rec, url, ty);                                     // PDF, Excel and text open inside the app
   } else {
     const a=document.createElement("a"); a.href=url; a.download=m.name;
-    if(ty==="application/pdf" || ty==="text/plain"){ a.target="_blank"; a.rel="noopener"; a.removeAttribute("download"); }
     document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),60000);
   }
 }
@@ -5732,4 +5733,60 @@ $("#tkPickMail").onclick=()=>{ const x=tkPickText(); if(!x.n) return; location.h
 $("#tkPickCopy").onclick=async()=>{ const x=tkPickText(); if(!x.n) return;
   try{ await navigator.clipboard.writeText(x.text); toast("הרשימה הועתקה — "+x.n+" משימות"); }catch(e){ toast("לא הצלחתי להעתיק"); } };
 $("#tkPickShare").onclick=async()=>{ const x=tkPickText(); if(!x.n) return; try{ await navigator.share({title:x.subject, text:x.text}); }catch(e){} };
+
+/* ===== files shown inside the app, no download: PDF (pdf.js — Mozilla's reader, kept in vendor/pdfjs and loaded the first
+   time one is opened), Excel .xlsx (each sheet a table, the same small reader as the Planner import) and plain text / CSV.
+   The download stays one tap away. */
+const isSheet=(m,rec)=>/\.(xlsx|xlsm)$/i.test(m.name||"") || /spreadsheetml/.test(String(rec && rec.type || m.type || ""));
+let PDFJS=null;
+function loadPdfJs(){
+  if(PDFJS) return PDFJS;
+  return PDFJS=new Promise((ok,no)=>{ const s=document.createElement("script"); s.src="vendor/pdfjs/pdf.min.js?v="+APP_VER;
+    s.onload=()=>{ const L=window.pdfjsLib; if(!L){ PDFJS=null; no(new Error("pdf.js")); return; } L.GlobalWorkerOptions.workerSrc="vendor/pdfjs/pdf.worker.min.js?v="+APP_VER; ok(L); };
+    s.onerror=()=>{ PDFJS=null; no(new Error("pdf.js")); }; document.head.appendChild(s); });
+}
+const dataBytes=d=>{ const bin=atob(d.slice(d.indexOf(",")+1)), u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return u; };
+let docRun=0;
+async function viewDoc(m, rec, url, ty){
+  const d=$("#dlgDoc"), body=$("#docBody"), tabs=$("#docTabs"), run=++docRun;
+  $("#docName").textContent=m.name+" · "+kb(m.size||0); $("#docDl").href=url; $("#docDl").download=m.name;
+  body.textContent=""; tabs.textContent=""; $("#docZoom").hidden=true; body.appendChild(mk("p","doc-wait","טוען…"));
+  if(!d.open) d.showModal();
+  d.addEventListener("close",()=>{ docRun++; body.textContent=""; setTimeout(()=>URL.revokeObjectURL(url),500); },{once:true});
+  const fail=why=>{ if(run!==docRun) return; body.textContent=""; body.appendChild(mk("p","doc-wait",why+" — אפשר להוריד את הקובץ ולפתוח אותו במכשיר."));
+    reportErr("viewer", new Error(why)); };
+  try{
+    if(ty==="application/pdf"){
+      const L=await loadPdfJs(), pdf=await L.getDocument({data:dataBytes(rec.data), cMapUrl:"vendor/pdfjs/cmaps/", cMapPacked:true, standardFontDataUrl:"vendor/pdfjs/standard_fonts/", disableFontFace:true})   /* the reader draws the letters itself: Hebrew fonts come out right */.promise; if(run!==docRun) return;
+      body.classList.remove("xls"); $("#docZoom").hidden=false;
+      let zoom=1;                                                    // ＋ / −: the pages drawn again, bigger or smaller
+      const draw=async()=>{ const me=++docRun; body.textContent="";
+        const w=Math.min(body.clientWidth-16, 1100)*zoom, dpr=Math.min(2, window.devicePixelRatio||1);
+        for(let i=1;i<=pdf.numPages;i++){ if(me!==docRun) return;
+          const pg=await pdf.getPage(i), v0=pg.getViewport({scale:1}), sc=w/v0.width, v=pg.getViewport({scale:sc*dpr});
+          const c=document.createElement("canvas"); c.width=Math.floor(v.width); c.height=Math.floor(v.height); c.className="doc-page";
+          c.style.width=Math.floor(v.width/dpr)+"px"; c.setAttribute("aria-label","עמוד "+i+" מתוך "+pdf.numPages); body.appendChild(c);
+          await pg.render({canvasContext:c.getContext("2d"), viewport:v}).promise; } };
+      $("#docZin").onclick=()=>{ if(zoom<4){ zoom=Math.min(4,zoom*1.4); draw(); } };
+      $("#docZout").onclick=()=>{ if(zoom>0.5){ zoom=Math.max(0.5,zoom/1.4); draw(); } };
+      await draw();
+    } else if(ty==="text/plain" && !isSheet(m,rec)){
+      body.textContent=""; body.classList.remove("xls"); const pre=mk("pre","doc-text"); pre.textContent=new TextDecoder().decode(dataBytes(rec.data)); body.appendChild(pre);
+    } else {
+      const sheets=(await xlsxRead(dataBytes(rec.data).buffer)).filter(sh=>sh.rows.some(r=>r && r.some(c=>c!==undefined && c!=="")));
+      if(run!==docRun) return; if(!sheets.length){ fail("הגיליון ריק"); return; }
+      body.classList.add("xls");
+      const showSheet=k=>{ tabs.querySelectorAll("button").forEach((b,i)=>b.setAttribute("aria-selected",String(i===k)));
+        const rows=sheets[k].rows.filter(Boolean), cols=Math.min(60, Math.max(...rows.map(r=>r.length))), MAXR=3000;
+        const tb=document.createElement("table"); tb.className="doc-table";
+        const hr=tb.insertRow(); hr.appendChild(mk("th")); for(let j=0;j<cols;j++){ let n=j, l=""; do{ l=String.fromCharCode(65+n%26)+l; n=Math.floor(n/26)-1; }while(n>=0); hr.appendChild(mk("th",null,l)); }
+        rows.slice(0,MAXR).forEach((r,i)=>{ const tr=tb.insertRow(); tr.appendChild(mk("th",null,String(i+1)));
+          for(let j=0;j<cols;j++){ const v=r[j], td=tr.insertCell(); if(v!==undefined && v!==""){ td.textContent=typeof v==="number" ? String(Math.round(v*1e6)/1e6) : String(v); if(typeof v==="number") td.className="n"; } } });
+        body.textContent=""; body.appendChild(tb); if(rows.length>MAXR) body.appendChild(mk("p","doc-wait","מוצגות "+MAXR+" השורות הראשונות — לשאר, הורד את הקובץ")); };
+      if(sheets.length>1) sheets.forEach((sh,i)=>{ const b=mk("button",null,sh.name); b.type="button"; b.setAttribute("role","tab"); b.onclick=()=>showSheet(i); tabs.appendChild(b); });
+      showSheet(0);
+    }
+  }catch(e){ fail(ty==="application/pdf" ? "לא הצלחתי להציג את ה-PDF" : "לא הצלחתי להציג את הקובץ"); }
+}
+$("#docClose").onclick=()=>$("#dlgDoc").close();
 
